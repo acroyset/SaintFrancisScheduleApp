@@ -30,7 +30,6 @@ private struct ProfileMenu: View {
                     weight: .bold,
                     design: .monospaced
                 ))
-                .padding(12)
                 .foregroundColor(PrimaryColor)
             
             Divider()
@@ -79,7 +78,7 @@ private struct ProfileMenu: View {
                     }
                     Text("Sync Now")
                 }
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, minHeight: 44)
                 .padding()
                 .background(PrimaryColor.opacity(0.1))
                 .foregroundColor(PrimaryColor)
@@ -96,25 +95,30 @@ private struct ProfileMenu: View {
                     .foregroundColor(.red)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 
-                Button("Delete Account") {
+                // Delete Account Button - FIXED
+                Button {
                     showingDeleteAlert = true
+                } label: {
+                    Text("Delete Account")
+                        .frame(maxWidth: .infinity, minHeight: 44) // Better touch area
+                        .padding()
+                        .background(Color.red.opacity(0.1))
+                        .foregroundColor(.red)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.red.opacity(0.1))
-                .foregroundColor(.red)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             
-            // Sign Out Button
-            Button("Sign Out") {
+            // Sign Out Button - FIXED
+            Button {
                 authManager.signOut()
+            } label: {
+                Text("Sign Out")
+                    .frame(maxWidth: .infinity, minHeight: 44) // Better touch area
+                    .padding()
+                    .background(Color.gray.opacity(0.2))
+                    .foregroundColor(PrimaryColor)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
             }
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(Color.gray.opacity(0.2))
-            .foregroundColor(PrimaryColor)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .padding()
         .background(TertiaryColor)
@@ -180,14 +184,15 @@ private struct ToolBar: View {
             } label: {
                 Text("Edit Classes")
                     .font(.system(
-                        size: iPad ? 27 : 18,
+                        size: iPad ? 32 : 18,
                         weight: .semibold,
                         design: .rounded
                     ))
                     .foregroundColor(PrimaryColor)
                     .multilineTextAlignment(.trailing)
-                    .padding(3)
-                    .padding(.horizontal)
+                    .padding(12)
+                    .background(SecondaryColor)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
             }
             
             Button {
@@ -196,14 +201,15 @@ private struct ToolBar: View {
             label: {
                 Text("Settings")
                     .font(.system(
-                        size: iPad ? 27 : 18,
+                        size: iPad ? 32 : 18,
                         weight: .semibold,
                         design: .rounded
                     ))
                     .foregroundColor(PrimaryColor)
                     .multilineTextAlignment(.trailing)
-                    .padding(3)
-                    .padding(.horizontal)
+                    .padding(12)
+                    .background(SecondaryColor)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
             }
             
             Button {
@@ -211,14 +217,15 @@ private struct ToolBar: View {
             } label: {
                 Text("Profile")
                     .font(.system(
-                        size: iPad ? 27 : 18,
+                        size: iPad ? 32 : 18,
                         weight: .semibold,
                         design: .rounded
                     ))
                     .foregroundColor(PrimaryColor)
                     .multilineTextAlignment(.trailing)
-                    .padding(3)
-                    .padding(.horizontal)
+                    .padding(12)
+                    .background(SecondaryColor)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
             }
         }
     }
