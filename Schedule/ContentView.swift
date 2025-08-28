@@ -290,7 +290,8 @@ struct ContentView: View {
                     onPick: { applySelectedDate($0)},
                     PrimaryColor: PrimaryColor,
                     SecondaryColor: SecondaryColor,
-                    TertiaryColor: TertiaryColor
+                    TertiaryColor: TertiaryColor,
+                    scheduleDict: scheduleDict
                 )
                 .padding(.horizontal, 12)
                 .padding(.bottom, 8)

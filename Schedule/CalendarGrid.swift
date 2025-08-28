@@ -14,6 +14,7 @@ struct CalendarGrid: View {
     var SecondaryColor: Color
     var TertiaryColor: Color
     var onPick: (Date) -> Void
+    var scheduleDict: [String: [String]]? = nil
 
     private let cal = Calendar.current
 
@@ -22,8 +23,8 @@ struct CalendarGrid: View {
         let cols = Array(repeating: GridItem(.flexible(), spacing: 6), count: 7)
 
         LazyVGrid(columns: cols, spacing: 6) {
-            ForEach(days, id: \.self) { day in
-                if let day = day {
+            ForEach(days.indices, id: \.self) { i in
+                if let day = days[i] {
                     let isSelected = cal.isDate(day, inSameDayAs: selected)
                     let isToday = cal.isDateInToday(day)
 
@@ -43,6 +44,8 @@ struct CalendarGrid: View {
                                         Circle().fill(PrimaryColor)
                                     } else if isToday {
                                         Circle().fill(SecondaryColor)
+                                    } else if !checkIfSchedule(day) {
+                                        Circle().fill(Color.black.opacity(0.1))
                                     } else {
                                         Circle().fill(Color.clear)
                                     }
@@ -78,5 +81,22 @@ struct CalendarGrid: View {
         // pad to full weeks (optional)
         while grid.count % 7 != 0 { grid.append(nil) }
         return grid
+    }
+    
+    private func checkIfSchedule(_ date: Date) -> Bool {
+        let key = getKeyToday(date)
+        
+        if (scheduleDict?[key]) != nil {
+            return true;
+        }
+        return false;
+    }
+    
+    private func getKeyToday (_ date: Date) -> String {
+        let f = DateFormatter()
+        f.calendar = .current
+        f.timeZone = .current
+        f.dateFormat = "MM-dd-yy"
+        return f.string(from: date)
     }
 }

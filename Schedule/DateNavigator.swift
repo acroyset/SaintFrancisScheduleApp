@@ -15,6 +15,7 @@ struct DateNavigator: View {
     var PrimaryColor: Color
     var SecondaryColor: Color
     var TertiaryColor: Color
+    var scheduleDict: [String: [String]]?
 
     @State private var calendarMonthAnchor: Date = Date() // month shown in the popup
 
@@ -108,7 +109,8 @@ struct DateNavigator: View {
                             withAnimation(.snappy) {
                                 onPick(picked)
                             }
-                         })
+                         },
+                         scheduleDict: scheduleDict)
 
                 }
                 .padding(.bottom, 8)
