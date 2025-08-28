@@ -1,40 +1,192 @@
+//
+//  ContentView.swift (Updated with Firebase)
+//  Schedule
+//
+
 import SwiftUI
 import Foundation
 import WidgetKit
 
-
 var iPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
 
-
-// Safe index helper (optional)
-extension Array {
-    subscript(safe i: Index) -> Element? {
-        indices.contains(i) ? self[i] : nil
-    }
-}
-
-private struct ToolBar: View{
-    @Binding var editClasses: Bool
-    @Binding var settingsOpen: Bool
+// Add profile menu view
+private struct ProfileMenu: View {
+    @EnvironmentObject var authManager: AuthenticationManager
+    @StateObject private var dataManager = DataManager()
+    @Binding var data: ScheduleData?
+    
     var PrimaryColor: Color
     var SecondaryColor: Color
     var TertiaryColor: Color
     
-    var body: some View{
+    @State private var showingDeleteAlert = false
+    @State private var isLoading = false
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            Text("Profile")
+                .font(.system(
+                    size: iPad ? 40 : 22,
+                    weight: .bold,
+                    design: .monospaced
+                ))
+                .padding(12)
+                .foregroundColor(PrimaryColor)
+            
+            Divider()
+            
+            if let user = authManager.user {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Signed in as:")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    Text(user.displayName ?? "User")
+                        .font(.headline)
+                        .foregroundColor(PrimaryColor)
+                    
+                    Text(user.email)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+                .background(SecondaryColor)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            
+            // Sync Status
+            HStack {
+                Image(systemName: "cloud.fill")
+                    .foregroundColor(.green)
+                Text("Classes synced to cloud")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+            }
+            .padding(.vertical, 4)
+            
+            // Manual Sync Button
+            Button {
+                syncClasses()
+            } label: {
+                HStack {
+                    if isLoading {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    Text("Sync Now")
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(PrimaryColor.opacity(0.1))
+                .foregroundColor(PrimaryColor)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            .disabled(isLoading)
+            
+            Spacer()
+            
+            // Danger Zone
+            VStack(spacing: 8) {
+                Text("Danger Zone")
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                
+                Button("Delete Account") {
+                    showingDeleteAlert = true
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.red.opacity(0.1))
+                .foregroundColor(.red)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            
+            // Sign Out Button
+            Button("Sign Out") {
+                authManager.signOut()
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(Color.gray.opacity(0.2))
+            .foregroundColor(PrimaryColor)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .padding()
+        .background(TertiaryColor)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: .black, radius: 30)
+        .frame(
+            maxWidth: iPad ? 600 : 300,
+            maxHeight: iPad ? 600 : 500)
+        .alert("Delete Account", isPresented: $showingDeleteAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                Task {
+                    deleteAccount()
+                }
+            }
+        } message: {
+            Text("This will permanently delete your account and all data. This action cannot be undone.")
+        }
+    }
+    
+    private func syncClasses() {
+        guard let user = authManager.user,
+              let classes = data?.classes else { return }
+        
+        isLoading = true
+        Task {
+            do {
+                try await dataManager.saveClasses(classes, for: user.id)
+            } catch {
+                print("Failed to sync classes: \(error)")
+            }
+            isLoading = false
+        }
+    }
+    
+    private func deleteAccount() {
+        guard let user = authManager.user else { return }
+        
+        Task {
+            do {
+                try await dataManager.deleteUserData(for: user.id)
+                authManager.signOut()
+            } catch {
+                print("Failed to delete account: \(error)")
+            }
+        }
+    }
+}
+
+// Updated ToolBar with Profile button
+private struct ToolBar: View {
+    @Binding var editClasses: Bool
+    @Binding var settingsOpen: Bool
+    @Binding var profileOpen: Bool
+    var PrimaryColor: Color
+    var SecondaryColor: Color
+    var TertiaryColor: Color
+    
+    var body: some View {
         HStack {
             Button {
                 editClasses.toggle()
-            }
-            label: {
+            } label: {
                 Text("Edit Classes")
                     .font(.system(
-                        size: iPad ? 27 : 20,
+                        size: iPad ? 27 : 18,
                         weight: .semibold,
                         design: .rounded
                     ))
                     .foregroundColor(PrimaryColor)
                     .multilineTextAlignment(.trailing)
-                    .padding(15)
+                    .padding(3)
                     .padding(.horizontal)
             }
             
@@ -44,21 +196,39 @@ private struct ToolBar: View{
             label: {
                 Text("Settings")
                     .font(.system(
-                        size: iPad ? 27 : 20,
+                        size: iPad ? 27 : 18,
                         weight: .semibold,
                         design: .rounded
                     ))
                     .foregroundColor(PrimaryColor)
                     .multilineTextAlignment(.trailing)
-                    .padding(15)
+                    .padding(3)
+                    .padding(.horizontal)
+            }
+            
+            Button {
+                profileOpen.toggle()
+            } label: {
+                Text("Profile")
+                    .font(.system(
+                        size: iPad ? 27 : 18,
+                        weight: .semibold,
+                        design: .rounded
+                    ))
+                    .foregroundColor(PrimaryColor)
+                    .multilineTextAlignment(.trailing)
+                    .padding(3)
                     .padding(.horizontal)
             }
         }
     }
 }
 
-// MARK: - View
+// Updated ContentView with Firebase integration
 struct ContentView: View {
+    @EnvironmentObject var authManager: AuthenticationManager
+    @StateObject private var dataManager = DataManager()
+    
     @State private var output = "Loading…"
     @State private var dayCode = ""
     @State private var note = ""
@@ -71,12 +241,14 @@ struct ContentView: View {
     @State private var scrollTarget: Int? = nil
     @State private var editClasses: Bool = false
     @State private var settingsOpen: Bool = false
+    @State private var profileOpen: Bool = false
     
     @State private var PrimaryColor: Color = .blue
     @State private var SecondaryColor: Color = .blue.opacity(0.1)
     @State private var TertiaryColor: Color = .white
     
     @State private var isPortrait: Bool = !iPad
+    @State private var hasLoadedFromCloud = false
     
     let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
@@ -89,11 +261,9 @@ struct ContentView: View {
                 SecondaryColor: SecondaryColor,
                 TertiaryColor: TertiaryColor
             )
-                .onTapGesture {
-                    closeCalendar()
-                    closeClassEditor()
-                    closeSettings()
-                }
+            .onTapGesture {
+                closeAll()
+            }
             
             VStack {
                 dayHeaderView(
@@ -103,11 +273,9 @@ struct ContentView: View {
                     SecondaryColor: SecondaryColor,
                     TertiaryColor: TertiaryColor
                 )
-                    .onTapGesture {
-                        closeCalendar()
-                        closeClassEditor()
-                        closeSettings()
-                    }
+                .onTapGesture {
+                    closeAll()
+                }
                 
                 DateNavigator(
                     showCalendar: $showCalendarGrid,
@@ -119,17 +287,19 @@ struct ContentView: View {
                 )
                 .padding(.horizontal, 12)
                 .padding(.bottom, 8)
-                .zIndex(10) // Higher z-index for calendar
+                .zIndex(10)
                 
                 Divider()
                 
                 ClassItemScroll()
                 
                 Divider()
+                Spacer(minLength: 12)
                 
                 ToolBar(
                     editClasses: $editClasses,
                     settingsOpen: $settingsOpen,
+                    profileOpen: $profileOpen,
                     PrimaryColor: PrimaryColor,
                     SecondaryColor: SecondaryColor,
                     TertiaryColor: TertiaryColor
@@ -140,28 +310,29 @@ struct ContentView: View {
                     .onEnded { value in
                         let threshold: CGFloat = 50
                         if value.translation.width > threshold {
-                            // Swipe right - go to previous day
                             withAnimation(.snappy) {
                                 let new = Calendar.current.date(byAdding: .day, value: -1, to: selectedDate) ?? selectedDate
                                 selectedDate = new
                                 applySelectedDate(new)
                             }
                         } else if value.translation.width < -threshold {
-                            // Swipe left - go to next day
                             withAnimation(.snappy) {
                                 let new = Calendar.current.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate
                                 selectedDate = new
                                 applySelectedDate(new)
                             }
                         }
-                    },
-                isEnabled:true
+                    }
             )
             
+            // Overlays
             if editClasses {
                 let bindingData = Binding<ScheduleData>(
                     get: { self.data ?? ScheduleData(classes: [], days: []) },
-                    set: { self.data = $0 }
+                    set: {
+                        self.data = $0
+                        saveClassesToCloud()
+                    }
                 )
 
                 ClassEditor(
@@ -175,18 +346,26 @@ struct ContentView: View {
             
             if settingsOpen {
                 Settings(
-                        PrimaryColor: $PrimaryColor,
-                        SecondaryColor: $SecondaryColor,
-                        TertiaryColor: $TertiaryColor,
-                        isPortrait: isPortrait
-                    )
+                    PrimaryColor: $PrimaryColor,
+                    SecondaryColor: $SecondaryColor,
+                    TertiaryColor: $TertiaryColor,
+                    isPortrait: isPortrait
+                )
+            }
+            
+            if profileOpen {
+                ProfileMenu(
+                    data: $data,
+                    PrimaryColor: PrimaryColor,
+                    SecondaryColor: SecondaryColor,
+                    TertiaryColor: TertiaryColor
+                )
             }
         }
         .padding()
         .animation(.easeInOut(duration: 0.3), value: dayCode)
-        
         .onAppear {
-            loadOnce()
+            loadData()
             setScroll()
         }
         .onChange(of: dayCode) { oldDay, newDay in
@@ -196,19 +375,15 @@ struct ContentView: View {
         .onChange(of: scenePhase) { oldPhase, newPhase in
             guard newPhase == .active else { return }
             setScroll()
-            if let classes = data?.classes { overwriteClassesFile(with: classes) }
+            saveClassesToCloud()
         }
-        .onChange(of: data?.classes) { oldClasses, newClasses in guard oldClasses != newClasses else { return }
-            if let classes = data?.classes { overwriteClassesFile(with: classes) }
-        }
-        .onReceive(ticker) {
-            _ in render()
+        .onReceive(ticker) { _ in
+            render()
             setIsPortrait()
         }
     }
     
-    // MARK: - View builders
-    
+    // MARK: - View builders (same as before)
     @ViewBuilder
     private func ClassItemScroll() -> some View {
         ScrollView {
@@ -230,39 +405,31 @@ struct ContentView: View {
                         SecondaryColor: SecondaryColor,
                         TertiaryColor: TertiaryColor
                     )
-                        .id(i)
+                    .id(i)
                 }
             }
             .padding(.horizontal)
         }
         .onTapGesture {
-            closeCalendar()
-            closeClassEditor()
-            closeSettings()
+            closeAll()
         }
-            .id(dayCode)
-            .scrollPosition(id: $scrollTarget, anchor: .center)
+        .id(dayCode)
+        .scrollPosition(id: $scrollTarget, anchor: .center)
     }
     
+    // MARK: - Firebase Integration Methods
     
-    // MARK: - Data helpers
-    
-    private func getDayInfo(for currentDay: String) -> Day? {
-        let di = getDayNumber(for: currentDay) ?? 0
-        return data?.days[di]
-    }
-    
-    private func getDayNumber(for currentDay: String) -> Int? {
-        let map = ["g1":0,"b1":1,"g2":2,"b2":3,"a1":4,"a2":5,"a3":6,"a4":7,"l1":8,"l2":9]
-        guard let di = map[currentDay.lowercased()],
-              let data = data,
-              data.days.indices.contains(di) else { return nil }
-        return di
-    }
-    
-    private func loadOnce() {
+    private func loadData() {
         guard data == nil else { return }
         
+        // Load local data first (for offline support)
+        loadLocalData()
+        
+        // Then try to load from cloud
+        loadFromCloud()
+    }
+    
+    private func loadLocalData() {
         let classes: [ClassItem] = {
             do {
                 let url = try ensureWritableClassesFile()
@@ -288,13 +455,66 @@ struct ContentView: View {
         }
     }
     
+    private func loadFromCloud() {
+        guard let user = authManager.user, !hasLoadedFromCloud else { return }
+        
+        Task {
+            do {
+                let cloudClasses = try await dataManager.loadClasses(for: user.id)
+                if !cloudClasses.isEmpty {
+                    DispatchQueue.main.async {
+                        if var currentData = self.data {
+                            currentData.classes = cloudClasses
+                            self.data = currentData
+                        }
+                        self.hasLoadedFromCloud = true
+                        // Also save to local file as backup
+                        self.overwriteClassesFile(with: cloudClasses)
+                    }
+                }
+            } catch {
+                print("Failed to load classes from cloud: \(error)")
+            }
+        }
+    }
+    
+    private func saveClassesToCloud() {
+        guard let user = authManager.user,
+              let classes = data?.classes else { return }
+        
+        Task {
+            do {
+                try await dataManager.saveClasses(classes, for: user.id)
+                // Also save locally as backup
+                DispatchQueue.main.async {
+                    self.overwriteClassesFile(with: classes)
+                }
+            } catch {
+                print("Failed to save classes to cloud: \(error)")
+            }
+        }
+    }
+    
+    // MARK: - Helper Methods (same as before)
+    
+    private func getDayInfo(for currentDay: String) -> Day? {
+        let di = getDayNumber(for: currentDay) ?? 0
+        return data?.days[di]
+    }
+    
+    private func getDayNumber(for currentDay: String) -> Int? {
+        let map = ["g1":0,"b1":1,"g2":2,"b2":3,"a1":4,"a2":5,"a3":6,"a4":7,"l1":8,"l2":9]
+        guard let di = map[currentDay.lowercased()],
+              let data = data,
+              data.days.indices.contains(di) else { return nil }
+        return di
+    }
+    
     private func render() {
         let cal = Calendar.current
-        
         let isToday = cal.isDateInToday(selectedDate)
         
         guard let data = data else { return }
-        
         
         let map = ["g1":0,"b1":1,"g2":2,"b2":3,"a1":4,"a2":5,"a3":6,"a4":7,"l1":8,"l2":9]
         guard let di = map[dayCode.lowercased()], data.days.indices.contains(di) else {
@@ -323,7 +543,6 @@ struct ContentView: View {
             var end     = d.endTimes[i]
             let isCurrentClass = (start <= now && now < end) && isToday
             
-            
             if (isToday){
                 if i == 0 && now < start {
                     scheduleLines.append(ScheduleLine(
@@ -342,8 +561,8 @@ struct ContentView: View {
                         isCurrentClass: true,
                         timeRange: "\(start.string()) to \(end.string())",
                         className: "Passing Period",
-                        startSec: start.seconds,               // NEW
-                        endSec: end.seconds,                   // NEW
+                        startSec: start.seconds,
+                        endSec: end.seconds,
                         progress: p
                     ))
                 }
@@ -365,9 +584,9 @@ struct ContentView: View {
                     className: c.name,
                     teacher: teacher,
                     room: room,
-                    startSec: start.seconds,               // NEW
-                    endSec: end.seconds,                   // NEW
-                    progress: p                            // NEW
+                    startSec: start.seconds,
+                    endSec: end.seconds,
+                    progress: p
                 ))
             } else {
                 scheduleLines.append(ScheduleLine(
@@ -389,7 +608,7 @@ struct ContentView: View {
         }
     }
     
-    // MARK: - Parsing / Utils
+    // MARK: - Parsing / Utils (same as before)
     
     private func applySelectedDate(_ date: Date) {
         selectedDate = date
@@ -398,8 +617,8 @@ struct ContentView: View {
         if let day = scheduleDict?[key] {
             dayCode = day[0]
             note = day[1]
-            render()                     // rebuild rows
-            DispatchQueue.main.async {   // center after rows update
+            render()
+            DispatchQueue.main.async {
                 scrollTarget = currentClassIndex() ?? 0
             }
             output = ""
@@ -413,17 +632,15 @@ struct ContentView: View {
         let f = DateFormatter()
         f.calendar = .current
         f.timeZone = .current
-        f.dateFormat = "MM-dd-yy"        // matches your CSV keys
+        f.dateFormat = "MM-dd-yy"
         return f.string(from: selectedDate)
     }
     
-    // Prefer the actual class row with a timeRange; fall back to any "current" block
     private func currentClassIndex() -> Int? {
         if let i = scheduleLines.firstIndex(where: { $0.isCurrentClass && !$0.timeRange.isEmpty }) { return i }
         return scheduleLines.firstIndex(where: { $0.isCurrentClass }) ??
         scheduleLines.firstIndex(where: { !$0.timeRange.isEmpty })
     }
-    
     
     private func parseClass(_ line: String) -> ClassItem {
         let parts = line.split(separator: "-").map { $0.trimmingCharacters(in: .whitespaces) }
@@ -455,7 +672,6 @@ struct ContentView: View {
         }
     }
 
-    
     private func parseDays(_ contents: String) -> [Day] {
         var days: [Day] = []; var cur = Day()
         for raw in contents.split(whereSeparator: \.isNewline) {
@@ -514,16 +730,13 @@ struct ContentView: View {
         return Double(now - start) / Double(end - start)
     }
     
-    private func closeCalendar()  -> Void {
-        withAnimation(.snappy) { showCalendarGrid = false }
-    }
-    
-    private func closeClassEditor() {
-        editClasses = false
-    }
-    
-    private func closeSettings() -> Void {
-        withAnimation(.snappy) { settingsOpen = false }
+    private func closeAll() -> Void {
+        withAnimation(.snappy) {
+            showCalendarGrid = false
+            editClasses = false
+            settingsOpen = false
+            profileOpen = false
+        }
     }
     
     private func setScroll() -> Void {
@@ -538,7 +751,6 @@ struct ContentView: View {
         return docs.appendingPathComponent("Classes.txt")
     }
 
-    /// Ensure we have a writable Classes.txt in Documents (copy the bundled one the first time).
     @discardableResult
     private func ensureWritableClassesFile() throws -> URL {
         let dst = try classesDocumentsURL()
@@ -558,10 +770,11 @@ struct ContentView: View {
         let height = UIScreen.main.bounds.height
         isPortrait = height > width
     }
-
 }
-    
-    
+
 struct ContentView_Previews: PreviewProvider {
-    static var previews: some View { ContentView() }
+    static var previews: some View {
+        ContentView()
+            .environmentObject(AuthenticationManager())
+    }
 }

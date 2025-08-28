@@ -1,17 +1,21 @@
 //
-//  AppTestApp.swift
-//  AppTest
-//
-//  Created by Andreas Royset on 8/12/25.
+//  ScheduleApp.swift
+//  Schedule
 //
 
 import SwiftUI
+import FirebaseCore
 
 @main
-struct AppTestApp: App {
+struct ScheduleApp: App {
+    
+    init() {
+        FirebaseApp.configure()
+    }
+    
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            AuthenticationView()
                 .preferredColorScheme(.light)
         }
     }

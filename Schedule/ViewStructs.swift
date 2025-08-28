@@ -123,105 +123,25 @@ struct VphoneClassEditor: View {
     var isPortrait: Bool
     
     var body: some View {
-        VStack{
-            Text("Edit Classes")
-                .font(.system(
-                    size: iPad ? 34 : 22,
-                    weight: .bold,
-                    design: .monospaced
-                ))
-                .padding(12)
-                .foregroundStyle(
-                    PrimaryColor.opacity(1))
-                .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-            
-            Divider()
-            
-            
-            let indices: [Int] = [0, 1, 2, 3, 4, 5, 6, 9, 12]
-
-            ForEach(indices, id: \.self) { (number: Int) in
-                HStack{
-                    if number <= 6{
-                        TextFieldClassEditor(
-                            inputText: $data.classes[number].name,
-                            defaultText: "Period \(number + 1)",
-                            PrimaryColor: PrimaryColor,
-                            SecondaryColor: SecondaryColor,
-                            TertiaryColor: TertiaryColor
-                        )
-                    } else {
-                        Text(data.classes[number].name)
-                            .frame(maxWidth: .infinity, alignment: .leading) // Move this up
-                            .font(.system(
-                                size: iPad ? 20 : 14,
-                                weight: .bold,
-                                design: .monospaced
-                            ))
-                            .padding(12)
-                            .foregroundStyle(PrimaryColor)
-                            .background(SecondaryColor)
-                            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-                    }
-                    
-                    TextFieldClassEditor(
-                        inputText: $data.classes[number].teacher,
-                        defaultText: "Teacher",
-                        PrimaryColor: PrimaryColor,
-                        SecondaryColor: SecondaryColor,
-                        TertiaryColor: TertiaryColor,
-                    )
-                    
-                    TextFieldClassEditor(
-                        inputText: $data.classes[number].room,
-                        defaultText: "Room #",
-                        PrimaryColor: PrimaryColor,
-                        SecondaryColor: SecondaryColor,
-                        TertiaryColor: TertiaryColor
-                    )
-                    .frame(maxWidth: iPad ? .infinity : 60)
-                }
-            }
-        }
-        .padding(12)
-        .background(TertiaryColor)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .shadow(color: .black, radius: 30)
-        .frame(
-            minWidth: iPad ? (isPortrait ? 600 : 1000) : 350,
-            maxWidth: iPad ? (isPortrait ? 600 : 1000) : 350,
-            minHeight: iPad ? 750 : 200,
-            maxHeight: iPad ? 750 : 200
-        )
-    }
-}
-
-struct HphoneClassEditor: View {
-    @Binding var data: ScheduleData
-    var PrimaryColor: Color
-    var SecondaryColor: Color
-    var TertiaryColor: Color
-    
-    var body: some View {
-        VStack{
-            Text("Edit Classes")
-                .font(.system(
-                    size: iPad ? 34 : 22,
-                    weight: .bold,
-                    design: .monospaced
-                ))
-                .padding(12)
-                .foregroundStyle(
-                    PrimaryColor.opacity(1))
-                .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-            
-            Divider()
-            
-            HStack{
-                let indices: [Int] = [0, 1, 2, 3, 4, 5, 6, 9, 12]
+        ScrollView { // Wrap in ScrollView for keyboard avoidance
+            VStack{
+                Text("Edit Classes")
+                    .font(.system(
+                        size: iPad ? 34 : 22,
+                        weight: .bold,
+                        design: .monospaced
+                    ))
+                    .padding(12)
+                    .foregroundStyle(
+                        PrimaryColor.opacity(1))
+                    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
                 
+                Divider()
+                
+                let indices: [Int] = [0, 1, 2, 3, 4, 5, 6, 9, 12]
+
                 ForEach(indices, id: \.self) { (number: Int) in
-                    VStack{
+                    HStack{
                         if number <= 6{
                             TextFieldClassEditor(
                                 inputText: $data.classes[number].name,
@@ -232,7 +152,7 @@ struct HphoneClassEditor: View {
                             )
                         } else {
                             Text(data.classes[number].name)
-                                .frame(maxWidth: .infinity, alignment: .leading) // Move this up
+                                .frame(maxWidth: .infinity, alignment: .leading)
                                 .font(.system(
                                     size: iPad ? 20 : 14,
                                     weight: .bold,
@@ -262,17 +182,106 @@ struct HphoneClassEditor: View {
                         .frame(maxWidth: iPad ? .infinity : 60)
                     }
                 }
+                
+                // Add some bottom padding so last field is visible above keyboard
+                Spacer(minLength: 200)
             }
+            .padding(12)
         }
-        .padding(12)
+        .background(TertiaryColor)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .shadow(color: .black, radius: 30)
+        .frame(
+            minWidth: iPad ? (isPortrait ? 600 : 1000) : 350,
+            maxWidth: iPad ? (isPortrait ? 600 : 1000) : 350,
+            minHeight: iPad ? 750 : 200,
+            maxHeight: iPad ? 750 : 400 // Increased max height
+        )
+    }
+}
+
+struct HphoneClassEditor: View {
+    @Binding var data: ScheduleData
+    var PrimaryColor: Color
+    var SecondaryColor: Color
+    var TertiaryColor: Color
+    
+    var body: some View {
+        ScrollView { // Wrap in ScrollView for keyboard avoidance
+            VStack{
+                Text("Edit Classes")
+                    .font(.system(
+                        size: iPad ? 34 : 22,
+                        weight: .bold,
+                        design: .monospaced
+                    ))
+                    .padding(12)
+                    .foregroundStyle(
+                        PrimaryColor.opacity(1))
+                    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                
+                Divider()
+                
+                HStack{
+                    let indices: [Int] = [0, 1, 2, 3, 4, 5, 6, 9, 12]
+                    
+                    ForEach(indices, id: \.self) { (number: Int) in
+                        VStack{
+                            if number <= 6{
+                                TextFieldClassEditor(
+                                    inputText: $data.classes[number].name,
+                                    defaultText: "Period \(number + 1)",
+                                    PrimaryColor: PrimaryColor,
+                                    SecondaryColor: SecondaryColor,
+                                    TertiaryColor: TertiaryColor
+                                )
+                            } else {
+                                Text(data.classes[number].name)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .font(.system(
+                                        size: iPad ? 20 : 14,
+                                        weight: .bold,
+                                        design: .monospaced
+                                    ))
+                                    .padding(12)
+                                    .foregroundStyle(PrimaryColor)
+                                    .background(SecondaryColor)
+                                    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                            }
+                            
+                            TextFieldClassEditor(
+                                inputText: $data.classes[number].teacher,
+                                defaultText: "Teacher",
+                                PrimaryColor: PrimaryColor,
+                                SecondaryColor: SecondaryColor,
+                                TertiaryColor: TertiaryColor,
+                            )
+                            
+                            TextFieldClassEditor(
+                                inputText: $data.classes[number].room,
+                                defaultText: "Room #",
+                                PrimaryColor: PrimaryColor,
+                                SecondaryColor: SecondaryColor,
+                                TertiaryColor: TertiaryColor
+                            )
+                            .frame(maxWidth: iPad ? .infinity : 60)
+                        }
+                    }
+                }
+                
+                // Add some bottom padding
+                Spacer(minLength: 100)
+            }
+            .padding(12)
+        }
         .background(TertiaryColor)
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .shadow(color: .black, radius: 30)
         .frame(
             minWidth: 800,
             maxWidth: 800,
-            minHeight: 150,
-            maxHeight: 150
+            minHeight: 200, // Increased min height
+            maxHeight: 300  // Increased max height
         )
     }
 }
