@@ -1,17 +1,18 @@
 //
-//  ScheduleApp.swift
-//  Schedule
+//  AppTestApp.swift
+//  AppTest
 //
-//  Created by Andreas Royset on 8/13/25.
+//  Created by Andreas Royset on 8/12/25.
 //
 
 import SwiftUI
 
 @main
-struct ScheduleApp: App {
+struct AppTestApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .preferredColorScheme(.light)
         }
     }
 }

@@ -1,0 +1,16 @@
+Period 1 - Teacher - Room
+Period 2 - Teacher - Room
+Period 3 - Teacher - Room
+Period 4 - Teacher - Room
+Period 5 - Teacher - Room
+Period 6 - Teacher - Room
+Period 7 - Teacher - Room
+Lunch - N - N
+Student Collaboration - N - N
+Advisory - Teahcer - Room
+Break - N - N
+Faculty Collaboration - N - N
+Homeroom - Teacher - Room
+Activity - N - N
+Brunch - N - N
+Liturgy - N - Gym
