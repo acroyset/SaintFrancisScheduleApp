@@ -8,17 +8,17 @@
 import Foundation
 import SwiftUI
 
-var width = CGFloat(iPad ? 550 : 200)
-var height = CGFloat(iPad ? 600 : 350)
+var width = CGFloat(iPad ? 500 : 200)
+var height = CGFloat(iPad ? 500 : 350)
 
 struct CompactColorPicker: View {
     @Binding var selectedColor: Color
     @State private var isExpanded = false
-    @State private var hue: Double = 0.6
-    @State private var saturation: Double = 0.78
-    @State private var brightness: Double = 0.92
+    @State private var hue: Double = 0
+    @State private var saturation: Double = 0
+    @State private var brightness: Double = 0
     @State private var opacity: Double = 1.0
-    @State private var dragLocation = CGPoint(x: 100, y: 50)
+    @State private var dragLocation = CGPoint(x: 0, y: 0)
     
     var isPortrait: Bool
     
@@ -32,7 +32,7 @@ struct CompactColorPicker: View {
             }) {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(selectedColor)
-                    .frame(width: isExpanded ? width*0.9 : width*0.2, height: height*0.07)
+                    .frame(width: width*0.9, height: height*0.07)
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
                             .stroke(Color.gray.opacity(0.3), lineWidth: 1)
@@ -116,8 +116,8 @@ struct CompactColorPicker: View {
         DragGesture()
             .onChanged { value in
                 let rect = CGRect(x: 0, y: 0, width: width*0.9, height: height*0.5)
-                dragLocation.x = max(15, min(rect.width - 15, value.location.x))
-                dragLocation.y = max(15, min(rect.height - 15, value.location.y))
+                dragLocation.x = max(15, min(rect.width-15, value.location.x))
+                dragLocation.y = max(15, min(rect.height-15, value.location.y))
                 
                 saturation = (dragLocation.x-15) / (rect.width - 30)
                 brightness = 1 - ((dragLocation.y-15) / (rect.height - 30))
@@ -245,8 +245,8 @@ struct CompactColorPicker: View {
     }
     
     private func updateDragLocation() {
-        dragLocation.x = CGFloat(saturation) * width * 0.9 - 15
-        dragLocation.y = CGFloat(1 - brightness) * height * 0.5 + 15
+        dragLocation.x = saturation * (width * 0.9 - 30) + 15
+        dragLocation.y = (1 - brightness) * (height*0.5 - 30) + 15
     }
     
     private func initializeFromColor() {
@@ -279,8 +279,7 @@ struct Settings: View {
                     design: .monospaced
                 ))
                 .padding(12)
-                .foregroundStyle(
-                    PrimaryColor)
+                .foregroundStyle(PrimaryColor)
             
             Divider()
             
@@ -332,15 +331,5 @@ struct Settings: View {
                 CompactColorPicker(selectedColor: $TertiaryColor,isPortrait: isPortrait)
             }
         }
-        .padding(12)
-        .background(TertiaryColor)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .shadow(color: .black, radius: 30)
-        .frame(
-            minWidth: iPad ? (isPortrait ? 600 : 1000) : 300,
-            maxWidth: iPad ? (isPortrait ? 600 : 1000) : 400,
-            minHeight: iPad ? 250 : 200,
-            maxHeight: iPad ? 250 : 300
-        )
     }
 }

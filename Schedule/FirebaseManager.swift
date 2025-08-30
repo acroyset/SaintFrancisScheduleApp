@@ -65,6 +65,7 @@ class AuthenticationManager: ObservableObject {
             try await changeRequest.commitChanges()
             
             user = User(from: result.user)
+            copyText(from: "DefaultClasses.txt", to: "Classes.txt")
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -286,6 +287,8 @@ struct SignUpView: View {
     @State private var password = ""
     @State private var confirmPassword = ""
     @State private var displayName = ""
+    @State private var isChecked = false
+    @State private var notChecked = false
     
     private var isFormValid: Bool {
         !email.isEmpty &&
@@ -348,11 +351,47 @@ struct SignUpView: View {
                     .padding(.horizontal, 24)
             }
             
+            HStack{
+                
+                Button(action: {
+                    isChecked.toggle()
+                    if (isChecked) {notChecked = false}
+                }) {
+                            Image(systemName: isChecked ? "checkmark.square" : "square")
+                                .resizable()
+                                .frame(width: 24, height: 24)
+                                .foregroundColor(isChecked ? .blue : .gray)
+                        }
+                
+                HStack(spacing: 0){
+                    Text("Accept ")
+                    Text("Privacy Policy")
+                        .foregroundColor(.blue)
+                        .underline()
+                        .onTapGesture {
+                            if let url = URL(string: "https://sites.google.com/view/sf-schedule-privacy-policy/home") {
+                                UIApplication.shared.open(url)
+                            }
+                        }
+                }
+            }
+            
+            if (notChecked){
+                Text("Please Accept Privacy Policy")
+                    .foregroundColor(.red)
+                    .font(.caption)
+            }
+            
             // Sign Up Button - FIXED
             Button {
                 Task {
-                    await authManager.signUp(email: email, password: password, displayName: displayName)
+                    if (isChecked){
+                        await authManager.signUp(email: email, password: password, displayName: displayName)
+                    } else {
+                        notChecked = true;
+                    }
                 }
+                copyText(from: "DefaultClasses.txt", to: "Classes.txt")
             } label: {
                 HStack {
                     if authManager.isLoading {

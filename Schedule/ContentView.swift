@@ -5,228 +5,40 @@
 
 import SwiftUI
 import Foundation
-import WidgetKit
 
 var iPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
 
-// Add profile menu view
-private struct ProfileMenu: View {
-    @EnvironmentObject var authManager: AuthenticationManager
-    @StateObject private var dataManager = DataManager()
-    @Binding var data: ScheduleData?
-    
-    var PrimaryColor: Color
-    var SecondaryColor: Color
-    var TertiaryColor: Color
-    
-    @State private var showingDeleteAlert = false
-    @State private var isLoading = false
-    
-    var body: some View {
-        VStack(spacing: 12) {
-            Text("Profile")
-                .font(.system(
-                    size: iPad ? 40 : 22,
-                    weight: .bold,
-                    design: .monospaced
-                ))
-                .foregroundColor(PrimaryColor)
-            
-            Divider()
-            
-            if let user = authManager.user {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Signed in as:")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    Text(user.displayName ?? "User")
-                        .font(.headline)
-                        .foregroundColor(PrimaryColor)
-                    
-                    Text(user.email)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding()
-                .background(SecondaryColor)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-            }
-            
-            // Sync Status
-            HStack {
-                Image(systemName: "cloud.fill")
-                    .foregroundColor(.green)
-                Text("Classes synced to cloud")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Spacer()
-            }
-            .padding(.vertical, 4)
-            
-            // Manual Sync Button
-            Button {
-                syncClasses()
-            } label: {
-                HStack {
-                    if isLoading {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                    } else {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                    Text("Sync Now")
-                }
-                .frame(maxWidth: .infinity, minHeight: 44)
-                .padding()
-                .background(PrimaryColor.opacity(0.1))
-                .foregroundColor(PrimaryColor)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-            }
-            .disabled(isLoading)
-            
-            Spacer()
-            
-            // Danger Zone
-            VStack(spacing: 8) {
-                Text("Danger Zone")
-                    .font(.caption)
-                    .foregroundColor(.red)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                
-                // Delete Account Button - FIXED
-                Button {
-                    showingDeleteAlert = true
-                } label: {
-                    Text("Delete Account")
-                        .frame(maxWidth: .infinity, minHeight: 44) // Better touch area
-                        .padding()
-                        .background(Color.red.opacity(0.1))
-                        .foregroundColor(.red)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
-            }
-            
-            // Sign Out Button - FIXED
-            Button {
-                authManager.signOut()
-            } label: {
-                Text("Sign Out")
-                    .frame(maxWidth: .infinity, minHeight: 44) // Better touch area
-                    .padding()
-                    .background(Color.gray.opacity(0.2))
-                    .foregroundColor(PrimaryColor)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-            }
-        }
-        .padding()
-        .background(TertiaryColor)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black, radius: 30)
-        .frame(
-            maxWidth: iPad ? 600 : 300,
-            maxHeight: iPad ? 600 : 500)
-        .alert("Delete Account", isPresented: $showingDeleteAlert) {
-            Button("Cancel", role: .cancel) { }
-            Button("Delete", role: .destructive) {
-                Task {
-                    deleteAccount()
-                }
-            }
-        } message: {
-            Text("This will permanently delete your account and all data. This action cannot be undone.")
-        }
-    }
-    
-    private func syncClasses() {
-        guard let user = authManager.user,
-              let classes = data?.classes else { return }
-        
-        isLoading = true
-        Task {
-            do {
-                try await dataManager.saveClasses(classes, for: user.id)
-            } catch {
-                print("Failed to sync classes: \(error)")
-            }
-            isLoading = false
-        }
-    }
-    
-    private func deleteAccount() {
-        guard let user = authManager.user else { return }
-        
-        Task {
-            do {
-                try await dataManager.deleteUserData(for: user.id)
-                authManager.signOut()
-            } catch {
-                print("Failed to delete account: \(error)")
-            }
-        }
-    }
-}
-
 // Updated ToolBar with Profile button
 private struct ToolBar: View {
-    @Binding var editClasses: Bool
-    @Binding var settingsOpen: Bool
-    @Binding var profileOpen: Bool
+    @Binding var window: Int
     var PrimaryColor: Color
     var SecondaryColor: Color
     var TertiaryColor: Color
     
+    let tools = ["Home", "News", "Edit Classes", "Settings", "Profile"]
+    
     var body: some View {
-        HStack {
-            Button {
-                editClasses.toggle()
-            } label: {
-                Text("Edit Classes")
-                    .font(.system(
-                        size: iPad ? 32 : 18,
-                        weight: .semibold,
-                        design: .rounded
-                    ))
-                    .foregroundColor(PrimaryColor)
-                    .multilineTextAlignment(.trailing)
-                    .padding(12)
-                    .background(SecondaryColor)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(Array(tools.enumerated()), id: \.offset) { index, tool in
+                    Button {
+                        window = index
+                    } label: {
+                        Text(tool)
+                            .font(.system(
+                                size: iPad ? 32 : 16,
+                                weight: .semibold,
+                                design: .rounded
+                            ))
+                            .foregroundColor(window == index ? TertiaryColor : PrimaryColor)
+                            .multilineTextAlignment(.trailing)
+                            .padding(12)
+                            .background(window == index ? PrimaryColor : SecondaryColor)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
+                }
             }
-            
-            Button {
-                settingsOpen.toggle()
-            }
-            label: {
-                Text("Settings")
-                    .font(.system(
-                        size: iPad ? 32 : 18,
-                        weight: .semibold,
-                        design: .rounded
-                    ))
-                    .foregroundColor(PrimaryColor)
-                    .multilineTextAlignment(.trailing)
-                    .padding(12)
-                    .background(SecondaryColor)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-            }
-            
-            Button {
-                profileOpen.toggle()
-            } label: {
-                Text("Profile")
-                    .font(.system(
-                        size: iPad ? 32 : 18,
-                        weight: .semibold,
-                        design: .rounded
-                    ))
-                    .foregroundColor(PrimaryColor)
-                    .multilineTextAlignment(.trailing)
-                    .padding(12)
-                    .background(SecondaryColor)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-            }
+            .padding(.horizontal) // optional: adds padding on left/right
         }
     }
 }
@@ -244,11 +56,16 @@ struct ContentView: View {
     @State private var scheduleLines: [ScheduleLine] = []
     @State private var data: ScheduleData? = nil
     @State private var selectedDate = Date()
-    @State private var showCalendarGrid = false
     @State private var scrollTarget: Int? = nil
-    @State private var editClasses: Bool = false
-    @State private var settingsOpen: Bool = false
-    @State private var profileOpen: Bool = false
+    @State private var showCalendarGrid = false
+    @State private var whatsNewPopup = true
+    
+    @State private var window: Int = 0
+    // 0 = Home
+    // 1 = News
+    // 2 = Class Editor
+    // 3 = Settings
+    // 4 = Prifile View
     
     @State private var PrimaryColor: Color = .blue
     @State private var SecondaryColor: Color = .blue.opacity(0.1)
@@ -268,108 +85,172 @@ struct ContentView: View {
                 SecondaryColor: SecondaryColor,
                 TertiaryColor: TertiaryColor
             )
-            .onTapGesture {
-                closeAll()
-            }
+            .onTapGesture(perform: {
+                withAnimation(.snappy){
+                    showCalendarGrid = false
+                    whatsNewPopup = false
+                }
+            })
             
             VStack {
-                dayHeaderView(
-                    for: dayCode,
-                    getDayInfo: getDayInfo,
-                    PrimaryColor: PrimaryColor,
-                    SecondaryColor: SecondaryColor,
-                    TertiaryColor: TertiaryColor
-                )
-                .onTapGesture {
-                    closeAll()
+                
+                Text("Version - Beta 1.4\nBugs / Ideas - Email acroyset@gmail.com")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal)
+                .onTapGesture(perform: {
+                    withAnimation(.snappy){
+                        showCalendarGrid = false;
+                        whatsNewPopup = false
+                    }
+                })
+                
+                if window == 0 {
+                    VStack {
+                        dayHeaderView(
+                            dayInfo: getDayInfo(for: dayCode),
+                            PrimaryColor: PrimaryColor,
+                            SecondaryColor: SecondaryColor,
+                            TertiaryColor: TertiaryColor
+                        )
+                        .onTapGesture(perform: {
+                            withAnimation(.snappy){
+                                showCalendarGrid = false;
+                                whatsNewPopup = false
+                            }
+                        })
+                        
+                        DateNavigator(
+                            showCalendar: $showCalendarGrid,
+                            date: $selectedDate,
+                            onPick: { applySelectedDate($0)},
+                            PrimaryColor: PrimaryColor,
+                            SecondaryColor: SecondaryColor,
+                            TertiaryColor: TertiaryColor,
+                            scheduleDict: scheduleDict
+                        )
+                        .padding(.horizontal, 12)
+                        .zIndex(10)
+                        
+                        Divider()
+                        
+                        ClassItemScroll()
+                            .onTapGesture(perform: {
+                                withAnimation(.snappy){
+                                    showCalendarGrid = false;
+                                    whatsNewPopup = false
+                                }
+                            })
+                    }
+                    .gesture(
+                        DragGesture()
+                            .onEnded { value in
+                                let threshold: CGFloat = 50
+                                if value.translation.width > threshold {
+                                    withAnimation(.snappy) {
+                                        let new = Calendar.current.date(byAdding: .day, value: -1, to: selectedDate) ?? selectedDate
+                                        selectedDate = new
+                                        applySelectedDate(new)
+                                    }
+                                } else if value.translation.width < -threshold {
+                                    withAnimation(.snappy) {
+                                        let new = Calendar.current.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate
+                                        selectedDate = new
+                                        applySelectedDate(new)
+                                    }
+                                }
+                            }
+                    )
                 }
                 
-                DateNavigator(
-                    showCalendar: $showCalendarGrid,
-                    date: $selectedDate,
-                    onPick: { applySelectedDate($0)},
-                    PrimaryColor: PrimaryColor,
-                    SecondaryColor: SecondaryColor,
-                    TertiaryColor: TertiaryColor,
-                    scheduleDict: scheduleDict
-                )
-                .padding(.horizontal, 12)
-                .padding(.bottom, 8)
-                .zIndex(10)
+                else if window == 1 {
+                    NewsMenu(
+                        PrimaryColor: PrimaryColor,
+                        SecondaryColor: SecondaryColor,
+                        TertiaryColor: TertiaryColor
+                    )
+                }
                 
-                Divider()
+                else if window == 2 {
+                    let bindingData = Binding<ScheduleData>(
+                        get: { self.data ?? ScheduleData(classes: [], days: []) },
+                        set: {
+                            self.data = $0
+                            saveClassesToCloud()
+                        }
+                    )
+
+                    ClassEditor(
+                        data: bindingData,
+                        PrimaryColor: PrimaryColor,
+                        SecondaryColor: SecondaryColor,
+                        TertiaryColor: TertiaryColor,
+                        isPortrait: isPortrait
+                    )
+                }
                 
-                ClassItemScroll()
+                else if window == 3 {
+                    Settings(
+                        PrimaryColor: $PrimaryColor,
+                        SecondaryColor: $SecondaryColor,
+                        TertiaryColor: $TertiaryColor,
+                        isPortrait: isPortrait
+                    )
+                }
+                
+                else if window == 4 {
+                    ProfileMenu(
+                        data: $data,
+                        PrimaryColor: PrimaryColor,
+                        SecondaryColor: SecondaryColor,
+                        TertiaryColor: TertiaryColor,
+                        iPad: iPad
+                    )
+                }
                 
                 Divider()
                 Spacer(minLength: 12)
                 
                 ToolBar(
-                    editClasses: $editClasses,
-                    settingsOpen: $settingsOpen,
-                    profileOpen: $profileOpen,
+                    window: $window,
                     PrimaryColor: PrimaryColor,
                     SecondaryColor: SecondaryColor,
                     TertiaryColor: TertiaryColor
                 )
-            }
-            .gesture(
-                DragGesture()
-                    .onEnded { value in
-                        let threshold: CGFloat = 50
-                        if value.translation.width > threshold {
-                            withAnimation(.snappy) {
-                                let new = Calendar.current.date(byAdding: .day, value: -1, to: selectedDate) ?? selectedDate
-                                selectedDate = new
-                                applySelectedDate(new)
-                            }
-                        } else if value.translation.width < -threshold {
-                            withAnimation(.snappy) {
-                                let new = Calendar.current.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate
-                                selectedDate = new
-                                applySelectedDate(new)
-                            }
-                        }
-                    }
-            )
-            
-            // Overlays
-            if editClasses {
-                let bindingData = Binding<ScheduleData>(
-                    get: { self.data ?? ScheduleData(classes: [], days: []) },
-                    set: {
-                        self.data = $0
-                        saveClassesToCloud()
-                    }
-                )
-
-                ClassEditor(
-                    data: bindingData,
-                    PrimaryColor: PrimaryColor,
-                    SecondaryColor: SecondaryColor,
-                    TertiaryColor: TertiaryColor,
-                    isPortrait: isPortrait
-                )
+                
             }
             
-            if settingsOpen {
-                Settings(
-                    PrimaryColor: $PrimaryColor,
-                    SecondaryColor: $SecondaryColor,
-                    TertiaryColor: $TertiaryColor,
-                    isPortrait: isPortrait
-                )
-            }
-            
-            if profileOpen {
-                ProfileMenu(
-                    data: $data,
-                    PrimaryColor: PrimaryColor,
-                    SecondaryColor: SecondaryColor,
-                    TertiaryColor: TertiaryColor
-                )
+            if whatsNewPopup {
+                VStack{
+                    Text("Whats New?")
+                        .font(.system(
+                            size: iPad ? 40 : 30,
+                            weight: .bold,
+                            design: .monospaced
+                        ))
+                        .padding(12)
+                        .foregroundStyle(PrimaryColor)
+                    
+                    Divider()
+                    
+                    Text("- Cloud Syncing With Email\n- News Tab\n- Expanded Schedule Abilities\n- Bug Fixes")
+                        .font(.system(
+                            size: iPad ? 24 : 15,
+                            weight: .bold,
+                            design: .monospaced
+                        ))
+                        .padding(12)
+                        .foregroundStyle(PrimaryColor)
+                        .frame(alignment: .leading)
+                }
+                .frame(maxWidth: iPad ? 500 : 300)
+                .background(TertiaryColor)
+                .clipShape(RoundedRectangle(cornerRadius: 15))
+                .shadow(radius: 20)
             }
         }
+        
         .padding()
         .animation(.easeInOut(duration: 0.3), value: dayCode)
         .onAppear {
@@ -384,6 +265,14 @@ struct ContentView: View {
             guard newPhase == .active else { return }
             setScroll()
             saveClassesToCloud()
+            window = 0
+            applySelectedDate(Date())
+        }
+        .onChange(of: window) { oldWindow, newWindow in
+            guard oldWindow != newWindow else { return }
+            withAnimation(.snappy){
+                showCalendarGrid = false;
+            }
         }
         .onReceive(ticker) { _ in
             render()
@@ -417,9 +306,6 @@ struct ContentView: View {
                 }
             }
             .padding(.horizontal)
-        }
-        .onTapGesture {
-            closeAll()
         }
         .id(dayCode)
         .scrollPosition(id: $scrollTarget, anchor: .center)
@@ -511,7 +397,7 @@ struct ContentView: View {
     }
     
     private func getDayNumber(for currentDay: String) -> Int? {
-        let map = ["g1":0,"b1":1,"g2":2,"b2":3,"a1":4,"a2":5,"a3":6,"a4":7,"l1":8,"l2":9]
+        let map = ["g1":0,"b1":1,"g2":2,"b2":3,"a1":4,"a2":5,"a3":6,"a4":7,"l1":8,"l2":9,"s1":10]
         guard let di = map[currentDay.lowercased()],
               let data = data,
               data.days.indices.contains(di) else { return nil }
@@ -524,11 +410,11 @@ struct ContentView: View {
         
         guard let data = data else { return }
         
-        let map = ["g1":0,"b1":1,"g2":2,"b2":3,"a1":4,"a2":5,"a3":6,"a4":7,"l1":8,"l2":9]
+        let map = ["g1":0,"b1":1,"g2":2,"b2":3,"a1":4,"a2":5,"a3":6,"a4":7,"l1":8,"l2":9,"s1":10]
         guard let di = map[dayCode.lowercased()], data.days.indices.contains(di) else {
             scheduleLines = []
             if (!dayCode.isEmpty && dayCode != "None") {
-                output = "Invalid day code: '\(dayCode)'. Valid codes: G1, B1, G2, B2, A1, A2, A3, A4, L1, L2"
+                output = "Invalid day code: '\(dayCode)'. Valid codes: G1, B1, G2, B2, A1, A2, A3, A4, L1, L2, S1"
             } else if scheduleDict == nil {
                 output = "Loading schedule..."
             }
@@ -738,15 +624,6 @@ struct ContentView: View {
         return Double(now - start) / Double(end - start)
     }
     
-    private func closeAll() -> Void {
-        withAnimation(.snappy) {
-            showCalendarGrid = false
-            editClasses = false
-            settingsOpen = false
-            profileOpen = false
-        }
-    }
-    
     private func setScroll() -> Void {
         render()
         DispatchQueue.main.async {
@@ -777,6 +654,23 @@ struct ContentView: View {
         let width = UIScreen.main.bounds.width
         let height = UIScreen.main.bounds.height
         isPortrait = height > width
+    }
+}
+
+func copyText(from sourcePath: String, to destinationPath: String) {
+    let sourceURL = URL(fileURLWithPath: sourcePath)
+    let destinationURL = URL(fileURLWithPath: destinationPath)
+    
+    do {
+        // 1. Read text from source file
+        let text = try String(contentsOf: sourceURL, encoding: .utf8)
+        
+        // 2. Write text into destination file
+        try text.write(to: destinationURL, atomically: true, encoding: .utf8)
+        
+        print("✅ Successfully copied text to \(destinationURL.path)")
+    } catch {
+        print("❌ Error copying text: \(error)")
     }
 }
 

@@ -53,7 +53,7 @@ struct DateNavigator: View {
                             .padding(12)
                         }
                     }
-                .padding(.horizontal)
+                .padding(.trailing, 12)    // keep inside screen edge
                 .frame(maxWidth: .infinity)
             }
 
@@ -66,6 +66,23 @@ struct DateNavigator: View {
 
                 // the popup panel (anchored under the header)
                 VStack(spacing: 8) {
+                    Button {
+                        calendarMonthAnchor = startOfMonth(date)
+                        withAnimation(.snappy) { showCalendar.toggle() }
+                    } label: {
+                        Text(dfHeader.string(from: date))
+                            .font(.system(
+                                size: iPad ? 27 : 20,
+                                weight: .semibold,
+                                design: .rounded
+                            ))
+                            .foregroundColor(PrimaryColor)
+                            .frame(maxWidth: .infinity)
+                            .multilineTextAlignment(.center)
+                            .padding(12)
+                        }
+                    
+                    Divider()
                     // month header with arrows
                     HStack {
                         Button {
@@ -82,8 +99,7 @@ struct DateNavigator: View {
                             calendarMonthAnchor = cal.date(byAdding: .month, value: 1, to: calendarMonthAnchor) ?? calendarMonthAnchor
                         } label: { Image(systemName: "chevron.right") }
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.top, 10)
+                    .padding(8)
 
                     // weekday headers
                     let symbols = cal.shortWeekdaySymbols // Sun Mon Tue ...
@@ -119,9 +135,9 @@ struct DateNavigator: View {
                         .fill(Color(.systemBackground))
                         .shadow(radius: 8, y: 4)
                 )
-                .padding(.top, 36)         // drop just below header
+                .padding(.top, 8)         // drop just below header
                 .padding(.trailing, 12)    // keep inside screen edge
-                .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                .transition(.opacity)
             }
         }
     }

@@ -61,7 +61,6 @@ struct ClassProgressBar: View {
 }
 
 struct OutlinedTextFieldStyle: TextFieldStyle {
-    var cornerRadius: CGFloat = 10
     var lineWidth: CGFloat = 1
     var PrimaryColor: Color
     var SecondaryColor: Color
@@ -72,11 +71,6 @@ struct OutlinedTextFieldStyle: TextFieldStyle {
             .padding(12) // inner padding
             .background(
                 TertiaryColor,
-                in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(PrimaryColor.opacity(0.3), lineWidth: lineWidth) // inside the bounds
             )
     }
 }
@@ -132,9 +126,7 @@ struct VphoneClassEditor: View {
                         design: .monospaced
                     ))
                     .padding(12)
-                    .foregroundStyle(
-                        PrimaryColor.opacity(1))
-                    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                    .foregroundStyle(PrimaryColor)
                 
                 Divider()
                 
@@ -186,17 +178,7 @@ struct VphoneClassEditor: View {
                 // Add some bottom padding so last field is visible above keyboard
                 Spacer(minLength: 200)
             }
-            .padding(12)
         }
-        .background(TertiaryColor)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .shadow(color: .black, radius: 30)
-        .frame(
-            minWidth: iPad ? (isPortrait ? 600 : 1000) : 350,
-            maxWidth: iPad ? (isPortrait ? 600 : 1000) : 350,
-            minHeight: iPad ? 750 : 200,
-            maxHeight: iPad ? 750 : 400 // Increased max height
-        )
     }
 }
 
@@ -216,9 +198,7 @@ struct HphoneClassEditor: View {
                         design: .monospaced
                     ))
                     .padding(12)
-                    .foregroundStyle(
-                        PrimaryColor.opacity(1))
-                    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                    .foregroundStyle(PrimaryColor)
                 
                 Divider()
                 
@@ -274,14 +254,5 @@ struct HphoneClassEditor: View {
             }
             .padding(12)
         }
-        .background(TertiaryColor)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .shadow(color: .black, radius: 30)
-        .frame(
-            minWidth: 800,
-            maxWidth: 800,
-            minHeight: 200, // Increased min height
-            maxHeight: 300  // Increased max height
-        )
     }
 }

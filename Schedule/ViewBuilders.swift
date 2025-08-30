@@ -9,10 +9,10 @@ import Foundation
 import SwiftUI
 
 @ViewBuilder
-func dayHeaderView(for currentDay: String, getDayInfo: (String) -> Day?, PrimaryColor: Color, SecondaryColor: Color, TertiaryColor: Color) -> some View {
-    if let dayInfo = getDayInfo(currentDay) {
+func dayHeaderView(dayInfo: Day?, PrimaryColor: Color, SecondaryColor: Color, TertiaryColor: Color) -> some View {
+    if let day = dayInfo {
         VStack(spacing: 0) {
-            Text(dayInfo.name)
+            Text(day.name)
                 .font(.system(
                     size: iPad ? 60 : 35,
                     weight: .bold))  // fixed
