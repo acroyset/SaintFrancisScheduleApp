@@ -2,7 +2,7 @@
 //  AppIntent.swift
 //  ScheduleWidget
 //
-//  Created by Andreas Royset on 8/16/25.
+//  Created by Andreas Royset on 9/4/25.
 //
 
 import WidgetKit

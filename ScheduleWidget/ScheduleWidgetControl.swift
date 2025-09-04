@@ -2,7 +2,7 @@
 //  ScheduleWidgetControl.swift
 //  ScheduleWidget
 //
-//  Created by Andreas Royset on 8/16/25.
+//  Created by Andreas Royset on 9/4/25.
 //
 
 import AppIntents
@@ -10,7 +10,7 @@ import SwiftUI
 import WidgetKit
 
 struct ScheduleWidgetControl: ControlWidget {
-    static let kind: String = "Xcode.Schedule.ScheduleWidget"
+    static let kind: String = "Xcode.ScheduleApp.ScheduleWidget"
 
     var body: some ControlWidgetConfiguration {
         AppIntentControlConfiguration(

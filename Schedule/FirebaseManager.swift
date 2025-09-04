@@ -83,7 +83,7 @@ class AuthenticationManager: ObservableObject {
             try await changeRequest.commitChanges()
             
             user = User(from: result.user)
-            copyText(from: "DefaultClasses.txt", to: "Classes.txt")
+            copyText(from: "Resources/DefaultClasses.txt", to: "Resources/Classes.txt")
 
             // Record acceptance at account creation time (you already gated with checkbox in UI)
             try await dataManager.recordPolicyAcceptance(for: result.user.uid, version: policyVersion)
@@ -128,7 +128,7 @@ class AuthenticationManager: ObservableObject {
 
             if authResult.additionalUserInfo?.isNewUser == true {
                 // First time: copy defaults and require policy acceptance once
-                copyText(from: "DefaultClasses.txt", to: "Classes.txt")
+                copyText(from: "Resources/DefaultClasses.txt", to: "Resources/Classes.txt")
                 pendingPolicyUserId = authResult.user.uid
                 needsPolicyAcceptance = true
             }
@@ -491,7 +491,7 @@ struct SignUpView: View {
                         notChecked = true;
                     }
                 }
-                copyText(from: "DefaultClasses.txt", to: "Classes.txt")
+                copyText(from: "Resources/DefaultClasses.txt", to: "Resources/Classes.txt")
             } label: {
                 HStack {
                     if authManager.isLoading {
