@@ -13,7 +13,7 @@ var height = CGFloat(iPad ? 500 : 350)
 
 struct CompactColorPicker: View {
     @Binding var selectedColor: Color
-    @State private var isExpanded = false
+    @Binding var isExpanded: Bool
     @State private var hue: Double = 0
     @State private var saturation: Double = 0
     @State private var brightness: Double = 0
@@ -262,11 +262,20 @@ struct CompactColorPicker: View {
     }
 }
 
+enum SelectedOption {
+    case p
+    case s
+    case t
+    case none
+}
+
+
 // Updated Settings view
 struct Settings: View {
     @Binding var PrimaryColor: Color
     @Binding var SecondaryColor: Color
     @Binding var TertiaryColor: Color
+    @State private var selectedOption: SelectedOption = .none
     
     var isPortrait: Bool
     
@@ -296,7 +305,19 @@ struct Settings: View {
                 
                 Spacer()
                 
-                CompactColorPicker(selectedColor: $PrimaryColor, isPortrait: isPortrait)
+                CompactColorPicker(
+                    selectedColor: $PrimaryColor,
+                    isExpanded: Binding(
+                            get: { selectedOption == .p },
+                            set: { newValue in
+                                if newValue {
+                                    selectedOption = .p
+                                } else if selectedOption == .p {
+                                    selectedOption = .none
+                                }
+                            }
+                        ),
+                    isPortrait: isPortrait)
             }
             
             HStack{
@@ -312,7 +333,19 @@ struct Settings: View {
                 
                 Spacer()
                 
-                CompactColorPicker(selectedColor: $SecondaryColor,isPortrait: isPortrait)
+                CompactColorPicker(
+                    selectedColor: $SecondaryColor,
+                    isExpanded: Binding(
+                            get: { selectedOption == .s },
+                            set: { newValue in
+                                if newValue {
+                                    selectedOption = .s
+                                } else if selectedOption == .s {
+                                    selectedOption = .none
+                                }
+                            }
+                        ),
+                    isPortrait: isPortrait)
             }
             
             HStack{
@@ -328,8 +361,22 @@ struct Settings: View {
                 
                 Spacer()
                 
-                CompactColorPicker(selectedColor: $TertiaryColor,isPortrait: isPortrait)
+                CompactColorPicker(
+                    selectedColor: $TertiaryColor,
+                    isExpanded: Binding(
+                            get: { selectedOption == .t },
+                            set: { newValue in
+                                if newValue {
+                                    selectedOption = .t
+                                } else if selectedOption == .t {
+                                    selectedOption = .none
+                                }
+                            }
+                        ),
+                    isPortrait: isPortrait)
             }
+            
+            Spacer()
         }
     }
 }

@@ -45,7 +45,7 @@ struct NewsMenu: View {
             
             Text("Email acroyset@gmail.com if you want to put your announcement on here. \n\nLast updated: \(store.lastUpdatedString)")
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(TertiaryColor.highContrastTextColor())
                 .frame(maxWidth: .infinity, alignment: .leading)
             
             .padding()

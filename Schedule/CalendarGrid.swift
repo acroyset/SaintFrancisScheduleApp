@@ -62,6 +62,7 @@ struct CalendarGrid: View {
         }
         .padding(.horizontal, 8)
         .padding(.bottom, 10)
+        .background(TertiaryColor)
     }
 
     private func makeDays() -> [Date?] {

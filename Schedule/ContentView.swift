@@ -8,9 +8,8 @@ import Foundation
 
 var iPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
 
-// Updated ToolBar with Profile button
 private struct ToolBar: View {
-    @Binding var window: Int
+    @Binding var window: Window
     var PrimaryColor: Color
     var SecondaryColor: Color
     var TertiaryColor: Color
@@ -21,24 +20,46 @@ private struct ToolBar: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
                 ForEach(Array(tools.enumerated()), id: \.offset) { index, tool in
-                    Button {
-                        window = index
-                    } label: {
-                        Text(tool)
-                            .font(.system(
-                                size: iPad ? 32 : 16,
-                                weight: .semibold,
-                                design: .rounded
-                            ))
-                            .foregroundColor(window == index ? TertiaryColor : PrimaryColor)
-                            .multilineTextAlignment(.trailing)
-                            .padding(12)
-                            .background(window == index ? PrimaryColor : SecondaryColor)
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                    }
+                    ToolButton(
+                        window: $window,
+                        index: index,
+                        tool: tool,
+                        PrimaryColor: PrimaryColor,
+                        SecondaryColor: SecondaryColor,
+                        TertiaryColor: TertiaryColor
+                    )
                 }
             }
             .padding(.horizontal) // optional: adds padding on left/right
+        }
+    }
+}
+
+struct ToolButton: View {
+    @Binding var window: Window
+    var index: Int
+    var tool: String
+    var PrimaryColor: Color
+    var SecondaryColor: Color
+    var TertiaryColor: Color
+    
+    var body: some View {
+        Button {
+            if let w = Window(rawValue: index) {
+                window = w
+            }
+        } label: {
+            Text(tool)
+                .font(.system(
+                    size: iPad ? 32 : 16,
+                    weight: .semibold,
+                    design: .rounded
+                ))
+                .foregroundColor(window.rawValue == index ? TertiaryColor : PrimaryColor)
+                .multilineTextAlignment(.trailing)
+                .padding(12)
+                .background(window.rawValue == index ? PrimaryColor : SecondaryColor)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
         }
     }
 }
@@ -60,12 +81,7 @@ struct ContentView: View {
     @State private var showCalendarGrid = false
     @State private var whatsNewPopup = true
     
-    @State private var window: Int = 0
-    // 0 = Home
-    // 1 = News
-    // 2 = Class Editor
-    // 3 = Settings
-    // 4 = Prifile View
+    @State private var window: Window = Window.Home
     
     @State private var PrimaryColor: Color = .blue
     @State private var SecondaryColor: Color = .blue.opacity(0.1)
@@ -73,8 +89,34 @@ struct ContentView: View {
     
     @State private var isPortrait: Bool = !iPad
     @State private var hasLoadedFromCloud = false
+    @State private var tutorial = TutorialState.Hidden
     
     let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    
+    var title: String {
+        switch tutorial {
+        case .Hidden:      return "Error"
+        case .Intro:       return "Welcome to Schedule!"
+        case .DateNavigator: return "Date Navigator"
+        case .News:        return "News"
+        case .ClassEditor: return "Class Editor"
+        case .Settings:    return "Settings"
+        case .Profile:     return "Profile"
+        case .Outro:       return "Thanks!"
+        }
+    }
+    var info: String {
+        switch tutorial {
+        case .Hidden:      return "Error"
+        case .Intro:       return "This is a schedule app for Saint Francis High School. It allows you to view your schedule, add new classes, and edit your existing ones!"
+        case .DateNavigator: return "Access the date navigator by clicking on the date in the home screen.\n\nThis is how you can choose your dates for the whole year!"
+        case .News:        return "Access the news tab by clicking on the news icon in the toolbar.\n\nThis is where you can see current events like clubs football games and everything inbetween!"
+        case .ClassEditor: return "Access the class editor by clicking on the edit class icon in the toolbar.\n\nThis is how you can edit your classes."
+        case .Settings:    return "Access the settings tab by clicking on the settings icon in the toolbar.\n\nThis is where you can change preferances like the color scheme!"
+        case .Profile:     return "Access the profile tab by clicking on the profile icon in the toolbar.\n\nThis is how you can sign out or sync your devices."
+        case .Outro:       return "Thanks for downloading Saint Francis Schedule!"
+        }
+    }
     
     @Environment(\.scenePhase) private var scenePhase
     
@@ -94,9 +136,9 @@ struct ContentView: View {
             
             VStack {
                 
-                Text("Version - Beta 1.4\nBugs / Ideas - Email acroyset@gmail.com")
+                Text("Version - Beta 1.5\nBugs / Ideas - Email acroyset@gmail.com")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(TertiaryColor.highContrastTextColor())
                     .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal)
                 .onTapGesture(perform: {
@@ -106,7 +148,8 @@ struct ContentView: View {
                     }
                 })
                 
-                if window == 0 {
+                switch window {
+                case Window.Home:
                     VStack {
                         dayHeaderView(
                             dayInfo: getDayInfo(for: dayCode),
@@ -162,17 +205,15 @@ struct ContentView: View {
                                 }
                             }
                     )
-                }
-                
-                else if window == 1 {
+                    
+                case Window.News:
                     NewsMenu(
                         PrimaryColor: PrimaryColor,
                         SecondaryColor: SecondaryColor,
                         TertiaryColor: TertiaryColor
                     )
-                }
-                
-                else if window == 2 {
+                    
+                case Window.ClassEditor:
                     let bindingData = Binding<ScheduleData>(
                         get: { self.data ?? ScheduleData(classes: [], days: []) },
                         set: {
@@ -180,7 +221,7 @@ struct ContentView: View {
                             saveClassesToCloud()
                         }
                     )
-
+                    
                     ClassEditor(
                         data: bindingData,
                         PrimaryColor: PrimaryColor,
@@ -188,18 +229,16 @@ struct ContentView: View {
                         TertiaryColor: TertiaryColor,
                         isPortrait: isPortrait
                     )
-                }
-                
-                else if window == 3 {
+                    
+                case Window.Settings:
                     Settings(
                         PrimaryColor: $PrimaryColor,
                         SecondaryColor: $SecondaryColor,
                         TertiaryColor: $TertiaryColor,
                         isPortrait: isPortrait
                     )
-                }
-                
-                else if window == 4 {
+                    
+                case Window.Profile:
                     ProfileMenu(
                         data: $data,
                         PrimaryColor: PrimaryColor,
@@ -208,7 +247,7 @@ struct ContentView: View {
                         iPad: iPad
                     )
                 }
-                
+                    
                 Divider()
                 Spacer(minLength: 12)
                 
@@ -218,8 +257,75 @@ struct ContentView: View {
                     SecondaryColor: SecondaryColor,
                     TertiaryColor: TertiaryColor
                 )
-                
+                    
             }
+            
+            if tutorial != TutorialState.Hidden {
+                VStack{
+                    Text(title)
+                        .font(.system(
+                            size: iPad ? 40 : 30,
+                            weight: .bold,
+                            design: .monospaced
+                        ))
+                        .padding(12)
+                        .foregroundStyle(PrimaryColor)
+                    
+                    Divider()
+                    
+                    Text(info)
+                        .font(.system(
+                            size: iPad ? 24 : 15,
+                            weight: .bold,
+                            design: .monospaced
+                        ))
+                        .padding(12)
+                        .foregroundStyle(PrimaryColor)
+                        .frame(alignment: .leading)
+                    
+                    HStack {
+                        Text("For more help visit our ")
+                            .font(.footnote)
+                            .foregroundStyle(TertiaryColor.highContrastTextColor())
+                        Text("support website")
+                            .font(.footnote)
+                            .foregroundColor(.blue)
+                            .underline()
+                            .onTapGesture {
+                                if let url = URL(string: "https://sites.google.com/view/sf-schedule-help/home") {
+                                    UIApplication.shared.open(url)
+                                }
+                            }
+                    }
+                    
+                    HStack {
+                        Button {
+                            // Swipe right - go to previous day
+                            if let x = TutorialState(rawValue: tutorial.rawValue-1){
+                                tutorial = x
+                            }
+                        } label: { Image(systemName: "chevron.left") }
+
+                        Spacer()
+
+                        Button {
+                            if tutorial == .Outro{
+                                tutorial = .Hidden
+                            } else if let x = TutorialState(rawValue: tutorial.rawValue+1){
+                                tutorial = x
+                            }
+                        } label: { Image(systemName: "chevron.right") }
+                    }
+                    .padding(8)
+                    .padding(.horizontal)
+                }
+                .padding(12)
+                .frame(maxWidth: iPad ? 500 : 300)
+                .background(TertiaryColor)
+                .clipShape(RoundedRectangle(cornerRadius: 15))
+                .shadow(radius: 20)
+            }
+            
             
             if whatsNewPopup {
                 VStack{
@@ -234,7 +340,7 @@ struct ContentView: View {
                     
                     Divider()
                     
-                    Text("- Cloud Syncing With Email\n- News Tab\n- Expanded Schedule Abilities\n- Bug Fixes")
+                    Text("\n- Tutorial\n- Bug Fixes")
                         .font(.system(
                             size: iPad ? 24 : 15,
                             weight: .bold,
@@ -243,16 +349,34 @@ struct ContentView: View {
                         .padding(12)
                         .foregroundStyle(PrimaryColor)
                         .frame(alignment: .leading)
+                    
+                    Button {
+                        tutorial = TutorialState.Intro
+                        whatsNewPopup = false
+                    } label: {
+                        Text("Start Tutorial")
+                            .font(.system(
+                                size: iPad ? 24 : 15,
+                                weight: .bold,
+                                design: .monospaced
+                            ))
+                            .foregroundColor(PrimaryColor)
+                            .multilineTextAlignment(.trailing)
+                            .padding(12)
+                            .background(SecondaryColor)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
                 }
+                .padding(12)
                 .frame(maxWidth: iPad ? 500 : 300)
                 .background(TertiaryColor)
                 .clipShape(RoundedRectangle(cornerRadius: 15))
                 .shadow(radius: 20)
             }
         }
-        
         .padding()
-        .animation(.easeInOut(duration: 0.3), value: dayCode)
+        .background(TertiaryColor.ignoresSafeArea())
+        .animation(.easeInOut(duration: 0.1), value: dayCode)
         .onAppear {
             loadData()
             setScroll()
@@ -265,7 +389,7 @@ struct ContentView: View {
             guard newPhase == .active else { return }
             setScroll()
             saveClassesToCloud()
-            window = 0
+            window = Window.Home
             applySelectedDate(Date())
         }
         .onChange(of: window) { oldWindow, newWindow in
