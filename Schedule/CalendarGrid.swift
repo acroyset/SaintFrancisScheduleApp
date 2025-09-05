@@ -37,15 +37,13 @@ struct CalendarGrid: View {
                                 size: iPad ? 20 : 15,
                                 weight: .medium,
                                 design: .rounded))
-                            .foregroundStyle(isSelected ? TertiaryColor : .primary)
+                            .foregroundStyle(isSelected ? TertiaryColor : PrimaryColor)
                             .background(
                                 Group {
                                     if isSelected {
                                         Circle().fill(PrimaryColor)
-                                    } else if isToday {
-                                        Circle().fill(SecondaryColor)
                                     } else if !checkIfSchedule(day) {
-                                        Circle().fill(Color.black.opacity(0.1))
+                                        Circle().fill(SecondaryColor)
                                     } else {
                                         Circle().fill(Color.clear)
                                     }

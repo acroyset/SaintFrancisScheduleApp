@@ -9,11 +9,21 @@
 /* Begin PBXBuildFile section */
 		E4257E872E5FE2BF00948AE0 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = E4257E862E5FE2BF00948AE0 /* FirebaseAuth */; };
 		E4257E892E5FE2BF00948AE0 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = E4257E882E5FE2BF00948AE0 /* FirebaseFirestore */; };
+		E45D486B2E638E9200D88084 /* ScheduleLine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E45D48632E638E9200D88084 /* ScheduleLine.swift */; };
+		E45D486D2E638E9200D88084 /* Time.swift in Sources */ = {isa = PBXBuildFile; fileRef = E45D48642E638E9200D88084 /* Time.swift */; };
 		E45D48822E691D4700D88084 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = E45D48812E691D4700D88084 /* GoogleSignIn */; };
 		E45D48842E691D4700D88084 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = E45D48832E691D4700D88084 /* GoogleSignInSwift */; };
 		E45D488C2E6A54D800D88084 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E45D488B2E6A54D700D88084 /* WidgetKit.framework */; };
 		E45D488E2E6A54D800D88084 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E45D488D2E6A54D800D88084 /* SwiftUI.framework */; };
 		E45D489F2E6A54DA00D88084 /* ScheduleWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E45D48892E6A54D700D88084 /* ScheduleWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		E45D48A52E6A579E00D88084 /* ClassProgressBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = E45D48A42E6A579D00D88084 /* ClassProgressBar.swift */; };
+		E45D48AC2E6A58AA00D88084 /* ScheduleLine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E45D48632E638E9200D88084 /* ScheduleLine.swift */; };
+		E45D48AD2E6A58AF00D88084 /* Time.swift in Sources */ = {isa = PBXBuildFile; fileRef = E45D48642E638E9200D88084 /* Time.swift */; };
+		E45D48AE2E6A58B400D88084 /* ClassProgressBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = E45D48A42E6A579D00D88084 /* ClassProgressBar.swift */; };
+		E45D48B12E6A632E00D88084 /* SharedGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = E45D48B02E6A632E00D88084 /* SharedGroup.swift */; };
+		E45D48B22E6A632E00D88084 /* SharedGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = E45D48B02E6A632E00D88084 /* SharedGroup.swift */; };
+		E45D48B42E6A6DE500D88084 /* ThemeColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = E45D48B32E6A6DE500D88084 /* ThemeColors.swift */; };
+		E45D48B52E6A6DE500D88084 /* ThemeColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = E45D48B32E6A6DE500D88084 /* ThemeColors.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -58,9 +68,15 @@
 		E4072D132E4D72DE004A81A7 /* Schedule.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Schedule.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E4072D202E4D72E0004A81A7 /* ScheduleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ScheduleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E4072D2A2E4D72E0004A81A7 /* ScheduleUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ScheduleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E45D48632E638E9200D88084 /* ScheduleLine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleLine.swift; sourceTree = "<group>"; };
+		E45D48642E638E9200D88084 /* Time.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Time.swift; sourceTree = "<group>"; };
 		E45D48892E6A54D700D88084 /* ScheduleWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ScheduleWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		E45D488B2E6A54D700D88084 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		E45D488D2E6A54D800D88084 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		E45D48A42E6A579D00D88084 /* ClassProgressBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassProgressBar.swift; sourceTree = "<group>"; };
+		E45D48AF2E6A626500D88084 /* ScheduleWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ScheduleWidgetExtension.entitlements; sourceTree = "<group>"; };
+		E45D48B02E6A632E00D88084 /* SharedGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedGroup.swift; sourceTree = "<group>"; };
+		E45D48B32E6A6DE500D88084 /* ThemeColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeColors.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -150,12 +166,18 @@
 		E4072D0A2E4D72DE004A81A7 = {
 			isa = PBXGroup;
 			children = (
+				E45D48AF2E6A626500D88084 /* ScheduleWidgetExtension.entitlements */,
 				E4072D152E4D72DE004A81A7 /* Schedule */,
 				E4072D232E4D72E0004A81A7 /* ScheduleTests */,
 				E4072D2D2E4D72E0004A81A7 /* ScheduleUITests */,
 				E45D488F2E6A54D800D88084 /* ScheduleWidget */,
 				E45D488A2E6A54D700D88084 /* Frameworks */,
 				E4072D142E4D72DE004A81A7 /* Products */,
+				E45D48632E638E9200D88084 /* ScheduleLine.swift */,
+				E45D48B02E6A632E00D88084 /* SharedGroup.swift */,
+				E45D48B32E6A6DE500D88084 /* ThemeColors.swift */,
+				E45D48642E638E9200D88084 /* Time.swift */,
+				E45D48A42E6A579D00D88084 /* ClassProgressBar.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -366,6 +388,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E45D48B42E6A6DE500D88084 /* ThemeColors.swift in Sources */,
+				E45D486B2E638E9200D88084 /* ScheduleLine.swift in Sources */,
+				E45D48B12E6A632E00D88084 /* SharedGroup.swift in Sources */,
+				E45D486D2E638E9200D88084 /* Time.swift in Sources */,
+				E45D48AE2E6A58B400D88084 /* ClassProgressBar.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -387,6 +414,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E45D48AC2E6A58AA00D88084 /* ScheduleLine.swift in Sources */,
+				E45D48AD2E6A58AF00D88084 /* Time.swift in Sources */,
+				E45D48B52E6A6DE500D88084 /* ThemeColors.swift in Sources */,
+				E45D48B22E6A632E00D88084 /* SharedGroup.swift in Sources */,
+				E45D48A52E6A579E00D88084 /* ClassProgressBar.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -552,7 +584,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.5;
+				MARKETING_VERSION = 1.6;
 				PRODUCT_BUNDLE_IDENTIFIER = Xcode.ScheduleApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -583,7 +615,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.5;
+				MARKETING_VERSION = 1.6;
 				PRODUCT_BUNDLE_IDENTIFIER = Xcode.ScheduleApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -665,6 +697,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = ScheduleWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = ANZM9NQCQ5;
@@ -692,6 +725,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = ScheduleWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = ANZM9NQCQ5;

@@ -7,8 +7,8 @@
 
 import Foundation
 
-struct ScheduleLine: Identifiable {
-    let id = UUID()
+struct ScheduleLine: Identifiable, Codable {
+    var id = UUID()
     let content: String
     let isCurrentClass: Bool
     let timeRange: String
@@ -16,7 +16,6 @@ struct ScheduleLine: Identifiable {
     let teacher: String
     let room: String
 
-    // NEW
     let startSec: Int?
     let endSec: Int?
     let progress: Double?   // 0...1 for fill amount

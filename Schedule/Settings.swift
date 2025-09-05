@@ -368,15 +368,13 @@ struct Settings: View {
                             set: { newValue in
                                 if newValue {
                                     selectedOption = .t
-                                } else if selectedOption == .t {
+                                } else if selectedOption == .p {
                                     selectedOption = .none
                                 }
                             }
                         ),
                     isPortrait: isPortrait)
             }
-            
-            Spacer()
         }
     }
 }

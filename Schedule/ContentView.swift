@@ -5,8 +5,33 @@
 
 import SwiftUI
 import Foundation
+import WidgetKit
 
 var iPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
+
+extension Color {
+    /// Convert a SwiftUI Color into a hex string like "#RRGGBBAA"
+    func toHex(includeAlpha: Bool = true) -> String? {
+        let uiColor = UIColor(self)
+        
+        var r: CGFloat = 0
+        var g: CGFloat = 0
+        var b: CGFloat = 0
+        var a: CGFloat = 0
+        
+        guard uiColor.getRed(&r, green: &g, blue: &b, alpha: &a) else {
+            return nil
+        }
+        
+        if includeAlpha {
+            let rgba: Int = (Int)(r * 255)<<24 | (Int)(g * 255)<<16 | (Int)(b * 255)<<8 | (Int)(a * 255)
+            return String(format:"#%08x", rgba)
+        } else {
+            let rgb: Int = (Int)(r * 255)<<16 | (Int)(g * 255)<<8 | (Int)(b * 255)
+            return String(format:"#%06x", rgb)
+        }
+    }
+}
 
 private struct ToolBar: View {
     @Binding var window: Window
@@ -85,7 +110,7 @@ struct ContentView: View {
     
     @State private var PrimaryColor: Color = .blue
     @State private var SecondaryColor: Color = .blue.opacity(0.1)
-    @State private var TertiaryColor: Color = .white
+    @State private var TertiaryColor: Color = .primary
     
     @State private var isPortrait: Bool = !iPad
     @State private var hasLoadedFromCloud = false
@@ -136,7 +161,7 @@ struct ContentView: View {
             
             VStack {
                 
-                Text("Version - Beta 1.5\nBugs / Ideas - Email acroyset@gmail.com")
+                Text("Version - Beta 1.6\nBugs / Ideas - Email acroyset@gmail.com")
                     .font(.footnote)
                     .foregroundStyle(TertiaryColor.highContrastTextColor())
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -340,7 +365,7 @@ struct ContentView: View {
                     
                     Divider()
                     
-                    Text("\n- Tutorial\n- Bug Fixes")
+                    Text("\n- Widgit! <----- !!!\n- Tutorial\n- Bug Fixes")
                         .font(.system(
                             size: iPad ? 24 : 15,
                             weight: .bold,
@@ -387,10 +412,10 @@ struct ContentView: View {
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
             guard newPhase == .active else { return }
-            setScroll()
             saveClassesToCloud()
-            window = Window.Home
+            //window = Window.Home
             applySelectedDate(Date())
+            //setScroll()
         }
         .onChange(of: window) { oldWindow, newWindow in
             guard oldWindow != newWindow else { return }
@@ -399,6 +424,8 @@ struct ContentView: View {
             }
         }
         .onReceive(ticker) { _ in
+            saveTheme()
+            saveScheduleLines()
             render()
             setIsPortrait()
         }
@@ -778,6 +805,29 @@ struct ContentView: View {
         let width = UIScreen.main.bounds.width
         let height = UIScreen.main.bounds.height
         isPortrait = height > width
+    }
+    
+    private func saveScheduleLines() {
+        do {
+            let data = try JSONEncoder().encode(scheduleLines)
+            SharedGroup.defaults.set(data, forKey: SharedGroup.key)
+            WidgetCenter.shared.reloadTimelines(ofKind: "ScheduleWidget")
+        } catch {
+            print("Encoding failed:", error)
+        }
+    }
+    
+    private func saveTheme() {
+        // convert to hex or named string
+        let theme = ThemeColors(
+            primary: PrimaryColor.toHex() ?? "#0000FF",
+            secondary: SecondaryColor.toHex() ?? "#0000FF10",
+            tertiary: TertiaryColor.toHex() ?? "#FFFFFF"
+        )
+        if let data = try? JSONEncoder().encode(theme) {
+            SharedGroup.defaults.set(data, forKey: "ThemeColors")
+            WidgetCenter.shared.reloadTimelines(ofKind: "ScheduleWidget")
+        }
     }
 }
 

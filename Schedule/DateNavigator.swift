@@ -93,6 +93,7 @@ struct DateNavigator: View {
                         Spacer()
                         Text(dfMonth.string(from: calendarMonthAnchor))
                             .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(PrimaryColor)
                         Spacer()
 
                         Button {
@@ -108,7 +109,7 @@ struct DateNavigator: View {
                         ForEach(symbols, id: \.self) { s in
                             Text(s.uppercased())
                                 .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(PrimaryColor)
                                 .frame(maxWidth: .infinity)
                         }
                     }
@@ -132,7 +133,7 @@ struct DateNavigator: View {
                 .padding(.bottom, 8)
                 .background(
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color(.systemBackground))
+                        .fill(Color(TertiaryColor))
                         .shadow(radius: 8, y: 4)
                 )
                 .padding(.top, 8)         // drop just below header
