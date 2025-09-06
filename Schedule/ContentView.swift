@@ -234,7 +234,16 @@ struct ContentView: View {
                         
                         Divider()
                         
-                        ClassItemScroll()
+                        ClassItemScroll(
+                            scheduleLines: scheduleLines,
+                            PrimaryColor: PrimaryColor,
+                            SecondaryColor: SecondaryColor,
+                            TertiaryColor: TertiaryColor,
+                            note: note,
+                            dayCode: dayCode,
+                            output: output,
+                            scrollTarget: $scrollTarget
+                        )
                             .onTapGesture(perform: {
                                 withAnimation(.snappy){
                                     showCalendarGrid = false;
@@ -470,37 +479,6 @@ struct ContentView: View {
         }
     }
     
-    // MARK: - View builders (same as before)
-    @ViewBuilder
-    private func ClassItemScroll() -> some View {
-        ScrollView {
-            VStack(spacing: 8) {
-                if !output.isEmpty && scheduleLines.isEmpty {
-                    Text(output)
-                        .font(.system(
-                            size: iPad ? 35 : 17,
-                            design: .monospaced
-                        ))
-                        .foregroundColor(PrimaryColor)
-                }
-                
-                ForEach(Array(scheduleLines.enumerated()), id: \.0) { i, line in
-                    rowView(
-                        line,
-                        note : note,
-                        PrimaryColor: PrimaryColor,
-                        SecondaryColor: SecondaryColor,
-                        TertiaryColor: TertiaryColor
-                    )
-                    .id(i)
-                }
-            }
-            .padding(.horizontal)
-        }
-        .id(dayCode)
-        .scrollPosition(id: $scrollTarget, anchor: .center)
-    }
-    
     // MARK: - Firebase Integration Methods
     
     private func loadData() {
@@ -633,8 +611,8 @@ struct ContentView: View {
         
         for i in d.names.indices {
             let nameRaw = d.names[i]
-            var start   = d.startTimes[i]
-            var end     = d.endTimes[i]
+            let start   = d.startTimes[i]
+            let end     = d.endTimes[i]
             let isCurrentClass = (start <= now && now < end) && isToday
             
             if (isToday){
@@ -647,18 +625,34 @@ struct ContentView: View {
                 }
                 
                 if i != 0 && d.endTimes[i-1] <= now && now < start {
-                    end = start
-                    start = d.endTimes[i-1]
-                    let p = progressValue(start: start.seconds, end: end.seconds, now: nowSec)
-                    scheduleLines.append(ScheduleLine(
-                        content: "",
-                        isCurrentClass: true,
-                        timeRange: "\(start.string()) to \(end.string())",
-                        className: "Passing Period",
-                        startSec: start.seconds,
-                        endSec: end.seconds,
-                        progress: p
-                    ))
+                    let endT = start
+                    let startT = d.endTimes[i-1]
+                    let p = progressValue(start: startT.seconds, end: endT.seconds, now: nowSec)
+                    if (
+                        startT > Time(h:8, m:0, s:0) &&
+                        endT < Time(h:14, m:30, s:0) &&
+                        endT.seconds - startT.seconds <= 600
+                    ){
+                        scheduleLines.append(ScheduleLine(
+                            content: "",
+                            isCurrentClass: true,
+                            timeRange: "\(startT.string()) to \(endT.string())",
+                            className: "Passing Period",
+                            startSec: startT.seconds,
+                            endSec: endT.seconds,
+                            progress: p
+                        ))
+                    } else {
+                        scheduleLines.append(ScheduleLine(
+                            content: "",
+                            isCurrentClass: true,
+                            timeRange: "\(startT.string()) to \(endT.string())",
+                            className: "Free Time",
+                            startSec: startT.seconds,
+                            endSec: endT.seconds,
+                            progress: p
+                        ))
+                    }
                 }
             }
             

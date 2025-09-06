@@ -34,6 +34,12 @@ struct Time: Comparable, Equatable {
     }
 
     static func < (a: Time, b: Time) -> Bool { (a.h,a.m,a.s) < (b.h,b.m,b.s) }
+        
+    init(seconds: Int) {
+        h = seconds / 3600
+        m = (seconds % 3600) / 60
+        s = seconds % 60
+    }
 }
 
 extension Time {

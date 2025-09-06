@@ -40,3 +40,20 @@ struct ScheduleLine: Identifiable, Codable {
         self.progress = progress
     }
 }
+
+extension ScheduleLine {
+    var durationMinutes: Int {
+        guard let start = startSec, let end = endSec else { return 60 } // default fallback
+        return max(1, (end - start) / 60) // minimum 1 minute to avoid zero height
+    }
+    
+    var startTime: Time? {
+        guard let start = startSec else { return nil }
+        return Time(seconds: start)
+    }
+    
+    var endTime: Time? {
+        guard let end = endSec else { return nil }
+        return Time(seconds: end)
+    }
+}

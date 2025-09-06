@@ -94,6 +94,13 @@
 			);
 			target = E45D48882E6A54D700D88084 /* ScheduleWidgetExtension */;
 		};
+		E45D48BD2E6BF08C00D88084 /* Exceptions for "Schedule" folder in "ScheduleWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				ClassItemScroll.swift,
+			);
+			target = E45D48882E6A54D700D88084 /* ScheduleWidgetExtension */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -101,6 +108,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				E4257E5C2E54022700948AE0 /* Exceptions for "Schedule" folder in "Schedule" target */,
+				E45D48BD2E6BF08C00D88084 /* Exceptions for "Schedule" folder in "ScheduleWidgetExtension" target */,
 			);
 			path = Schedule;
 			sourceTree = "<group>";
