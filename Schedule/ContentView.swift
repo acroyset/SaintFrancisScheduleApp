@@ -10,6 +10,34 @@ import WidgetKit
 var iPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
 
 extension Color {
+    init(hex: String) {
+        var hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        hexSanitized = hexSanitized.replacingOccurrences(of: "#", with: "")
+
+        var int: UInt64 = 0
+        Scanner(string: hexSanitized).scanHexInt64(&int)
+
+        let r, g, b, a: Double
+        switch hexSanitized.count {
+        case 8: // RRGGBBAA
+            r = Double((int & 0xFF000000) >> 24) / 255
+            g = Double((int & 0x00FF0000) >> 16) / 255
+            b = Double((int & 0x0000FF00) >> 8) / 255
+            a = Double(int & 0x000000FF) / 255
+        case 6: // RRGGBB
+            r = Double((int & 0xFF0000) >> 16) / 255
+            g = Double((int & 0x00FF00) >> 8) / 255
+            b = Double(int & 0x0000FF) / 255
+            a = 1.0
+        default:
+            r = 0; g = 0; b = 0; a = 1
+        }
+
+        self.init(red: r, green: g, blue: b, opacity: a)
+    }
+}
+
+extension Color {
     /// Convert a SwiftUI Color into a hex string like "#RRGGBBAA"
     func toHex(includeAlpha: Bool = true) -> String? {
         let uiColor = UIColor(self)
@@ -39,7 +67,7 @@ private struct ToolBar: View {
     var SecondaryColor: Color
     var TertiaryColor: Color
     
-    let tools = ["Home", "News", "Edit Classes", "Settings", "Profile"]
+    let tools = ["Home", "News", "Clubs", "Edit Classes", "Settings", "Profile"]
     
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -156,6 +184,7 @@ struct ContentView: View {
                 withAnimation(.snappy){
                     showCalendarGrid = false
                     whatsNewPopup = false
+                    tutorial = .Hidden
                 }
             })
             
@@ -168,13 +197,14 @@ struct ContentView: View {
                 .padding(.horizontal)
                 .onTapGesture(perform: {
                     withAnimation(.snappy){
-                        showCalendarGrid = false;
+                        showCalendarGrid = false
                         whatsNewPopup = false
+                        tutorial = .Hidden
                     }
                 })
                 
                 switch window {
-                case Window.Home:
+                case .Home:
                     VStack {
                         dayHeaderView(
                             dayInfo: getDayInfo(for: dayCode),
@@ -184,8 +214,9 @@ struct ContentView: View {
                         )
                         .onTapGesture(perform: {
                             withAnimation(.snappy){
-                                showCalendarGrid = false;
+                                showCalendarGrid = false
                                 whatsNewPopup = false
+                                tutorial = .Hidden
                             }
                         })
                         
@@ -208,6 +239,7 @@ struct ContentView: View {
                                 withAnimation(.snappy){
                                     showCalendarGrid = false;
                                     whatsNewPopup = false
+                                    tutorial = .Hidden
                                 }
                             })
                     }
@@ -231,14 +263,21 @@ struct ContentView: View {
                             }
                     )
                     
-                case Window.News:
+                case .News:
                     NewsMenu(
                         PrimaryColor: PrimaryColor,
                         SecondaryColor: SecondaryColor,
                         TertiaryColor: TertiaryColor
                     )
                     
-                case Window.ClassEditor:
+                case .Clubs:
+                    ClubView(
+                        PrimaryColor: PrimaryColor,
+                        SecondaryColor: SecondaryColor,
+                        TertiaryColor: TertiaryColor
+                    )
+                    
+                case .ClassEditor:
                     let bindingData = Binding<ScheduleData>(
                         get: { self.data ?? ScheduleData(classes: [], days: []) },
                         set: {
@@ -255,7 +294,7 @@ struct ContentView: View {
                         isPortrait: isPortrait
                     )
                     
-                case Window.Settings:
+                case .Settings:
                     Settings(
                         PrimaryColor: $PrimaryColor,
                         SecondaryColor: $SecondaryColor,
@@ -263,12 +302,12 @@ struct ContentView: View {
                         isPortrait: isPortrait
                     )
                     
-                case Window.Profile:
+                case .Profile:
                     ProfileMenu(
                         data: $data,
-                        PrimaryColor: PrimaryColor,
-                        SecondaryColor: SecondaryColor,
-                        TertiaryColor: TertiaryColor,
+                        PrimaryColor: $PrimaryColor,
+                        SecondaryColor: $SecondaryColor,
+                        TertiaryColor: $TertiaryColor,
                         iPad: iPad
                     )
                 }
@@ -365,7 +404,7 @@ struct ContentView: View {
                     
                     Divider()
                     
-                    Text("\n- Widgit! <----- !!!\n- Tutorial\n- Bug Fixes")
+                    Text("\n- Widgit! <----- !!!\n- Tutorial\n- Improved Cloud Saving\n- Bug Fixes")
                         .font(.system(
                             size: iPad ? 24 : 15,
                             weight: .bold,
@@ -412,7 +451,7 @@ struct ContentView: View {
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
             guard newPhase == .active else { return }
-            saveClassesToCloud()
+            if (hasLoadedFromCloud) {saveClassesToCloud()}
             //window = Window.Home
             applySelectedDate(Date())
             //setScroll()
@@ -505,18 +544,23 @@ struct ContentView: View {
         
         Task {
             do {
-                let cloudClasses = try await dataManager.loadClasses(for: user.id)
+                let (cloudClasses, theme) = try await dataManager.loadFromCloud(for: user.id)
                 if !cloudClasses.isEmpty {
                     DispatchQueue.main.async {
                         if var currentData = self.data {
                             currentData.classes = cloudClasses
                             self.data = currentData
                         }
-                        self.hasLoadedFromCloud = true
                         // Also save to local file as backup
-                        self.overwriteClassesFile(with: cloudClasses)
+                        overwriteClassesFile(with: cloudClasses)
                     }
                 }
+                
+                PrimaryColor   = Color(hex: theme.primary)
+                SecondaryColor = Color(hex: theme.secondary)
+                TertiaryColor  = Color(hex: theme.tertiary)
+                
+                hasLoadedFromCloud = true
             } catch {
                 print("Failed to load classes from cloud: \(error)")
             }
@@ -529,10 +573,15 @@ struct ContentView: View {
         
         Task {
             do {
-                try await dataManager.saveClasses(classes, for: user.id)
+                let theme = ThemeColors(
+                    primary: PrimaryColor.toHex() ?? "#0000FF",
+                    secondary: SecondaryColor.toHex() ?? "#0000FF10",
+                    tertiary: TertiaryColor.toHex() ?? "#FFFFFF"
+                )
+                try await dataManager.saveToCloud(classes: classes, theme:theme,  for: user.id)
                 // Also save locally as backup
                 DispatchQueue.main.async {
-                    self.overwriteClassesFile(with: classes)
+                    overwriteClassesFile(with: classes)
                 }
             } catch {
                 print("Failed to save classes to cloud: \(error)")
@@ -706,17 +755,6 @@ struct ContentView: View {
         return ClassItem(name: "None", teacher: "None", room: "None")
     }
     
-    private func overwriteClassesFile(with classes: [ClassItem]) {
-        do {
-            let url = try ensureWritableClassesFile()
-            let text = classes.map { "\($0.name) - \($0.teacher) - \($0.room)" }
-                              .joined(separator: "\n") + "\n"
-            try text.write(to: url, atomically: true, encoding: .utf8)
-        } catch {
-            print("overwriteClassesFile error:", error)
-        }
-    }
-
     private func parseDays(_ contents: String) -> [Day] {
         var days: [Day] = []; var cur = Day()
         for raw in contents.split(whereSeparator: \.isNewline) {
@@ -780,25 +818,6 @@ struct ContentView: View {
         DispatchQueue.main.async {
             scrollTarget = currentClassIndex() ?? 0
         }
-    }
-    
-    private func classesDocumentsURL() throws -> URL {
-        let docs = try FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-        return docs.appendingPathComponent("Classes.txt")
-    }
-
-    @discardableResult
-    private func ensureWritableClassesFile() throws -> URL {
-        let dst = try classesDocumentsURL()
-        let fm = FileManager.default
-        if !fm.fileExists(atPath: dst.path) {
-            if let src = Bundle.main.url(forResource: "Classes", withExtension: "txt") {
-                try? fm.copyItem(at: src, to: dst)
-            } else {
-                try "".write(to: dst, atomically: true, encoding: .utf8)
-            }
-        }
-        return dst
     }
     
     private func setIsPortrait() -> Void {

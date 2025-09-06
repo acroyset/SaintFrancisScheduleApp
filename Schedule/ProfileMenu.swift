@@ -8,18 +8,49 @@
 import SwiftUI
 import Foundation
 
+func classesDocumentsURL() throws -> URL {
+    let docs = try FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+    return docs.appendingPathComponent("Classes.txt")
+}
+
+@discardableResult
+func ensureWritableClassesFile() throws -> URL {
+    let dst = try classesDocumentsURL()
+    let fm = FileManager.default
+    if !fm.fileExists(atPath: dst.path) {
+        if let src = Bundle.main.url(forResource: "Classes", withExtension: "txt") {
+            try? fm.copyItem(at: src, to: dst)
+        } else {
+            try "".write(to: dst, atomically: true, encoding: .utf8)
+        }
+    }
+    return dst
+}
+
+func overwriteClassesFile(with classes: [ClassItem]) {
+    do {
+        let url = try ensureWritableClassesFile()
+        let text = classes.map { "\($0.name) - \($0.teacher) - \($0.room)" }
+                          .joined(separator: "\n") + "\n"
+        try text.write(to: url, atomically: true, encoding: .utf8)
+    } catch {
+        print("overwriteClassesFile error:", error)
+    }
+}
+
 struct ProfileMenu: View {
     @EnvironmentObject var authManager: AuthenticationManager
     @StateObject private var dataManager = DataManager()
     @Binding var data: ScheduleData?
     
-    var PrimaryColor: Color
-    var SecondaryColor: Color
-    var TertiaryColor: Color
+    @Binding var PrimaryColor: Color
+    @Binding var SecondaryColor: Color
+    @Binding var TertiaryColor: Color
     var iPad: Bool
     
     @State private var showingDeleteAlert = false
-    @State private var isLoading = false
+    @State private var isLoadingSync = false
+    @State private var isLoadingLoad = false
     
     var body: some View {
         VStack(spacing: 12) {
@@ -38,7 +69,7 @@ struct ProfileMenu: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Signed in as:")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(TertiaryColor.highContrastTextColor())
                     
                     Text(user.displayName ?? "User")
                         .font(.headline)
@@ -46,7 +77,7 @@ struct ProfileMenu: View {
                     
                     Text(user.email)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(TertiaryColor.highContrastTextColor())
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
@@ -59,24 +90,24 @@ struct ProfileMenu: View {
                 Image(systemName: "cloud.fill")
                     .foregroundColor(.green)
                 Text("Classes synced to cloud")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(.footnote)
+                    .foregroundStyle(TertiaryColor.highContrastTextColor())
                 Spacer()
             }
             .padding(.vertical, 4)
             
             // Manual Sync Button
             Button {
-                syncClasses()
+                sync()
             } label: {
                 HStack {
-                    if isLoading {
+                    if isLoadingSync {
                         ProgressView()
                             .scaleEffect(0.8)
                     } else {
                         Image(systemName: "arrow.clockwise")
                     }
-                    Text("Sync Now")
+                    Text("Sync to Cloud")
                 }
                 .frame(maxWidth: .infinity, minHeight: iPad ? 44 : 30)
                 .padding()
@@ -84,7 +115,27 @@ struct ProfileMenu: View {
                 .foregroundColor(PrimaryColor)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             }
-            .disabled(isLoading)
+            .disabled(isLoadingSync)
+            
+            Button {
+                load()
+            } label: {
+                HStack {
+                    if isLoadingLoad {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    Text("Load from cloud")
+                }
+                .frame(maxWidth: .infinity, minHeight: iPad ? 44 : 30)
+                .padding()
+                .background(SecondaryColor)
+                .foregroundColor(PrimaryColor)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            .disabled(isLoadingLoad)
             
             Spacer()
             
@@ -135,18 +186,51 @@ struct ProfileMenu: View {
         }
     }
     
-    private func syncClasses() {
+    private func sync() {
         guard let user = authManager.user,
               let classes = data?.classes else { return }
         
-        isLoading = true
+        isLoadingSync = true
         Task {
             do {
-                try await dataManager.saveClasses(classes, for: user.id)
+                let theme = ThemeColors(
+                    primary: PrimaryColor.toHex() ?? "#000000FF",
+                    secondary: SecondaryColor.toHex() ?? "#000000FF",
+                    tertiary: TertiaryColor.toHex() ?? "#000000FF"
+                )
+                try await dataManager.saveToCloud(classes:classes, theme:theme, for: user.id)
             } catch {
                 print("Failed to sync classes: \(error)")
             }
-            isLoading = false
+            isLoadingSync = false
+        }
+    }
+    
+    private func load() {
+        guard let user = authManager.user else { return }
+        
+        isLoadingLoad = true
+        Task {
+            do {
+                let (cloudClasses, theme) = try await dataManager.loadFromCloud(for: user.id)
+                if !cloudClasses.isEmpty {
+                    DispatchQueue.main.async {
+                        if var currentData = self.data {
+                            currentData.classes = cloudClasses
+                            self.data = currentData
+                        }
+                        // Also save to local file as backup
+                        overwriteClassesFile(with: cloudClasses)
+                    }
+                }
+                
+                PrimaryColor   = Color(hex: theme.primary)
+                SecondaryColor = Color(hex: theme.secondary)
+                TertiaryColor  = Color(hex: theme.tertiary)
+            } catch {
+                print("Failed to load classes: \(error)")
+            }
+            isLoadingLoad = false
         }
     }
     

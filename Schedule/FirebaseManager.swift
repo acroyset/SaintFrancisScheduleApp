@@ -187,7 +187,7 @@ class AuthenticationManager: ObservableObject {
 class DataManager: ObservableObject {
     private let db = Firestore.firestore()
     
-    func saveClasses(_ classes: [ClassItem], for userId: String) async throws {
+    func saveToCloud(classes: [ClassItem], theme: ThemeColors, for userId: String) async throws {
         let classesData = classes.map { classItem in
             [
                 "name": classItem.name,
@@ -196,28 +196,40 @@ class DataManager: ObservableObject {
             ]
         }
         
+        let themeDict: [String: String] = [
+            "primary": theme.primary,
+            "secondary": theme.secondary,
+            "tertiary": theme.tertiary
+        ]
+        
         try await db.collection("users").document(userId).setData([
             "classes": classesData,
+            "theme": themeDict,
             "lastUpdated": Timestamp()
         ], merge: true)
     }
     
-    func loadClasses(for userId: String) async throws -> [ClassItem] {
-        let document = try await db.collection("users").document(userId).getDocument()
+    func loadFromCloud(for userId: String) async throws -> ([ClassItem], ThemeColors) {
+        let doc = try await db.collection("users").document(userId).getDocument()
+        guard let data = doc.data() else { return ([], ThemeColors(primary: "#0000FF", secondary: "#CCCCCC", tertiary: "#FFFFFF")) }
         
-        guard let data = document.data(),
-              let classesData = data["classes"] as? [[String: Any]] else {
-            return []
+        let classesArray = (data["classes"] as? [[String: String]]) ?? []
+        let classes = classesArray.map { dict in
+            ClassItem(
+                name: dict["name"] ?? "",
+                teacher: dict["teacher"] ?? "",
+                room: dict["room"] ?? ""
+            )
         }
         
-        return classesData.compactMap { classData in
-            guard let name = classData["name"] as? String,
-                  let teacher = classData["teacher"] as? String,
-                  let room = classData["room"] as? String else {
-                return nil
-            }
-            return ClassItem(name: name, teacher: teacher, room: room)
-        }
+        let themeDict = (data["theme"] as? [String: String]) ?? [:]
+        let theme = ThemeColors(
+            primary: themeDict["primary"] ?? "#0000FF",
+            secondary: themeDict["secondary"] ?? "#CCCCCC",
+            tertiary: themeDict["tertiary"] ?? "#FFFFFF"
+        )
+        
+        return (classes, theme)
     }
     
     func deleteUserData(for userId: String) async throws {
