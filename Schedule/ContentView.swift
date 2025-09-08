@@ -9,6 +9,13 @@ import WidgetKit
 
 var iPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
 
+func progressValue(start: Int, end: Int, now: Int) -> Double {
+    guard end > start else { return 0 }
+    if now <= start { return 0 }
+    if now >= end { return 1 }
+    return Double(now - start) / Double(end - start)
+}
+
 extension Color {
     init(hex: String) {
         var hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -134,6 +141,8 @@ struct ContentView: View {
     @State private var showCalendarGrid = false
     @State private var whatsNewPopup = true
     
+    @State private var addEvent = false
+    
     @State private var window: Window = Window.Home
     
     @State private var PrimaryColor: Color = .blue
@@ -234,6 +243,9 @@ struct ContentView: View {
                         
                         Divider()
                         
+                        let cal = Calendar.current
+                        let isToday = cal.isDateInToday(selectedDate)
+                        
                         ClassItemScroll(
                             scheduleLines: scheduleLines,
                             PrimaryColor: PrimaryColor,
@@ -242,7 +254,9 @@ struct ContentView: View {
                             note: note,
                             dayCode: dayCode,
                             output: output,
-                            scrollTarget: $scrollTarget
+                            isToday: isToday,
+                            scrollTarget: $scrollTarget,
+                            addEvent: $addEvent
                         )
                             .onTapGesture(perform: {
                                 withAnimation(.snappy){
@@ -605,10 +619,6 @@ struct ContentView: View {
         let now = Time.now()
         let nowSec = now.seconds
         
-        if (isToday){
-            scheduleLines.append(ScheduleLine(content: "Current Time: \(now.string(showSeconds: true))"))
-        }
-        
         for i in d.names.indices {
             let nameRaw = d.names[i]
             let start   = d.startTimes[i]
@@ -616,14 +626,6 @@ struct ContentView: View {
             let isCurrentClass = (start <= now && now < end) && isToday
             
             if (isToday){
-                if i == 0 && now < start {
-                    scheduleLines.append(ScheduleLine(
-                        content: "",
-                        isCurrentClass: true,
-                        timeRange: "Now to \(start.string())",
-                        className: "Before School"))
-                }
-                
                 if i != 0 && d.endTimes[i-1] <= now && now < start {
                     let endT = start
                     let startT = d.endTimes[i-1]
@@ -638,16 +640,6 @@ struct ContentView: View {
                             isCurrentClass: true,
                             timeRange: "\(startT.string()) to \(endT.string())",
                             className: "Passing Period",
-                            startSec: startT.seconds,
-                            endSec: endT.seconds,
-                            progress: p
-                        ))
-                    } else {
-                        scheduleLines.append(ScheduleLine(
-                            content: "",
-                            isCurrentClass: true,
-                            timeRange: "\(startT.string()) to \(endT.string())",
-                            className: "Free Time",
                             startSec: startT.seconds,
                             endSec: endT.seconds,
                             progress: p
@@ -682,16 +674,6 @@ struct ContentView: View {
                     isCurrentClass: isCurrentClass,
                     timeRange: "\(start.string()) to \(end.string())",
                     className: nameRaw))
-            }
-            
-            if (isToday){
-                if i == d.names.count - 1 && end < now {
-                    scheduleLines.append(ScheduleLine(
-                        content: "",
-                        isCurrentClass: true,
-                        timeRange: "\(end.string()) to Now",
-                        className: "After School"))
-                }
             }
         }
     }
@@ -798,13 +780,6 @@ struct ContentView: View {
             self.parseCSV(csv)
             applySelectedDate(selectedDate)
         }.resume()
-    }
-    
-    private func progressValue(start: Int, end: Int, now: Int) -> Double {
-        guard end > start else { return 0 }
-        if now <= start { return 0 }
-        if now >= end { return 1 }
-        return Double(now - start) / Double(end - start)
     }
     
     private func setScroll() -> Void {
