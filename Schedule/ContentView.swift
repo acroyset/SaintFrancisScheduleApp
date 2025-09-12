@@ -255,6 +255,7 @@ struct ContentView: View {
                             dayCode: dayCode,
                             output: output,
                             isToday: isToday,
+                            iPad: iPad,
                             scrollTarget: $scrollTarget,
                             addEvent: $addEvent
                         )
@@ -484,6 +485,7 @@ struct ContentView: View {
             withAnimation(.snappy){
                 showCalendarGrid = false;
             }
+            saveClassesToCloud()
         }
         .onReceive(ticker) { _ in
             saveTheme()

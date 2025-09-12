@@ -4,8 +4,6 @@ import SwiftUI
 
 // MARK: - Timeline Entry
 
-var iPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
-
 private func secondsSinceMidnight(_ date: Date = Date()) -> Int {
     let cal = Calendar.current
     let comps = cal.dateComponents([.hour, .minute, .second], from: date)
@@ -62,7 +60,7 @@ func rowView(_ line: ScheduleLine, note: String, PrimaryColor: Color, SecondaryC
             VStack(alignment: .leading, spacing: 4) {
                 Text(line.timeRange)
                     .font(.system(
-                        size: iPad ? 20 : 14,
+                        size: 14,
                         weight: line.isCurrentClass ? .bold : .regular,
                         design: .monospaced
                     ))
@@ -74,7 +72,7 @@ func rowView(_ line: ScheduleLine, note: String, PrimaryColor: Color, SecondaryC
                     let x = name == "" ? "Unknown" : name
                     Text(x)
                         .font(.system(
-                            size: iPad ? 25 : 17,
+                            size: 17,
                             weight: .bold,
                             design: .monospaced
                         ))
@@ -87,7 +85,7 @@ func rowView(_ line: ScheduleLine, note: String, PrimaryColor: Color, SecondaryC
                         if line.isCurrentClass && remainMin > 0 {
                             Text("• \(remainMin)m left")
                                 .font(.system(
-                                    size: iPad ? 19 : 15,
+                                    size: 15,
                                     weight: line.isCurrentClass ? .bold : .regular,
                                     design: .monospaced
                                 ))
@@ -100,21 +98,10 @@ func rowView(_ line: ScheduleLine, note: String, PrimaryColor: Color, SecondaryC
             
             Spacer()
             
-            if (!line.teacher.isEmpty && iPad) {
-                Text("\(line.teacher)  ")
-                    .font(.system(
-                        size: iPad ? 20 : 14,
-                        weight: line.isCurrentClass ? .bold : .regular,
-                        design: .monospaced
-                    ))
-                    .foregroundStyle(
-                        line.isCurrentClass ? TertiaryColor : PrimaryColor.opacity(0.8))
-            }
-            
             if !line.room.isEmpty {
                 Text(line.room)
                     .font(.system(
-                        size: iPad ? 20 : 14,
+                        size: 14,
                         weight: line.isCurrentClass ? .bold : .regular,
                         design: .monospaced
                     ))
@@ -124,7 +111,7 @@ func rowView(_ line: ScheduleLine, note: String, PrimaryColor: Color, SecondaryC
         } else {
             Text(line.content)
                 .font(.system(
-                    size: iPad ? 23 : 16,
+                    size: 16,
                     weight: .bold,
                     design: .monospaced
                 ))

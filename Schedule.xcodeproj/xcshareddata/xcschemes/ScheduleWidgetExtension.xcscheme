@@ -16,7 +16,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "E4257E192E517F5E00948AE0"
+               BlueprintIdentifier = "E45D48882E6A54D700D88084"
                BuildableName = "ScheduleWidgetExtension.appex"
                BlueprintName = "ScheduleWidgetExtension"
                ReferencedContainer = "container:Schedule.xcodeproj">
@@ -62,7 +62,7 @@
          BundleIdentifier = "com.apple.springboard">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "E4257E192E517F5E00948AE0"
+            BlueprintIdentifier = "E45D48882E6A54D700D88084"
             BuildableName = "ScheduleWidgetExtension.appex"
             BlueprintName = "ScheduleWidgetExtension"
             ReferencedContainer = "container:Schedule.xcodeproj">

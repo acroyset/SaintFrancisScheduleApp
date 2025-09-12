@@ -17,6 +17,7 @@ struct ClassItemScroll: View {
     var dayCode: String
     var output: String
     var isToday: Bool
+    var iPad: Bool
     @Binding var scrollTarget: Int?
     @Binding var addEvent: Bool
     
