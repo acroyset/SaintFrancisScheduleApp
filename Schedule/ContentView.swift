@@ -124,6 +124,48 @@ struct ToolButton: View {
     }
 }
 
+struct ConflictNotificationView: View {
+    let conflicts: [EventConflict]
+    @Binding var isPresented: Bool
+    let PrimaryColor: Color
+    let SecondaryColor: Color
+    let TertiaryColor: Color
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundColor(.orange)
+                    .font(.title2)
+                
+                Text("Schedule Conflicts Detected")
+                    .font(.headline)
+                    .foregroundColor(PrimaryColor)
+                
+                Spacer()
+                
+                Button("Dismiss") {
+                    isPresented = false
+                }
+                .foregroundColor(PrimaryColor)
+            }
+            
+            ScrollView {
+                LazyVStack(spacing: 8) {
+                    ForEach(conflicts.indices, id: \.self) { index in
+                        ConflictRowView(conflict: conflicts[index])
+                    }
+                }
+            }
+            .frame(maxHeight: 200)
+        }
+        .padding()
+        .background(TertiaryColor)
+        .cornerRadius(12)
+        .shadow(radius: 10)
+    }
+}
+
 // Updated ContentView with Firebase integration
 struct ContentView: View {
     @EnvironmentObject var authManager: AuthenticationManager
@@ -152,6 +194,8 @@ struct ContentView: View {
     @State private var isPortrait: Bool = !iPad
     @State private var hasLoadedFromCloud = false
     @State private var tutorial = TutorialState.Hidden
+    
+    @StateObject private var eventsManager = CustomEventsManager()
     
     let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
@@ -199,7 +243,7 @@ struct ContentView: View {
             
             VStack {
                 
-                Text("Version - Beta 1.6\nBugs / Ideas - Email acroyset@gmail.com")
+                Text("Version - Beta 1.7\nBugs / Ideas - Email acroyset@gmail.com")
                     .font(.footnote)
                     .foregroundStyle(TertiaryColor.highContrastTextColor())
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -246,7 +290,7 @@ struct ContentView: View {
                         let cal = Calendar.current
                         let isToday = cal.isDateInToday(selectedDate)
                         
-                        ClassItemScroll(
+                        EnhancedClassItemScroll(
                             scheduleLines: scheduleLines,
                             PrimaryColor: PrimaryColor,
                             SecondaryColor: SecondaryColor,
@@ -257,15 +301,16 @@ struct ContentView: View {
                             isToday: isToday,
                             iPad: iPad,
                             scrollTarget: $scrollTarget,
-                            addEvent: $addEvent
+                            addEvent: $addEvent,
+                            currentDate: selectedDate
                         )
-                            .onTapGesture(perform: {
-                                withAnimation(.snappy){
-                                    showCalendarGrid = false;
-                                    whatsNewPopup = false
-                                    tutorial = .Hidden
-                                }
-                            })
+                        .onTapGesture(perform: {
+                            withAnimation(.snappy){
+                                showCalendarGrid = false;
+                                whatsNewPopup = false
+                                tutorial = .Hidden
+                            }
+                        })
                     }
                     .gesture(
                         DragGesture()
@@ -474,11 +519,25 @@ struct ContentView: View {
             setScroll()
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
-            guard newPhase == .active else { return }
-            if (hasLoadedFromCloud) {saveClassesToCloud()}
-            //window = Window.Home
-            applySelectedDate(Date())
-            //setScroll()
+            switch newPhase {
+            case .active:
+                // App became active - check for widget requests
+                handleWidgetRefreshRequest()
+                
+                if hasLoadedFromCloud {
+                    saveClassesToCloud()
+                }
+                applySelectedDate(Date())
+                
+            case .background:
+                // App going to background - save current state
+                SharedGroup.defaults.set(Date(), forKey: "LastAppDataUpdate")
+                saveScheduleLinesWithEvents()
+                saveTheme()
+                
+            default:
+                break
+            }
         }
         .onChange(of: window) { oldWindow, newWindow in
             guard oldWindow != newWindow else { return }
@@ -489,9 +548,18 @@ struct ContentView: View {
         }
         .onReceive(ticker) { _ in
             saveTheme()
-            saveScheduleLines()
-            render()
+            renderWithEvents() // Use enhanced rendering
+            saveScheduleLinesWithEvents() // Use enhanced saving
             setIsPortrait()
+            
+            // Handle widget refresh requests
+            let now = Date()
+            let lastWidgetCheck = SharedGroup.defaults.object(forKey: "LastWidgetCheck") as? Date ?? Date.distantPast
+            
+            if now.timeIntervalSince(lastWidgetCheck) > 30 {
+                SharedGroup.defaults.set(now, forKey: "LastWidgetCheck")
+                handleWidgetRefreshRequest()
+            }
         }
     }
     
@@ -598,7 +666,7 @@ struct ContentView: View {
         return di
     }
     
-    private func render() {
+    private func renderWithEvents() {
         let cal = Calendar.current
         let isToday = cal.isDateInToday(selectedDate)
         
@@ -621,12 +689,14 @@ struct ContentView: View {
         let now = Time.now()
         let nowSec = now.seconds
         
+        // Build regular schedule lines
         for i in d.names.indices {
             let nameRaw = d.names[i]
             let start   = d.startTimes[i]
             let end     = d.endTimes[i]
             let isCurrentClass = (start <= now && now < end) && isToday
             
+            // Add passing periods for today
             if (isToday){
                 if i != 0 && d.endTimes[i-1] <= now && now < start {
                     let endT = start
@@ -650,6 +720,7 @@ struct ContentView: View {
                 }
             }
             
+            // Add regular classes
             if nameRaw.hasPrefix("$"),
                let idx = Int(nameRaw.dropFirst()),
                (1...data.classes.count).contains(idx) {
@@ -678,6 +749,21 @@ struct ContentView: View {
                     className: nameRaw))
             }
         }
+        
+        // Check for conflicts with custom events
+        let todaysEvents = eventsManager.eventsFor(dayCode: dayCode, date: selectedDate)
+        checkForEventConflicts(events: todaysEvents)
+    }
+
+    // Add this new conflict checking function:
+    private func checkForEventConflicts(events: [CustomEvent]) {
+        for event in events {
+            let conflicts = eventsManager.detectConflicts(for: event, with: scheduleLines)
+            
+            if !conflicts.isEmpty {
+                print("Event '\(event.title)' has \(conflicts.count) conflicts")
+            }
+        }
     }
     
     // MARK: - Parsing / Utils (same as before)
@@ -689,7 +775,7 @@ struct ContentView: View {
         if let day = scheduleDict?[key] {
             dayCode = day[0]
             note = day[1]
-            render()
+            renderWithEvents()
             DispatchQueue.main.async {
                 scrollTarget = currentClassIndex() ?? 0
             }
@@ -697,6 +783,48 @@ struct ContentView: View {
         } else {
             output = "No schedule found for \(key)"
             dayCode = "None"
+        }
+    }
+    
+    private func saveScheduleLinesWithEvents() {
+        // Combine regular schedule lines with today's events for widget
+        var allItems: [ScheduleLine] = scheduleLines
+        
+        let now = Time.now()
+        let nowSec = now.seconds
+        
+        // Convert events to ScheduleLine format for widget compatibility
+        let todaysEvents = eventsManager.eventsFor(dayCode: dayCode, date: selectedDate)
+        for event in todaysEvents where event.isEnabled {
+            let eventLine = ScheduleLine(
+                content: "",
+                isCurrentClass: false,
+                timeRange: "\(event.startTime.string()) to \(event.endTime.string())",
+                className: "\(event.title)",
+                teacher: event.location,
+                room: event.note,
+                startSec: event.startTime.seconds,
+                endSec: event.endTime.seconds,
+                progress: nil
+            )
+            allItems.append(eventLine)
+        }
+        
+        // Sort by start time
+        allItems.sort { first, second in
+            guard let firstStart = first.startSec, let secondStart = second.startSec else {
+                return false
+            }
+            return firstStart < secondStart
+        }
+        
+        do {
+            let data = try JSONEncoder().encode(allItems)
+            SharedGroup.defaults.set(data, forKey: SharedGroup.key)
+            SharedGroup.defaults.set(Date(), forKey: "LastAppDataUpdate")
+            WidgetCenter.shared.reloadTimelines(ofKind: "ScheduleWidget")
+        } catch {
+            print("Encoding failed:", error)
         }
     }
     
@@ -785,7 +913,7 @@ struct ContentView: View {
     }
     
     private func setScroll() -> Void {
-        render()
+        renderWithEvents()
         DispatchQueue.main.async {
             scrollTarget = currentClassIndex() ?? 0
         }
@@ -797,18 +925,73 @@ struct ContentView: View {
         isPortrait = height > width
     }
     
-    private func saveScheduleLines() {
+    private func handleWidgetRefreshRequest() {
+        // Check if widget requested an update
+        if SharedGroup.defaults.bool(forKey: "WidgetRequestsUpdate") {
+            SharedGroup.defaults.set(false, forKey: "WidgetRequestsUpdate")
+            
+            // Refresh data from cloud and Google Sheets
+            Task {
+                await refreshAllData()
+            }
+        }
+    }
+
+    private func refreshAllData() async {
+        // Refresh from Google Sheets
+        await fetchScheduleFromGoogleSheetsAsync()
+        
+        // Refresh from Firebase if user is logged in
+        if let user = authManager.user {
+            do {
+                let (cloudClasses, theme) = try await dataManager.loadFromCloud(for: user.id)
+                DispatchQueue.main.async {
+                    if !cloudClasses.isEmpty, var currentData = self.data {
+                        currentData.classes = cloudClasses
+                        self.data = currentData
+                        overwriteClassesFile(with: cloudClasses)
+                    }
+                    
+                    self.PrimaryColor = Color(hex: theme.primary)
+                    self.SecondaryColor = Color(hex: theme.secondary)
+                    self.TertiaryColor = Color(hex: theme.tertiary)
+                    
+                    // Update timestamp for widget
+                    SharedGroup.defaults.set(Date(), forKey: "LastAppDataUpdate")
+                    
+                    // Re-render and save data for widget
+                    self.renderWithEvents()
+                    self.saveScheduleLinesWithEvents()
+                    self.saveTheme()
+                }
+            } catch {
+                print("Failed to refresh from cloud: \(error)")
+            }
+        }
+    }
+
+    private func fetchScheduleFromGoogleSheetsAsync() async {
+        let csvURL = "https://docs.google.com/spreadsheets/d/1vrodfGZP7wNooj8VYgpNejPaLvOl8PUyg82hwWz_uU4/export?format=csv&gid=0"
+        guard let url = URL(string: csvURL) else { return }
+        
         do {
-            let data = try JSONEncoder().encode(scheduleLines)
-            SharedGroup.defaults.set(data, forKey: SharedGroup.key)
-            WidgetCenter.shared.reloadTimelines(ofKind: "ScheduleWidget")
+            let (data, _) = try await URLSession.shared.data(from: url)
+            if let csv = String(data: data, encoding: .utf8) {
+                DispatchQueue.main.async {
+                    self.parseCSV(csv)
+                    self.applySelectedDate(self.selectedDate)
+                }
+            }
         } catch {
-            print("Encoding failed:", error)
+            print("Failed to fetch schedule: \(error)")
         }
     }
     
+    private func enableBackgroundAppRefresh() {
+        
+    }
+
     private func saveTheme() {
-        // convert to hex or named string
         let theme = ThemeColors(
             primary: PrimaryColor.toHex() ?? "#0000FF",
             secondary: SecondaryColor.toHex() ?? "#0000FF10",
@@ -831,8 +1014,6 @@ func copyText(from sourcePath: String, to destinationPath: String) {
         
         // 2. Write text into destination file
         try text.write(to: destinationURL, atomically: true, encoding: .utf8)
-        
-        print("✅ Successfully copied text to \(destinationURL.path)")
     } catch {
         print("❌ Error copying text: \(error)")
     }

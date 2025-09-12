@@ -6,7 +6,7 @@
 //
 import Foundation
 
-struct Time: Comparable, Equatable {
+struct Time: Comparable, Equatable, Codable {
     var h: Int, m: Int, s: Int
 
     static func now() -> Time {
