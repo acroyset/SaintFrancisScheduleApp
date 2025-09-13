@@ -25,6 +25,10 @@ struct AddEventView: View {
     @State private var showingConflicts = false
     @State private var conflicts: [EventConflict] = []
     
+    // NEW: Date selection for single events
+    @State private var selectedDate = Date()
+    @State private var showingDatePicker = false
+    
     let PrimaryColor: Color
     let SecondaryColor: Color
     let TertiaryColor: Color
@@ -90,14 +94,29 @@ struct AddEventView: View {
                     }
                 }
                 
-                Section("Repeat") {
+                Section("Date & Repeat") {
                     Picker("Repeat Pattern", selection: $repeatPattern) {
                         ForEach(RepeatPattern.allCases, id: \.self) { pattern in
                             Text(pattern.description).tag(pattern)
                         }
                     }
                     
-                    if repeatPattern != .none {
+                    if repeatPattern == .none {
+                        // Show date picker for single events
+                        Button(action: {
+                            showingDatePicker = true
+                        }) {
+                            HStack {
+                                Text("Event Date")
+                                    .foregroundColor(PrimaryColor)
+                                Spacer()
+                                Text(DateFormatter.eventDate.string(from: selectedDate))
+                                    .foregroundColor(PrimaryColor.opacity(0.7))
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(PrimaryColor.opacity(0.5))
+                            }
+                        }
+                    } else {
                         repeatOptionsView
                     }
                 }
@@ -133,19 +152,53 @@ struct AddEventView: View {
                 }
             }
         }
+        .sheet(isPresented: $showingDatePicker) {
+            NavigationView {
+                DatePicker("Select Date", selection: $selectedDate, displayedComponents: .date)
+                    .datePickerStyle(.graphical)
+                    .padding()
+                    .navigationTitle("Select Date")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarLeading) {
+                            Button("Cancel") {
+                                showingDatePicker = false
+                            }
+                        }
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button("Done") {
+                                showingDatePicker = false
+                            }
+                        }
+                    }
+            }
+            .presentationDetents([.medium, .large])
+        }
         .onAppear {
             if let event = editingEvent {
                 loadEventForEditing(event)
             } else {
                 // Set default values for new event
-                selectedDays.insert(currentDayCode)
+                selectedDate = currentDate
+                if repeatPattern != .none {
+                    selectedDays.insert(currentDayCode)
+                }
             }
         }
         .onChange(of: title) { _, _ in checkForConflicts() }
         .onChange(of: startTime) { _, _ in checkForConflicts() }
         .onChange(of: endTime) { _, _ in checkForConflicts() }
-        .onChange(of: repeatPattern) { _, _ in checkForConflicts() }
+        .onChange(of: repeatPattern) { _, _ in
+            checkForConflicts()
+            // Clear selected days when changing repeat pattern
+            if repeatPattern == .none {
+                selectedDays.removeAll()
+            } else if selectedDays.isEmpty {
+                selectedDays.insert(currentDayCode)
+            }
+        }
         .onChange(of: selectedDays) { _, _ in checkForConflicts() }
+        .onChange(of: selectedDate) { _, _ in checkForConflicts() }
     }
     
     @ViewBuilder
@@ -160,41 +213,50 @@ struct AddEventView: View {
                 .foregroundColor(.secondary)
             
         case .weekly:
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 8) {
-                ForEach(Array(dayTypes.enumerated()), id: \.offset) { _, dayType in
-                    Button(dayType) {
-                        if selectedDays.contains(dayType) {
-                            selectedDays.remove(dayType)
-                        } else {
-                            selectedDays.insert(dayType)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Select which day types:")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 8) {
+                    ForEach(Array(dayTypes.enumerated()), id: \.offset) { _, dayType in
+                        Button(dayType) {
+                            if selectedDays.contains(dayType) {
+                                selectedDays.remove(dayType)
+                            } else {
+                                selectedDays.insert(dayType)
+                            }
                         }
+                        .padding(8)
+                        .background(selectedDays.contains(dayType) ? PrimaryColor : SecondaryColor)
+                        .foregroundColor(selectedDays.contains(dayType) ? TertiaryColor : PrimaryColor)
+                        .cornerRadius(8)
                     }
-                    .padding(8)
-                    .background(selectedDays.contains(dayType) ? PrimaryColor : SecondaryColor)
-                    .foregroundColor(selectedDays.contains(dayType) ? TertiaryColor : PrimaryColor)
-                    .cornerRadius(8)
                 }
             }
             
         case .biweekly:
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 8) {
-                ForEach(dayTypes, id: \.self) { dayType in
-                    Button(dayType) {
-                        if selectedDays.contains(dayType) {
-                            selectedDays.remove(dayType)
-                        } else {
-                            selectedDays.insert(dayType)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Select which day types (every other week):")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 8) {
+                    ForEach(dayTypes, id: \.self) { dayType in
+                        Button(dayType) {
+                            if selectedDays.contains(dayType) {
+                                selectedDays.remove(dayType)
+                            } else {
+                                selectedDays.insert(dayType)
+                            }
                         }
+                        .padding(8)
+                        .background(selectedDays.contains(dayType) ? PrimaryColor : SecondaryColor)
+                        .foregroundColor(selectedDays.contains(dayType) ? TertiaryColor : PrimaryColor)
+                        .cornerRadius(8)
                     }
-                    .padding(8)
-                    .background(selectedDays.contains(dayType) ? PrimaryColor : SecondaryColor)
-                    .foregroundColor(selectedDays.contains(dayType) ? TertiaryColor : PrimaryColor)
-                    .cornerRadius(8)
                 }
             }
-            Text("Every other week")
-                .font(.caption)
-                .foregroundColor(.secondary)
             
         case .monthly:
             Text("This event will repeat on the same day of each month")
@@ -212,10 +274,17 @@ struct AddEventView: View {
         selectedColor = Color(hex: event.color)
         repeatPattern = event.repeatPattern
         selectedDays = event.applicableDays
+        
+        // For single events, try to parse the date from applicableDays
+        if repeatPattern == .none, let dateString = event.applicableDays.first {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MM-dd-yy"
+            selectedDate = formatter.date(from: dateString) ?? currentDate
+        }
     }
     
     private func saveEvent() {
-        let event = CustomEvent(
+        var eventToSave = CustomEvent(
             title: title,
             startTime: startTime,
             endTime: endTime,
@@ -226,12 +295,21 @@ struct AddEventView: View {
             applicableDays: getApplicableDays()
         )
         
-        if editingEvent != nil {
-            let updatedEvent = event
+        if let editingEvent = editingEvent {
             // Preserve the existing ID for updates
-            eventsManager.updateEvent(updatedEvent)
+            eventToSave = CustomEvent(
+                title: title,
+                startTime: startTime,
+                endTime: endTime,
+                location: location,
+                note: note,
+                color: selectedColor.toHex() ?? "#FF6B6B",
+                repeatPattern: repeatPattern,
+                applicableDays: getApplicableDays()
+            )
+            eventsManager.updateEvent(eventToSave)
         } else {
-            eventsManager.addEvent(event)
+            eventsManager.addEvent(eventToSave)
         }
         
         isPresented = false
@@ -240,10 +318,10 @@ struct AddEventView: View {
     private func getApplicableDays() -> Set<String> {
         switch repeatPattern {
         case .none:
-            // Single occurrence on current date
+            // Single occurrence on selected date
             let formatter = DateFormatter()
             formatter.dateFormat = "MM-dd-yy"
-            return [formatter.string(from: currentDate)]
+            return [formatter.string(from: selectedDate)]
             
         case .daily:
             return [] // Empty set means all school days
@@ -252,7 +330,7 @@ struct AddEventView: View {
             return selectedDays
             
         case .monthly:
-            let dayOfMonth = Calendar.current.component(.day, from: currentDate)
+            let dayOfMonth = Calendar.current.component(.day, from: selectedDate)
             return ["\(dayOfMonth)"]
         }
     }
@@ -328,6 +406,17 @@ struct ConflictRowView: View {
         case .complete: return "Complete"
         }
     }
+}
+
+// MARK: - Extensions
+
+extension DateFormatter {
+    static let eventDate: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter
+    }()
 }
 
 // MARK: - Time Extensions

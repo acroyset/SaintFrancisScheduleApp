@@ -22,6 +22,16 @@ extension UIApplication {
     }
 }
 
+// MARK: - Singleton FirebaseManager
+class FirebaseManager {
+    static let shared = FirebaseManager()
+    let firestore: Firestore
+    
+    private init() {
+        self.firestore = Firestore.firestore()
+    }
+}
+
 // MARK: - User Model
 struct User {
     let id: String
@@ -50,8 +60,13 @@ class AuthenticationManager: ObservableObject {
     private let dataManager = DataManager()
     private var authStateHandle: AuthStateDidChangeListenerHandle?
 
+    // Static shared instance
+    static var shared: AuthenticationManager?
+    
     init() {
         setupAuthStateListener()
+        // Set the shared instance
+        AuthenticationManager.shared = self
     }
     
     deinit {
@@ -237,14 +252,14 @@ class DataManager: ObservableObject {
     }
     
     func recordPolicyAcceptance(for userId: String, version: String) async throws {
-            try await db.collection("users").document(userId).setData([
-                "privacyPolicy": [
-                    "accepted": true,
-                    "version": version,
-                    "timestamp": FieldValue.serverTimestamp()
-                ]
-            ], merge: true)
-        }
+        try await db.collection("users").document(userId).setData([
+            "privacyPolicy": [
+                "accepted": true,
+                "version": version,
+                "timestamp": FieldValue.serverTimestamp()
+            ]
+        ], merge: true)
+    }
 }
 
 // MARK: - Authentication Views

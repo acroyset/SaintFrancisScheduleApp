@@ -22,6 +22,7 @@ struct EnhancedClassItemScroll: View {
     // Custom events integration
     @StateObject private var eventsManager = CustomEventsManager()
     @State private var showingAddEvent = false
+    @State private var editingEvent: CustomEvent?
     
     let currentDate: Date
     

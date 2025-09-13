@@ -526,7 +526,12 @@ struct ContentView: View {
                 
                 if hasLoadedFromCloud {
                     saveClassesToCloud()
+                    saveEventsToCloud() // NEW: Save events to cloud
                 }
+                
+                // Load events from cloud
+                loadEventsFromCloud() // NEW: Load events from cloud
+                
                 applySelectedDate(Date())
                 
             case .background:
@@ -534,6 +539,7 @@ struct ContentView: View {
                 SharedGroup.defaults.set(Date(), forKey: "LastAppDataUpdate")
                 saveScheduleLinesWithEvents()
                 saveTheme()
+                saveEventsToCloud() // NEW: Save events to cloud
                 
             default:
                 break
@@ -1001,6 +1007,14 @@ struct ContentView: View {
             SharedGroup.defaults.set(data, forKey: "ThemeColors")
             WidgetCenter.shared.reloadTimelines(ofKind: "ScheduleWidget")
         }
+    }
+    
+    private func saveEventsToCloud() {
+        eventsManager.saveToCloud(using: authManager)
+    }
+
+    private func loadEventsFromCloud() {
+        eventsManager.loadFromCloud(using: authManager)
     }
 }
 

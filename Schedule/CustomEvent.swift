@@ -5,6 +5,7 @@
 
 import Foundation
 import SwiftUI
+import FirebaseFirestore
 
 // MARK: - Custom Event Models
 
@@ -105,7 +106,7 @@ enum ConflictSeverity {
     case complete // Event completely overlaps class
 }
 
-// MARK: - Custom Events Manager
+// MARK: - Simplified Custom Events Manager
 
 class CustomEventsManager: ObservableObject {
     @Published var events: [CustomEvent] = []
@@ -137,6 +138,43 @@ class CustomEventsManager: ObservableObject {
             events = try JSONDecoder().decode([CustomEvent].self, from: data)
         } catch {
             print("Failed to load custom events: \(error)")
+        }
+    }
+    
+    // MARK: - Cloud Sync (simplified - call from outside)
+    
+    @MainActor
+    func saveToCloud(using authManager: AuthenticationManager) {
+        guard let user = authManager.user else { return }
+        let userId = user.id
+        let eventsToSave = events // Capture events on main actor
+        
+        Task {
+            do {
+                try await CloudEventsDataManager().saveEvents(eventsToSave, for: userId)
+            } catch {
+                print("Failed to save events to cloud: \(error)")
+            }
+        }
+    }
+    
+    @MainActor
+    func loadFromCloud(using authManager: AuthenticationManager) {
+        guard let user = authManager.user else { return }
+        let userId = user.id
+        
+        Task {
+            do {
+                let cloudEvents = try await CloudEventsDataManager().loadEvents(for: userId)
+                await MainActor.run {
+                    if !cloudEvents.isEmpty {
+                        self.events = cloudEvents
+                        self.saveEvents() // Save locally as backup
+                    }
+                }
+            } catch {
+                print("Failed to load events from cloud: \(error)")
+            }
         }
     }
     
@@ -204,6 +242,93 @@ class CustomEventsManager: ObservableObject {
             return .major
         } else {
             return .minor
+        }
+    }
+}
+
+// MARK: - Cloud Data Manager for Events
+
+class CloudEventsDataManager {
+    private let firestore = Firestore.firestore()
+    
+    func saveEvents(_ events: [CustomEvent], for userId: String) async throws {
+        let eventsData = events.map { event in
+            [
+                "id": event.id.uuidString,
+                "title": event.title,
+                "startTime": [
+                    "h": event.startTime.h,
+                    "m": event.startTime.m,
+                    "s": event.startTime.s
+                ],
+                "endTime": [
+                    "h": event.endTime.h,
+                    "m": event.endTime.m,
+                    "s": event.endTime.s
+                ],
+                "location": event.location,
+                "note": event.note,
+                "color": event.color,
+                "repeatPattern": event.repeatPattern.rawValue,
+                "isEnabled": event.isEnabled,
+                "applicableDays": Array(event.applicableDays)
+            ] as [String : Any]
+        }
+        
+        try await firestore.collection("users").document(userId).setData([
+            "customEvents": eventsData,
+            "eventsLastUpdated": FieldValue.serverTimestamp()
+        ], merge: true)
+    }
+    
+    func loadEvents(for userId: String) async throws -> [CustomEvent] {
+        let doc = try await firestore.collection("users").document(userId).getDocument()
+        guard let data = doc.data(),
+              let eventsArray = data["customEvents"] as? [[String: Any]] else {
+            return []
+        }
+        
+        return eventsArray.compactMap { eventDict in
+            guard let idString = eventDict["id"] as? String,
+                  let id = UUID(uuidString: idString),
+                  let title = eventDict["title"] as? String,
+                  let startTimeDict = eventDict["startTime"] as? [String: Int],
+                  let endTimeDict = eventDict["endTime"] as? [String: Int],
+                  let location = eventDict["location"] as? String,
+                  let note = eventDict["note"] as? String,
+                  let color = eventDict["color"] as? String,
+                  let repeatPatternRaw = eventDict["repeatPattern"] as? String,
+                  let repeatPattern = RepeatPattern(rawValue: repeatPatternRaw),
+                  let isEnabled = eventDict["isEnabled"] as? Bool,
+                  let applicableDaysArray = eventDict["applicableDays"] as? [String] else {
+                return nil
+            }
+            
+            let startTime = Time(
+                h: startTimeDict["h"] ?? 0,
+                m: startTimeDict["m"] ?? 0,
+                s: startTimeDict["s"] ?? 0
+            )
+            
+            let endTime = Time(
+                h: endTimeDict["h"] ?? 0,
+                m: endTimeDict["m"] ?? 0,
+                s: endTimeDict["s"] ?? 0
+            )
+            
+            var event = CustomEvent(
+                title: title,
+                startTime: startTime,
+                endTime: endTime,
+                location: location,
+                note: note,
+                color: color,
+                repeatPattern: repeatPattern,
+                applicableDays: Set(applicableDaysArray)
+            )
+            event.isEnabled = isEnabled
+            
+            return event
         }
     }
 }
