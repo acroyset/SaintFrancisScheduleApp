@@ -22,16 +22,6 @@ extension UIApplication {
     }
 }
 
-// MARK: - Singleton FirebaseManager
-class FirebaseManager {
-    static let shared = FirebaseManager()
-    let firestore: Firestore
-    
-    private init() {
-        self.firestore = Firestore.firestore()
-    }
-}
-
 // MARK: - User Model
 struct User {
     let id: String
@@ -60,13 +50,8 @@ class AuthenticationManager: ObservableObject {
     private let dataManager = DataManager()
     private var authStateHandle: AuthStateDidChangeListenerHandle?
 
-    // Static shared instance
-    static var shared: AuthenticationManager?
-    
     init() {
         setupAuthStateListener()
-        // Set the shared instance
-        AuthenticationManager.shared = self
     }
     
     deinit {
@@ -202,7 +187,7 @@ class AuthenticationManager: ObservableObject {
 class DataManager: ObservableObject {
     private let db = Firestore.firestore()
     
-    func saveToCloud(classes: [ClassItem], theme: ThemeColors, for userId: String) async throws {
+    func saveToCloud(classes: [ClassItem], theme: ThemeColors, isSecondLunch: Bool, for userId: String) async throws {
         let classesData = classes.map { classItem in
             [
                 "name": classItem.name,
@@ -220,13 +205,16 @@ class DataManager: ObservableObject {
         try await db.collection("users").document(userId).setData([
             "classes": classesData,
             "theme": themeDict,
+            "isSecondLunch": isSecondLunch,  // NEW
             "lastUpdated": Timestamp()
         ], merge: true)
     }
     
-    func loadFromCloud(for userId: String) async throws -> ([ClassItem], ThemeColors) {
+    func loadFromCloud(for userId: String) async throws -> ([ClassItem], ThemeColors, Bool) {
         let doc = try await db.collection("users").document(userId).getDocument()
-        guard let data = doc.data() else { return ([], ThemeColors(primary: "#0000FF", secondary: "#CCCCCC", tertiary: "#FFFFFF")) }
+        guard let data = doc.data() else {
+            return ([], ThemeColors(primary: "#0000FF", secondary: "#CCCCCC", tertiary: "#FFFFFF"), false)
+        }
         
         let classesArray = (data["classes"] as? [[String: String]]) ?? []
         let classes = classesArray.map { dict in
@@ -244,7 +232,9 @@ class DataManager: ObservableObject {
             tertiary: themeDict["tertiary"] ?? "#FFFFFF"
         )
         
-        return (classes, theme)
+        let isSecondLunch = (data["isSecondLunch"] as? Bool) ?? false  // NEW
+        
+        return (classes, theme, isSecondLunch)
     }
     
     func deleteUserData(for userId: String) async throws {
@@ -599,3 +589,7 @@ struct PolicyConsentSheet: View {
         .presentationDetents([.height(280)])
     }
 }
+
+
+// Update the DataManager class in FirebaseManager.swift
+// Replace the existing saveToCloud and loadFromCloud methods:

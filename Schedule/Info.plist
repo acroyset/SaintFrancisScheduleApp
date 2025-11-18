@@ -2,33 +2,18 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!-- Your existing Google OAuth configuration -->
-    <key>CFBundleURLTypes</key>
-    <array>
-       <dict>
-          <key>CFBundleTypeRole</key>
-          <string>Editor</string>
-          <key>CFBundleURLName</key>
-          <string>Google</string>
-          <key>CFBundleURLSchemes</key>
-          <array>
-             <string>com.googleusercontent.apps.451701439424-q5b921tkajavcesf2v72lfqk5p70qigd</string>
-          </array>
-       </dict>
-    </array>
-
-    <!-- NEW: Background modes for widget refresh -->
-    <key>UIBackgroundModes</key>
-    <array>
-        <string>background-app-refresh</string>
-        <string>background-processing</string>
-    </array>
-
-    <!-- NEW: Background task identifiers -->
-    <key>BGTaskSchedulerPermittedIdentifiers</key>
-    <array>
-        <string>com.yourapp.schedule-refresh</string>
-        <string>com.yourapp.data-processing</string>
-    </array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>Google</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.451701439424-q5b921tkajavcesf2v72lfqk5p70qigd</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

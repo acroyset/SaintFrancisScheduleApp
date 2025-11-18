@@ -1,16 +1,17 @@
 //
-//  CustomEvent.swift
+//  CustomEvent.swift (Fixed with proper ID handling)
 //  Schedule
 //
 
 import Foundation
 import SwiftUI
-import FirebaseFirestore
 
 // MARK: - Custom Event Models
 
+import FirebaseFirestore
+
 struct CustomEvent: Identifiable, Codable, Equatable {
-    let id = UUID()
+    let id: UUID
     var title: String
     var startTime: Time
     var endTime: Time
@@ -24,6 +25,7 @@ struct CustomEvent: Identifiable, Codable, Equatable {
     var applicableDays: Set<String> // ["G1", "B1", etc.] or specific dates ["01-15-25"]
     
     init(title: String, startTime: Time, endTime: Time, location: String = "", note: String = "", color: String = "#FF6B6B", repeatPattern: RepeatPattern = .none, applicableDays: Set<String> = []) {
+        self.id = UUID()
         self.title = title
         self.startTime = startTime
         self.endTime = endTime
@@ -33,6 +35,20 @@ struct CustomEvent: Identifiable, Codable, Equatable {
         self.repeatPattern = repeatPattern
         self.applicableDays = applicableDays
         self.isEnabled = true
+    }
+    
+    // Custom initializer for editing with preserved ID
+    init(id: UUID, title: String, startTime: Time, endTime: Time, location: String = "", note: String = "", color: String = "#FF6B6B", repeatPattern: RepeatPattern = .none, applicableDays: Set<String> = [], isEnabled: Bool = true) {
+        self.id = id
+        self.title = title
+        self.startTime = startTime
+        self.endTime = endTime
+        self.location = location
+        self.note = note
+        self.color = color
+        self.repeatPattern = repeatPattern
+        self.applicableDays = applicableDays
+        self.isEnabled = isEnabled
     }
     
     // Check if this event applies to a specific day code
@@ -78,6 +94,22 @@ struct CustomEvent: Identifiable, Codable, Equatable {
         // Check for time overlap
         return !(eventEnd <= classStart || eventStart >= classEnd)
     }
+    
+    // Check if this event conflicts with another event
+    func conflictsWith(_ other: CustomEvent) -> Bool {
+        let selfStart = self.startTime.seconds
+        let selfEnd = self.endTime.seconds
+        let otherStart = other.startTime.seconds
+        let otherEnd = other.endTime.seconds
+        
+        // Check for time overlap
+        return !(selfEnd <= otherStart || selfStart >= otherEnd)
+    }
+    
+    // Equatable implementation
+    static func == (lhs: CustomEvent, rhs: CustomEvent) -> Bool {
+        return lhs.id == rhs.id
+    }
 }
 
 enum RepeatPattern: String, CaseIterable, Codable {
@@ -106,7 +138,7 @@ enum ConflictSeverity {
     case complete // Event completely overlaps class
 }
 
-// MARK: - Simplified Custom Events Manager
+// MARK: - Enhanced Custom Events Manager
 
 class CustomEventsManager: ObservableObject {
     @Published var events: [CustomEvent] = []
@@ -316,7 +348,8 @@ class CloudEventsDataManager {
                 s: endTimeDict["s"] ?? 0
             )
             
-            var event = CustomEvent(
+            return CustomEvent(
+                id: id,
                 title: title,
                 startTime: startTime,
                 endTime: endTime,
@@ -324,11 +357,9 @@ class CloudEventsDataManager {
                 note: note,
                 color: color,
                 repeatPattern: repeatPattern,
-                applicableDays: Set(applicableDaysArray)
+                applicableDays: Set(applicableDaysArray),
+                isEnabled: isEnabled
             )
-            event.isEnabled = isEnabled
-            
-            return event
         }
     }
 }

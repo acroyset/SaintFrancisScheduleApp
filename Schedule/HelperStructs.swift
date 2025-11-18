@@ -9,6 +9,7 @@ import SwiftUI
 struct ScheduleData {
     var classes: [ClassItem]
     var days: [Day]
+    var isSecondLunch: Bool = false  // NEW: Track lunch preference
 }
 
 struct ClassItem: Equatable {

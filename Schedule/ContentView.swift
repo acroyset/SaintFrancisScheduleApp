@@ -44,26 +44,49 @@ extension Color {
     }
 }
 
+// Replace the Color extension toHex() method in ContentView.swift
+
 extension Color {
     /// Convert a SwiftUI Color into a hex string like "#RRGGBBAA"
     func toHex(includeAlpha: Bool = true) -> String? {
-        let uiColor = UIColor(self)
+        // Get UIColor from SwiftUI Color
+        guard let components = UIColor(self).cgColor.components else {
+            print("⚠️ Failed to get color components")
+            return nil
+        }
         
-        var r: CGFloat = 0
-        var g: CGFloat = 0
-        var b: CGFloat = 0
-        var a: CGFloat = 0
+        let r: CGFloat
+        let g: CGFloat
+        let b: CGFloat
+        let a: CGFloat
         
-        guard uiColor.getRed(&r, green: &g, blue: &b, alpha: &a) else {
+        // Handle different color spaces
+        switch components.count {
+        case 2: // Grayscale
+            r = components[0]
+            g = components[0]
+            b = components[0]
+            a = components[1]
+        case 4: // RGBA
+            r = components[0]
+            g = components[1]
+            b = components[2]
+            a = components[3]
+        default:
+            print("⚠️ Unexpected color component count: \(components.count)")
             return nil
         }
         
         if includeAlpha {
             let rgba: Int = (Int)(r * 255)<<24 | (Int)(g * 255)<<16 | (Int)(b * 255)<<8 | (Int)(a * 255)
-            return String(format:"#%08x", rgba)
+            let hex = String(format:"#%08X", rgba)
+            print("🎨 Color to hex: \(hex)")
+            return hex
         } else {
             let rgb: Int = (Int)(r * 255)<<16 | (Int)(g * 255)<<8 | (Int)(b * 255)
-            return String(format:"#%06x", rgb)
+            let hex = String(format:"#%06X", rgb)
+            print("🎨 Color to hex (no alpha): \(hex)")
+            return hex
         }
     }
 }
@@ -217,7 +240,7 @@ struct ContentView: View {
         case .Intro:       return "This is a schedule app for Saint Francis High School. It allows you to view your schedule, add new classes, and edit your existing ones!"
         case .DateNavigator: return "Access the date navigator by clicking on the date in the home screen.\n\nThis is how you can choose your dates for the whole year!"
         case .News:        return "Access the news tab by clicking on the news icon in the toolbar.\n\nThis is where you can see current events like clubs football games and everything inbetween!"
-        case .ClassEditor: return "Access the class editor by clicking on the edit class icon in the toolbar.\n\nThis is how you can edit your classes."
+        case .ClassEditor: return "Access the class editor by clicking on the edit class icon in the toolbar.\n\nThis is how you can edit your classes. You can also select if you are second lunch or not."
         case .Settings:    return "Access the settings tab by clicking on the settings icon in the toolbar.\n\nThis is where you can change preferances like the color scheme!"
         case .Profile:     return "Access the profile tab by clicking on the profile icon in the toolbar.\n\nThis is how you can sign out or sync your devices."
         case .Outro:       return "Thanks for downloading Saint Francis Schedule!"
@@ -243,7 +266,7 @@ struct ContentView: View {
             
             VStack {
                 
-                Text("Version - Beta 1.7\nBugs / Ideas - Email acroyset@gmail.com")
+                Text("Version - Beta 1.8\nBugs / Ideas - Email acroyset@gmail.com")
                     .font(.footnote)
                     .foregroundStyle(TertiaryColor.highContrastTextColor())
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -473,7 +496,7 @@ struct ContentView: View {
                     
                     Divider()
                     
-                    Text("\n- Widgit! <----- !!!\n- Tutorial\n- Improved Cloud Saving\n- Bug Fixes")
+                    Text("\n- Second Lunch! <----- !!!\n- Personal Events\n- Bug Fixes")
                         .font(.system(
                             size: iPad ? 24 : 15,
                             weight: .bold,
@@ -517,6 +540,7 @@ struct ContentView: View {
         .onChange(of: dayCode) { oldDay, newDay in
             guard oldDay != newDay else { return }
             setScroll()
+            saveEventsToCloud()
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
             switch newPhase {
@@ -551,6 +575,7 @@ struct ContentView: View {
                 showCalendarGrid = false;
             }
             saveClassesToCloud()
+            saveEventsToCloud()
         }
         .onReceive(ticker) { _ in
             saveTheme()
@@ -579,6 +604,50 @@ struct ContentView: View {
         
         // Then try to load from cloud
         loadFromCloud()
+        
+        loadEventsFromCloud()
+    }
+    
+    private func saveThemeLocally(_ theme: ThemeColors) {
+        if let data = try? JSONEncoder().encode(theme) {
+            UserDefaults.standard.set(data, forKey: "LocalTheme")
+            SharedGroup.defaults.set(data, forKey: "ThemeColors")
+            WidgetCenter.shared.reloadTimelines(ofKind: "ScheduleWidget")
+        }
+    }
+
+    // 4. Add loadThemeLocally helper function
+    private func loadThemeLocally() {
+        guard let data = UserDefaults.standard.data(forKey: "LocalTheme"),
+              let theme = try? JSONDecoder().decode(ThemeColors.self, from: data) else {
+            return
+        }
+        
+        PrimaryColor = Color(hex: theme.primary)
+        SecondaryColor = Color(hex: theme.secondary)
+        TertiaryColor = Color(hex: theme.tertiary)
+        print("✅ Loaded theme from local storage")
+    }
+
+    // 5. Update the existing saveTheme function
+    private func saveTheme() {
+        let theme = ThemeColors(
+            primary: PrimaryColor.toHex() ?? "#0000FF",
+            secondary: SecondaryColor.toHex() ?? "#0000FF10",
+            tertiary: TertiaryColor.toHex() ?? "#FFFFFF"
+        )
+        
+        // Save locally
+        if let data = try? JSONEncoder().encode(theme) {
+            UserDefaults.standard.set(data, forKey: "LocalTheme")
+            SharedGroup.defaults.set(data, forKey: "ThemeColors")
+            WidgetCenter.shared.reloadTimelines(ofKind: "ScheduleWidget")
+        }
+        
+        // Also save to cloud if user is logged in
+        if authManager.user != nil {
+            saveClassesToCloud()
+        }
     }
     
     private func loadLocalData() {
@@ -606,38 +675,46 @@ struct ContentView: View {
             fetchScheduleFromGoogleSheets()
         }
     }
-    
+
+    // In loadFromCloud():
     private func loadFromCloud() {
         guard let user = authManager.user, !hasLoadedFromCloud else { return }
         
         Task {
             do {
-                let (cloudClasses, theme) = try await dataManager.loadFromCloud(for: user.id)
-                if !cloudClasses.isEmpty {
-                    DispatchQueue.main.async {
+                let (cloudClasses, theme, isSecondLunch) = try await dataManager.loadFromCloud(for: user.id)
+                
+                await MainActor.run {
+                    if !cloudClasses.isEmpty {
                         if var currentData = self.data {
                             currentData.classes = cloudClasses
+                            currentData.isSecondLunch = isSecondLunch
                             self.data = currentData
                         }
-                        // Also save to local file as backup
                         overwriteClassesFile(with: cloudClasses)
                     }
+                    
+                    // Apply theme colors
+                    self.PrimaryColor = Color(hex: theme.primary)
+                    self.SecondaryColor = Color(hex: theme.secondary)
+                    self.TertiaryColor = Color(hex: theme.tertiary)
+                    
+                    // Also save theme locally
+                    self.saveThemeLocally(theme)
+                    
+                    self.hasLoadedFromCloud = true
+                    print("✅ Loaded theme from cloud: \(theme)")
                 }
-                
-                PrimaryColor   = Color(hex: theme.primary)
-                SecondaryColor = Color(hex: theme.secondary)
-                TertiaryColor  = Color(hex: theme.tertiary)
-                
-                hasLoadedFromCloud = true
             } catch {
-                print("Failed to load classes from cloud: \(error)")
+                print("❌ Failed to load from cloud: \(error)")
             }
         }
     }
     
+    // In saveClassesToCloud():
     private func saveClassesToCloud() {
         guard let user = authManager.user,
-              let classes = data?.classes else { return }
+              let data = data else { return }
         
         Task {
             do {
@@ -646,16 +723,23 @@ struct ContentView: View {
                     secondary: SecondaryColor.toHex() ?? "#0000FF10",
                     tertiary: TertiaryColor.toHex() ?? "#FFFFFF"
                 )
-                try await dataManager.saveToCloud(classes: classes, theme:theme,  for: user.id)
-                // Also save locally as backup
+                try await dataManager.saveToCloud(
+                    classes: data.classes,
+                    theme: theme,
+                    isSecondLunch: data.isSecondLunch,
+                    for: user.id
+                )
                 DispatchQueue.main.async {
-                    overwriteClassesFile(with: classes)
+                    overwriteClassesFile(with: data.classes)
                 }
+                print("✅ Saved theme to cloud: \(theme)")
             } catch {
-                print("Failed to save classes to cloud: \(error)")
+                print("❌ Failed to save classes to cloud: \(error)")
             }
         }
     }
+
+    // Also update refreshAllData() similarly
     
     // MARK: - Helper Methods (same as before)
     
@@ -670,6 +754,14 @@ struct ContentView: View {
               let data = data,
               data.days.indices.contains(di) else { return nil }
         return di
+    }
+    
+    private func shouldSwapLunchAndPeriod(dayIndex: Int, isSecondLunch: Bool) -> Bool {
+        // Day indices: G1=0, B1=1, G2=2, B2=3, A1=4, A2=5, A3=6, A4=7, L1=8, L2=9, S1=10
+        // We only swap on days that have period 4 or 5 with lunch
+        // These are: G1, B1, G2, B2, A1, A2
+        let daysWithLunchPeriod = [0, 1, 2, 3, 4, 5]
+        return isSecondLunch && daysWithLunchPeriod.contains(dayIndex)
     }
     
     private func renderWithEvents() {
@@ -695,7 +787,12 @@ struct ContentView: View {
         let now = Time.now()
         let nowSec = now.seconds
         
-        // Build regular schedule lines
+        // Check if we need to swap lunch and period 4/5
+        let shouldSwap = shouldSwapLunchAndPeriod(dayIndex: di, isSecondLunch: data.isSecondLunch)
+        
+        // Build schedule lines with potential swap
+        var tempLines: [(index: Int, line: ScheduleLine)] = []
+        
         for i in d.names.indices {
             let nameRaw = d.names[i]
             let start   = d.startTimes[i]
@@ -713,7 +810,7 @@ struct ContentView: View {
                         endT < Time(h:14, m:30, s:0) &&
                         endT.seconds - startT.seconds <= 600
                     ){
-                        scheduleLines.append(ScheduleLine(
+                        tempLines.append((i, ScheduleLine(
                             content: "",
                             isCurrentClass: true,
                             timeRange: "\(startT.string()) to \(endT.string())",
@@ -721,7 +818,7 @@ struct ContentView: View {
                             startSec: startT.seconds,
                             endSec: endT.seconds,
                             progress: p
-                        ))
+                        )))
                     }
                 }
             }
@@ -736,7 +833,7 @@ struct ContentView: View {
                 
                 let p = progressValue(start: start.seconds, end: end.seconds, now: nowSec)
                 
-                scheduleLines.append(ScheduleLine(
+                tempLines.append((i, ScheduleLine(
                     content: "",
                     isCurrentClass: isCurrentClass,
                     timeRange: "\(start.string()) to \(end.string())",
@@ -746,15 +843,46 @@ struct ContentView: View {
                     startSec: start.seconds,
                     endSec: end.seconds,
                     progress: p
-                ))
+                )))
             } else {
-                scheduleLines.append(ScheduleLine(
+                tempLines.append((i, ScheduleLine(
                     content: "",
                     isCurrentClass: isCurrentClass,
                     timeRange: "\(start.string()) to \(end.string())",
-                    className: nameRaw))
+                    className: nameRaw)))
             }
         }
+        
+        // Apply SECOND LUNCH override
+        if shouldSwap {
+
+            for (i, item) in tempLines.enumerated() {
+
+                if item.line.className == "Lunch" {
+                    // 2nd lunch time
+                    var line = item.line
+                    line.startSec = Time(h:12, m:25, s:0).seconds
+                    line.endSec   = Time(h:13, m:05, s:0).seconds
+                    line.timeRange = "12:25 to 1:05"
+                    tempLines[i].line = line
+                }
+
+                if item.line.className.contains("Period 4")
+                    || item.line.className.contains("Period 5") {
+
+                    // 4th/5th for 2nd lunch
+                    var line = item.line
+                    line.startSec = Time(h:11, m:00, s:0).seconds
+                    line.endSec   = Time(h:12, m:20, s:0).seconds
+                    line.timeRange = "11:00 to 12:20"
+                    tempLines[i].line = line
+                }
+            }
+        }
+
+        
+        // Extract just the schedule lines in order
+        scheduleLines = tempLines.map { $0.line }
         
         // Check for conflicts with custom events
         let todaysEvents = eventsManager.eventsFor(dayCode: dayCode, date: selectedDate)
@@ -781,6 +909,10 @@ struct ContentView: View {
         if let day = scheduleDict?[key] {
             dayCode = day[0]
             note = day[1]
+            
+            // Save current day code for widget
+            SharedGroup.defaults.set(dayCode, forKey: "CurrentDayCode")
+            
             renderWithEvents()
             DispatchQueue.main.async {
                 scrollTarget = currentClassIndex() ?? 0
@@ -789,48 +921,7 @@ struct ContentView: View {
         } else {
             output = "No schedule found for \(key)"
             dayCode = "None"
-        }
-    }
-    
-    private func saveScheduleLinesWithEvents() {
-        // Combine regular schedule lines with today's events for widget
-        var allItems: [ScheduleLine] = scheduleLines
-        
-        let now = Time.now()
-        let nowSec = now.seconds
-        
-        // Convert events to ScheduleLine format for widget compatibility
-        let todaysEvents = eventsManager.eventsFor(dayCode: dayCode, date: selectedDate)
-        for event in todaysEvents where event.isEnabled {
-            let eventLine = ScheduleLine(
-                content: "",
-                isCurrentClass: false,
-                timeRange: "\(event.startTime.string()) to \(event.endTime.string())",
-                className: "\(event.title)",
-                teacher: event.location,
-                room: event.note,
-                startSec: event.startTime.seconds,
-                endSec: event.endTime.seconds,
-                progress: nil
-            )
-            allItems.append(eventLine)
-        }
-        
-        // Sort by start time
-        allItems.sort { first, second in
-            guard let firstStart = first.startSec, let secondStart = second.startSec else {
-                return false
-            }
-            return firstStart < secondStart
-        }
-        
-        do {
-            let data = try JSONEncoder().encode(allItems)
-            SharedGroup.defaults.set(data, forKey: SharedGroup.key)
-            SharedGroup.defaults.set(Date(), forKey: "LastAppDataUpdate")
-            WidgetCenter.shared.reloadTimelines(ofKind: "ScheduleWidget")
-        } catch {
-            print("Encoding failed:", error)
+            SharedGroup.defaults.set("", forKey: "CurrentDayCode")
         }
     }
     
@@ -899,6 +990,7 @@ struct ContentView: View {
         }
         DispatchQueue.main.async {
             self.scheduleDict = tempDict
+            self.applySelectedDate(self.selectedDate)
         }
     }
     
@@ -950,7 +1042,7 @@ struct ContentView: View {
         // Refresh from Firebase if user is logged in
         if let user = authManager.user {
             do {
-                let (cloudClasses, theme) = try await dataManager.loadFromCloud(for: user.id)
+                let (cloudClasses, theme, secondLunch) = try await dataManager.loadFromCloud(for: user.id)
                 DispatchQueue.main.async {
                     if !cloudClasses.isEmpty, var currentData = self.data {
                         currentData.classes = cloudClasses
@@ -996,18 +1088,6 @@ struct ContentView: View {
     private func enableBackgroundAppRefresh() {
         
     }
-
-    private func saveTheme() {
-        let theme = ThemeColors(
-            primary: PrimaryColor.toHex() ?? "#0000FF",
-            secondary: SecondaryColor.toHex() ?? "#0000FF10",
-            tertiary: TertiaryColor.toHex() ?? "#FFFFFF"
-        )
-        if let data = try? JSONEncoder().encode(theme) {
-            SharedGroup.defaults.set(data, forKey: "ThemeColors")
-            WidgetCenter.shared.reloadTimelines(ofKind: "ScheduleWidget")
-        }
-    }
     
     private func saveEventsToCloud() {
         eventsManager.saveToCloud(using: authManager)
@@ -1015,6 +1095,56 @@ struct ContentView: View {
 
     private func loadEventsFromCloud() {
         eventsManager.loadFromCloud(using: authManager)
+    }
+    
+    private func saveScheduleLinesWithEvents() {
+        // Combine regular schedule lines with today's events for widget
+        var allItems: [ScheduleLine] = scheduleLines
+        
+        let now = Time.now()
+        let nowSec = now.seconds
+        
+        // Convert events to ScheduleLine format for widget compatibility
+        let todaysEvents = eventsManager.eventsFor(dayCode: dayCode, date: selectedDate)
+        for event in todaysEvents where event.isEnabled {
+            let eventLine = ScheduleLine(
+                content: "",
+                isCurrentClass: false,
+                timeRange: "\(event.startTime.string()) to \(event.endTime.string())",
+                className: "\(event.title)",
+                teacher: event.location,
+                room: event.note,
+                startSec: event.startTime.seconds,
+                endSec: event.endTime.seconds,
+                progress: nil
+            )
+            allItems.append(eventLine)
+        }
+        
+        // Sort by start time
+        allItems.sort { first, second in
+            guard let firstStart = first.startSec, let secondStart = second.startSec else {
+                return false
+            }
+            return firstStart < secondStart
+        }
+        
+        do {
+            let data = try JSONEncoder().encode(allItems)
+            SharedGroup.defaults.set(data, forKey: SharedGroup.key)
+            SharedGroup.defaults.set(Date(), forKey: "LastAppDataUpdate")
+            
+            // NEW: Save current day code for widget
+            SharedGroup.defaults.set(dayCode, forKey: "CurrentDayCode")
+            
+            // NEW: Save custom events separately for widget
+            let eventsData = try JSONEncoder().encode(eventsManager.events)
+            SharedGroup.defaults.set(eventsData, forKey: "CustomEvents")
+            
+            WidgetCenter.shared.reloadTimelines(ofKind: "ScheduleWidget")
+        } catch {
+            print("Encoding failed:", error)
+        }
     }
 }
 

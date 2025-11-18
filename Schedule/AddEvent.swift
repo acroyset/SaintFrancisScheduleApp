@@ -1,5 +1,5 @@
 //
-//  AddEventView.swift
+//  AddEventView.swift (Fixed with proper editing support)
 //  Schedule
 //
 
@@ -25,7 +25,7 @@ struct AddEventView: View {
     @State private var showingConflicts = false
     @State private var conflicts: [EventConflict] = []
     
-    // NEW: Date selection for single events
+    // Date selection for single events
     @State private var selectedDate = Date()
     @State private var showingDatePicker = false
     
@@ -284,20 +284,24 @@ struct AddEventView: View {
     }
     
     private func saveEvent() {
-        var eventToSave = CustomEvent(
-            title: title,
-            startTime: startTime,
-            endTime: endTime,
-            location: location,
-            note: note,
-            color: selectedColor.toHex() ?? "#FF6B6B",
-            repeatPattern: repeatPattern,
-            applicableDays: getApplicableDays()
-        )
-        
         if let editingEvent = editingEvent {
-            // Preserve the existing ID for updates
-            eventToSave = CustomEvent(
+            // For editing, preserve the original ID and enabled state
+            let updatedEvent = CustomEvent(
+                id: editingEvent.id,
+                title: title,
+                startTime: startTime,
+                endTime: endTime,
+                location: location,
+                note: note,
+                color: selectedColor.toHex() ?? "#FF6B6B",
+                repeatPattern: repeatPattern,
+                applicableDays: getApplicableDays(),
+                isEnabled: editingEvent.isEnabled
+            )
+            eventsManager.updateEvent(updatedEvent)
+        } else {
+            // For new events, create with new ID
+            let newEvent = CustomEvent(
                 title: title,
                 startTime: startTime,
                 endTime: endTime,
@@ -307,9 +311,7 @@ struct AddEventView: View {
                 repeatPattern: repeatPattern,
                 applicableDays: getApplicableDays()
             )
-            eventsManager.updateEvent(eventToSave)
-        } else {
-            eventsManager.addEvent(eventToSave)
+            eventsManager.addEvent(newEvent)
         }
         
         isPresented = false
@@ -352,7 +354,59 @@ struct AddEventView: View {
             applicableDays: getApplicableDays()
         )
         
-        conflicts = eventsManager.detectConflicts(for: tempEvent, with: scheduleLines)
+        // Check conflicts with schedule lines
+        var allConflicts = eventsManager.detectConflicts(for: tempEvent, with: scheduleLines)
+        
+        // Check conflicts with other custom events
+        let relevantEvents = eventsManager.eventsFor(dayCode: currentDayCode, date: selectedDate)
+        for otherEvent in relevantEvents {
+            // Skip if it's the same event we're editing
+            if let editingEvent = editingEvent, otherEvent.id == editingEvent.id {
+                continue
+            }
+            
+            if otherEvent.isEnabled && tempEvent.conflictsWith(otherEvent) {
+                // Create a temporary ScheduleLine to represent the other event
+                let tempLine = ScheduleLine(
+                    content: "",
+                    isCurrentClass: false,
+                    timeRange: "\(otherEvent.startTime.string()) to \(otherEvent.endTime.string())",
+                    className: "📅 \(otherEvent.title)", // Add emoji to distinguish from class conflicts
+                    teacher: otherEvent.location,
+                    room: otherEvent.note,
+                    startSec: otherEvent.startTime.seconds,
+                    endSec: otherEvent.endTime.seconds
+                )
+                
+                let severity = calculateEventConflictSeverity(event1: tempEvent, event2: otherEvent)
+                allConflicts.append(EventConflict(event: tempEvent, conflictingScheduleLine: tempLine, severity: severity))
+            }
+        }
+        
+        conflicts = allConflicts
+    }
+    
+    private func calculateEventConflictSeverity(event1: CustomEvent, event2: CustomEvent) -> ConflictSeverity {
+        let event1Start = event1.startTime.seconds
+        let event1End = event1.endTime.seconds
+        let event2Start = event2.startTime.seconds
+        let event2End = event2.endTime.seconds
+        
+        let overlapStart = max(event1Start, event2Start)
+        let overlapEnd = min(event1End, event2End)
+        let overlapDuration = overlapEnd - overlapStart
+        
+        let event1Duration = event1End - event1Start
+        let event2Duration = event2End - event2Start
+        let minDuration = min(event1Duration, event2Duration)
+        
+        if overlapDuration >= minDuration * 8 / 10 { // 80% or more overlap
+            return .complete
+        } else if overlapDuration >= 900 { // 15 minutes or more
+            return .major
+        } else {
+            return .minor
+        }
     }
 }
 
@@ -371,6 +425,12 @@ struct ConflictRowView: View {
                 Text(conflict.conflictingScheduleLine.timeRange)
                     .font(.caption)
                     .foregroundColor(.secondary)
+                
+                if !conflict.conflictingScheduleLine.teacher.isEmpty {
+                    Text(conflict.conflictingScheduleLine.teacher)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
             }
             
             Spacer()

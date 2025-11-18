@@ -11,14 +11,14 @@ struct ScheduleLine: Identifiable, Codable {
     var id = UUID()
     let content: String
     var isCurrentClass: Bool
-    let timeRange: String
+    var timeRange: String  // Changed from 'let' to 'var'
     let className: String
     let teacher: String
     let room: String
 
-    let startSec: Int?
-    let endSec: Int?
-    var progress: Double?   // 0...1 for fill amount
+    var startSec: Int?     // Changed from 'let' to 'var'
+    var endSec: Int?       // Changed from 'let' to 'var'
+    var progress: Double?
 
     init(content: String,
          isCurrentClass: Bool = false,

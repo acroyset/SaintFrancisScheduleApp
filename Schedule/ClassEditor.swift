@@ -108,6 +108,33 @@ struct VphoneClassEditor: View {
                 
                 Divider()
                 
+                // NEW: Second Lunch Toggle
+                HStack {
+                    Text("Second Lunch")
+                        .font(.system(
+                            size: iPad ? 20 : 16,
+                            weight: .semibold,
+                            design: .monospaced
+                        ))
+                        .foregroundStyle(PrimaryColor)
+                    
+                    Spacer()
+                    
+                    Toggle("", isOn: $data.isSecondLunch)
+                        .toggleStyle(SwitchToggleStyle(tint: PrimaryColor))
+                }
+                .padding(12)
+                .background(SecondaryColor)
+                .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                
+                if data.isSecondLunch {
+                    Text("Period 4/5 will come before lunch")
+                        .font(.caption)
+                        .foregroundColor(PrimaryColor.opacity(0.7))
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 8)
+                }
+                
                 let indices: [Int] = [0, 1, 2, 3, 4, 5, 6, 9, 12]
 
                 ForEach(indices, id: \.self) { (number: Int) in
@@ -179,6 +206,34 @@ struct HphoneClassEditor: View {
                     .foregroundStyle(PrimaryColor)
                 
                 Divider()
+                
+                // NEW: Second Lunch Toggle
+                HStack {
+                    Text("Second Lunch")
+                        .font(.system(
+                            size: iPad ? 20 : 16,
+                            weight: .semibold,
+                            design: .monospaced
+                        ))
+                        .foregroundStyle(PrimaryColor)
+                    
+                    Spacer()
+                    
+                    Toggle("", isOn: $data.isSecondLunch)
+                        .toggleStyle(SwitchToggleStyle(tint: PrimaryColor))
+                }
+                .padding(12)
+                .background(SecondaryColor)
+                .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                .padding(.horizontal)
+                
+                if data.isSecondLunch {
+                    Text("Period 4/5 will come before lunch")
+                        .font(.caption)
+                        .foregroundColor(PrimaryColor.opacity(0.7))
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 8)
+                }
                 
                 HStack{
                     let indices: [Int] = [0, 1, 2, 3, 4, 5, 6, 9, 12]

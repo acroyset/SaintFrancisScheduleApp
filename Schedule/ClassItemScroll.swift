@@ -1,5 +1,5 @@
 //
-//  Enhanced ClassItemScroll with Custom Events
+//  Enhanced ClassItemScroll with Custom Events and Edit Support
 //  Schedule
 //
 
@@ -23,6 +23,8 @@ struct EnhancedClassItemScroll: View {
     @StateObject private var eventsManager = CustomEventsManager()
     @State private var showingAddEvent = false
     @State private var editingEvent: CustomEvent?
+    @State private var showingConflictAlert = false
+    @State private var conflictingEvents: [CustomEvent] = []
     
     let currentDate: Date
     
@@ -101,6 +103,22 @@ struct EnhancedClassItemScroll: View {
         .sheet(isPresented: $showingAddEvent) {
             AddEventView(
                 isPresented: $showingAddEvent,
+                editingEvent: nil,
+                currentDayCode: dayCode,
+                currentDate: currentDate,
+                scheduleLines: scheduleLines,
+                PrimaryColor: PrimaryColor,
+                SecondaryColor: SecondaryColor,
+                TertiaryColor: TertiaryColor
+            )
+        }
+        .sheet(item: $editingEvent) { event in
+            AddEventView(
+                isPresented: Binding(
+                    get: { editingEvent != nil },
+                    set: { if !$0 { editingEvent = nil } }
+                ),
+                editingEvent: event,
                 currentDayCode: dayCode,
                 currentDate: currentDate,
                 scheduleLines: scheduleLines,
@@ -114,6 +132,12 @@ struct EnhancedClassItemScroll: View {
                 showingAddEvent = true
                 addEvent = false
             }
+        }
+        .onAppear {
+            checkAllConflicts()
+        }
+        .onChange(of: eventsManager.events) { _, _ in
+            checkAllConflicts()
         }
     }
     
@@ -145,7 +169,6 @@ struct EnhancedClassItemScroll: View {
     private func scheduleItemView(item: ScheduleDisplayItem, index: Int) -> some View {
         switch item {
         case .scheduleLine(let line):
-            // Your existing schedule line view
             classRowView(line: line)
             
         case .customEvent(let event):
@@ -222,6 +245,10 @@ struct EnhancedClassItemScroll: View {
         
         let p = progressValue(start: event.startTime.seconds, end: event.endTime.seconds, now: now)
         
+        // Check for conflicts with this event
+        let eventConflicts = getEventConflicts(for: event)
+        let hasConflicts = !eventConflicts.isEmpty
+        
         HStack(spacing: 12) {
             ClassProgressBar(
                 progress: p,
@@ -233,9 +260,18 @@ struct EnhancedClassItemScroll: View {
             .frame(width: 6)
             
             VStack(alignment: .leading, spacing: 4) {
-                Text("\(event.startTime.string()) to \(event.endTime.string())")
-                    .font(.system(size: iPad ? 16 : 14, weight: .medium, design: .monospaced))
-                    .foregroundColor(isCurrentEvent ? TertiaryColor : eventColor.opacity(0.8))
+                HStack {
+                    Text("\(event.startTime.string()) to \(event.endTime.string())")
+                        .font(.system(size: iPad ? 16 : 14, weight: .medium, design: .monospaced))
+                        .foregroundColor(isCurrentEvent ? TertiaryColor : eventColor.opacity(0.8))
+                    
+                    // Conflict warning indicator
+                    if hasConflicts {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(.orange)
+                    }
+                }
                 
                 HStack(spacing: 8) {
                     Text(event.title)
@@ -278,6 +314,17 @@ struct EnhancedClassItemScroll: View {
                         .font(.system(size: iPad ? 14 : 12, weight: .medium))
                         .foregroundColor(isCurrentEvent ? TertiaryColor.opacity(0.7) : eventColor.opacity(0.5))
                 }
+                
+                // Show conflicts if any
+                if hasConflicts {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 10))
+                        Text("\(eventConflicts.count) conflict(s)")
+                            .font(.system(size: 10))
+                    }
+                    .foregroundColor(.orange)
+                }
             }
             
             Spacer()
@@ -285,8 +332,7 @@ struct EnhancedClassItemScroll: View {
             // Event options menu
             Menu {
                 Button(action: {
-                    // Edit event
-                    // This would trigger an edit sheet - implement as needed
+                    editingEvent = event
                 }) {
                     Label("Edit", systemImage: "pencil")
                 }
@@ -318,6 +364,79 @@ struct EnhancedClassItemScroll: View {
                 )
         )
         .opacity(event.isEnabled ? 1.0 : 0.6)
+    }
+    
+    private func getEventConflicts(for event: CustomEvent) -> [EventConflict] {
+        var conflicts: [EventConflict] = []
+        
+        // Check conflicts with schedule lines
+        let scheduleConflicts = eventsManager.detectConflicts(for: event, with: scheduleLines)
+        conflicts.append(contentsOf: scheduleConflicts)
+        
+        // Check conflicts with other events
+        let todaysEvents = eventsManager.eventsFor(dayCode: dayCode, date: currentDate)
+        for otherEvent in todaysEvents {
+            if otherEvent.id != event.id && otherEvent.isEnabled && event.conflictsWith(otherEvent) {
+                // Create a temporary ScheduleLine to represent the other event for conflict detection
+                let tempLine = ScheduleLine(
+                    content: "",
+                    isCurrentClass: false,
+                    timeRange: "\(otherEvent.startTime.string()) to \(otherEvent.endTime.string())",
+                    className: otherEvent.title,
+                    teacher: otherEvent.location,
+                    room: otherEvent.note,
+                    startSec: otherEvent.startTime.seconds,
+                    endSec: otherEvent.endTime.seconds
+                )
+                
+                let severity = calculateEventConflictSeverity(event1: event, event2: otherEvent)
+                conflicts.append(EventConflict(event: event, conflictingScheduleLine: tempLine, severity: severity))
+            }
+        }
+        
+        return conflicts
+    }
+    
+    private func calculateEventConflictSeverity(event1: CustomEvent, event2: CustomEvent) -> ConflictSeverity {
+        let event1Start = event1.startTime.seconds
+        let event1End = event1.endTime.seconds
+        let event2Start = event2.startTime.seconds
+        let event2End = event2.endTime.seconds
+        
+        let overlapStart = max(event1Start, event2Start)
+        let overlapEnd = min(event1End, event2End)
+        let overlapDuration = overlapEnd - overlapStart
+        
+        let event1Duration = event1End - event1Start
+        let event2Duration = event2End - event2Start
+        let minDuration = min(event1Duration, event2Duration)
+        
+        if overlapDuration >= minDuration * 8 / 10 { // 80% or more overlap
+            return .complete
+        } else if overlapDuration >= 900 { // 15 minutes or more
+            return .major
+        } else {
+            return .minor
+        }
+    }
+    
+    private func checkAllConflicts() {
+        let todaysEvents = eventsManager.eventsFor(dayCode: dayCode, date: currentDate)
+        var hasAnyConflicts = false
+        
+        for event in todaysEvents {
+            let conflicts = getEventConflicts(for: event)
+            if !conflicts.isEmpty {
+                hasAnyConflicts = true
+                break
+            }
+        }
+        
+        if hasAnyConflicts && !showingConflictAlert {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                showingConflictAlert = true
+            }
+        }
     }
 }
 

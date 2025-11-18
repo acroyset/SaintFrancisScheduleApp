@@ -1,10 +1,3 @@
-//
-//  ProfileMenu.swift
-//  Schedule
-//
-//  Created by Andreas Royset on 8/28/25.
-//
-
 import SwiftUI
 import Foundation
 
@@ -51,6 +44,8 @@ struct ProfileMenu: View {
     @State private var showingDeleteAlert = false
     @State private var isLoadingSync = false
     @State private var isLoadingLoad = false
+    @State private var syncMessage = ""
+    @State private var showSyncMessage = false
     
     var body: some View {
         VStack(spacing: 12) {
@@ -85,16 +80,19 @@ struct ProfileMenu: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             
-            // Sync Status
-            HStack {
-                Image(systemName: "cloud.fill")
-                    .foregroundColor(.green)
-                Text("Classes synced to cloud")
-                    .font(.footnote)
-                    .foregroundStyle(TertiaryColor.highContrastTextColor())
-                Spacer()
+            // Sync Status Message
+            if showSyncMessage {
+                HStack {
+                    Image(systemName: syncMessage.contains("✅") ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                        .foregroundColor(syncMessage.contains("✅") ? .green : .red)
+                    Text(syncMessage)
+                        .font(.footnote)
+                        .foregroundStyle(TertiaryColor.highContrastTextColor())
+                    Spacer()
+                }
+                .padding(.vertical, 4)
+                .transition(.opacity)
             }
-            .padding(.vertical, 4)
             
             // Manual Sync Button
             Button {
@@ -127,7 +125,7 @@ struct ProfileMenu: View {
                     } else {
                         Image(systemName: "arrow.clockwise")
                     }
-                    Text("Load from cloud")
+                    Text("Load from Cloud")
                 }
                 .frame(maxWidth: .infinity, minHeight: iPad ? 44 : 30)
                 .padding()
@@ -146,12 +144,11 @@ struct ProfileMenu: View {
                     .foregroundColor(.red)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 
-                // Delete Account Button - FIXED
                 Button {
                     showingDeleteAlert = true
                 } label: {
                     Text("Delete Account")
-                        .frame(maxWidth: .infinity, minHeight: iPad ? 44 : 30) // Better touch area
+                        .frame(maxWidth: .infinity, minHeight: iPad ? 44 : 30)
                         .padding()
                         .background(Color.red.opacity(0.1))
                         .foregroundColor(.red)
@@ -159,11 +156,9 @@ struct ProfileMenu: View {
                 }
             }
             
-            // Sign Out Button - FIXED
             Button {
                 authManager.signOut()
                 copyText(from: "DefaultClasses.txt", to: "Classes.txt")
-            
             } label: {
                 Text("Sign Out")
                     .frame(maxWidth: .infinity, minHeight: iPad ? 44 : 30)
@@ -188,49 +183,91 @@ struct ProfileMenu: View {
     
     private func sync() {
         guard let user = authManager.user,
-              let classes = data?.classes else { return }
+              let scheduleData = data else {
+            showMessage("❌ No data to sync")
+            return
+        }
         
         isLoadingSync = true
+        showSyncMessage = false
+        
         Task {
             do {
                 let theme = ThemeColors(
-                    primary: PrimaryColor.toHex() ?? "#000000FF",
-                    secondary: SecondaryColor.toHex() ?? "#000000FF",
-                    tertiary: TertiaryColor.toHex() ?? "#000000FF"
+                    primary: PrimaryColor.toHex() ?? "#0000FFFF",
+                    secondary: SecondaryColor.toHex() ?? "#0000FF19",
+                    tertiary: TertiaryColor.toHex() ?? "#FFFFFFFF"
                 )
-                try await dataManager.saveToCloud(classes:classes, theme:theme, for: user.id)
+                
+                print("🔄 Syncing theme: \(theme)")
+                
+                try await dataManager.saveToCloud(
+                    classes: scheduleData.classes,
+                    theme: theme,
+                    isSecondLunch: scheduleData.isSecondLunch,
+                    for: user.id
+                )
+                
+                await MainActor.run {
+                    showMessage("✅ Synced successfully")
+                    isLoadingSync = false
+                }
             } catch {
-                print("Failed to sync classes: \(error)")
+                await MainActor.run {
+                    showMessage("❌ Sync failed: \(error.localizedDescription)")
+                    isLoadingSync = false
+                }
+                print("❌ Failed to sync: \(error)")
             }
-            isLoadingSync = false
         }
     }
     
     private func load() {
-        guard let user = authManager.user else { return }
+        guard let user = authManager.user else {
+            showMessage("❌ Not signed in")
+            return
+        }
         
         isLoadingLoad = true
+        showSyncMessage = false
+        
         Task {
             do {
-                let (cloudClasses, theme) = try await dataManager.loadFromCloud(for: user.id)
-                if !cloudClasses.isEmpty {
-                    DispatchQueue.main.async {
+                let (cloudClasses, theme, isSecondLunch) = try await dataManager.loadFromCloud(for: user.id)
+                
+                await MainActor.run {
+                    if !cloudClasses.isEmpty {
                         if var currentData = self.data {
                             currentData.classes = cloudClasses
+                            currentData.isSecondLunch = isSecondLunch
                             self.data = currentData
                         }
-                        // Also save to local file as backup
                         overwriteClassesFile(with: cloudClasses)
                     }
+                    
+                    // Apply theme
+                    self.PrimaryColor = Color(hex: theme.primary)
+                    self.SecondaryColor = Color(hex: theme.secondary)
+                    self.TertiaryColor = Color(hex: theme.tertiary)
+                    
+                    // Save theme locally
+                    if let themeData = try? JSONEncoder().encode(theme) {
+                        UserDefaults.standard.set(themeData, forKey: "LocalTheme")
+                        SharedGroup.defaults.set(themeData, forKey: "ThemeColors")
+                    }
+                    
+                    showMessage("✅ Loaded successfully")
+                    isLoadingLoad = false
+                    
+                    print("✅ Loaded theme: \(theme)")
                 }
-                
-                PrimaryColor   = Color(hex: theme.primary)
-                SecondaryColor = Color(hex: theme.secondary)
-                TertiaryColor  = Color(hex: theme.tertiary)
             } catch {
-                print("Failed to load classes: \(error)")
+                await MainActor.run {
+                    showMessage("❌ Load failed: \(error.localizedDescription)")
+                    isLoadingLoad = false
+                }
+                print("❌ Failed to load: \(error)")
             }
-            isLoadingLoad = false
         }
     }
     
@@ -243,6 +280,20 @@ struct ProfileMenu: View {
                 authManager.signOut()
             } catch {
                 print("Failed to delete account: \(error)")
+            }
+        }
+    }
+    
+    private func showMessage(_ message: String) {
+        syncMessage = message
+        withAnimation {
+            showSyncMessage = true
+        }
+        
+        // Hide message after 3 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            withAnimation {
+                showSyncMessage = false
             }
         }
     }

@@ -65,7 +65,6 @@ struct Provider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<SimpleEntry>) -> Void) {
         let lines = loadScheduleLines()
         let now = Date()
-        let nowSec = secondsSinceMidnight(now)
         
         var entries: [SimpleEntry] = []
         let cal = Calendar.current
@@ -344,7 +343,7 @@ private struct WidgetBackground: ViewModifier {
                     Rectangle().fill(background)
                 }
         } else {
-            content.background(Color.clear)
+            content.background(background)
         }
     }
 }
@@ -365,9 +364,8 @@ struct ScheduleWidget: Widget {
 }
 
 // MARK: - Preview
-struct ScheduleWidget_Previews: PreviewProvider {
-    static var previews: some View {
-        ScheduleWidgetEntryView(entry: SimpleEntry(date: .now, lines: []))
-            .previewContext(WidgetPreviewContext(family: .systemMedium))
-    }
+#Preview(as: .systemMedium) {
+    ScheduleWidget()
+} timeline: {
+    SimpleEntry(date: .now, lines: [])
 }
