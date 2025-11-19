@@ -43,7 +43,7 @@ class ProfileViewModel: ObservableObject {
         }
     }
     
-    func load(user: User, onSuccess: @escaping ([ClassItem], ThemeColors, Bool) -> Void) async {
+    func load(user: User, onSuccess: @escaping ([ClassItem], ThemeColors, [Bool]) -> Void) async {
         isLoadingLoad = true
         showSyncMessage = false
         

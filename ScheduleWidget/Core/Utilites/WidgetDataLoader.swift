@@ -20,7 +20,7 @@ func loadScheduleData() -> ScheduleData? {
         return nil
     }
     
-    let isSecondLunch = SharedGroup.defaults.bool(forKey: "IsSecondLunch")
+    let isSecondLunch = (SharedGroup.defaults.array(forKey: "IsSecondLunch") as? [Bool]) ?? [false, false]
     
     return ScheduleData(classes: classes, days: days, isSecondLunch: isSecondLunch)
 }

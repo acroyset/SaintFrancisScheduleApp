@@ -9,7 +9,7 @@ import FirebaseFirestore
 class DataManager: ObservableObject {
     private let db = Firestore.firestore()
     
-    func saveToCloud(classes: [ClassItem], theme: ThemeColors, isSecondLunch: Bool, for userId: String) async throws {
+    func saveToCloud(classes: [ClassItem], theme: ThemeColors, isSecondLunch: [Bool], for userId: String) async throws {
         let classesData = classes.map { classItem in
             [
                 "name": classItem.name,
@@ -32,10 +32,10 @@ class DataManager: ObservableObject {
         ], merge: true)
     }
     
-    func loadFromCloud(for userId: String) async throws -> ([ClassItem], ThemeColors, Bool) {
+    func loadFromCloud(for userId: String) async throws -> ([ClassItem], ThemeColors, [Bool]) {
         let doc = try await db.collection("users").document(userId).getDocument()
         guard let data = doc.data() else {
-            return ([], ThemeColors(primary: "#0000FF", secondary: "#CCCCCC", tertiary: "#FFFFFF"), false)
+            return ([], ThemeColors(primary: "#0000FF", secondary: "#CCCCCC", tertiary: "#FFFFFF"), [false, false])
         }
         
         let classesArray = (data["classes"] as? [[String: String]]) ?? []
@@ -54,7 +54,7 @@ class DataManager: ObservableObject {
             tertiary: themeDict["tertiary"] ?? "#FFFFFF"
         )
         
-        let isSecondLunch = (data["isSecondLunch"] as? Bool) ?? false
+        let isSecondLunch = (data["isSecondLunch"] as? [Bool]) ?? [false, false]
         
         return (classes, theme, isSecondLunch)
     }

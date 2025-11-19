@@ -116,8 +116,9 @@ class ScheduleViewModel: ObservableObject {
         scheduleLines = tempLines.map { $0.line }
     }
     
-    private func shouldSwapLunchAndPeriod(dayIndex: Int, isSecondLunch: Bool) -> Bool {
-        let daysWithLunchPeriod = [0, 1, 2, 3, 4, 5, 8, 9]
-        return isSecondLunch && daysWithLunchPeriod.contains(dayIndex)
+    private func shouldSwapLunchAndPeriod(dayIndex: Int, isSecondLunch: [Bool]) -> Bool {
+        let daysWithLunchPeriodG = [0, 2, 4, 5, 8, 9]
+        let daysWithLunchPeriodB = [1, 3]
+        return (isSecondLunch[0] && daysWithLunchPeriodG.contains(dayIndex)) || (isSecondLunch[1] && daysWithLunchPeriodB.contains(dayIndex))
     }
 }

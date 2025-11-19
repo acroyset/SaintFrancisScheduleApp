@@ -31,8 +31,12 @@ class ClassEditorViewModel: ObservableObject {
         saveToFile()
     }
     
-    func toggleSecondLunch() {
-        scheduleData.isSecondLunch.toggle()
+    func toggleSecondLunchG() {
+        scheduleData.isSecondLunch[0].toggle()
+        saveToFile()
+    }
+    func toggleSecondLunchB() {
+        scheduleData.isSecondLunch[1].toggle()
         saveToFile()
     }
     

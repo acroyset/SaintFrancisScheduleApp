@@ -77,7 +77,7 @@ struct VphoneClassEditor: View {
                 Divider()
                 
                 // NEW: Second Lunch Toggle
-                HStack {
+                HStack(spacing: 40) {
                     Text("Second Lunch")
                         .font(.system(
                             size: iPad ? 20 : 16,
@@ -86,22 +86,43 @@ struct VphoneClassEditor: View {
                         ))
                         .foregroundStyle(PrimaryColor)
                     
-                    Spacer()
-                    
-                    Toggle("", isOn: $data.isSecondLunch)
-                        .toggleStyle(SwitchToggleStyle(tint: PrimaryColor))
+                    VStack{
+                        
+                        HStack(spacing: 8) {
+                            
+                            Text("Gold Day")
+                                .font(.system(
+                                    size: iPad ? 18 : 14,
+                                    weight: .semibold,
+                                    design: .monospaced
+                                ))
+                                .foregroundStyle(PrimaryColor)
+                            
+                            Toggle("", isOn: $data.isSecondLunch[0])
+                                .toggleStyle(SwitchToggleStyle(tint: PrimaryColor))
+                        }
+                        .fixedSize()
+                        
+                        HStack(spacing: 8) {
+                            
+                            Text("Brown Day")
+                                .font(.system(
+                                    size: iPad ? 18 : 14,
+                                    weight: .semibold,
+                                    design: .monospaced
+                                ))
+                                .foregroundStyle(PrimaryColor)
+                            
+                            Toggle("", isOn: $data.isSecondLunch[1])
+                                .toggleStyle(SwitchToggleStyle(tint: PrimaryColor))
+                        }
+                        .fixedSize()
+                    }
                 }
                 .padding(12)
+                .frame(maxWidth: .infinity)
                 .background(SecondaryColor)
                 .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-                
-                if data.isSecondLunch {
-                    Text("Period 4/5 will come before lunch")
-                        .font(.caption)
-                        .foregroundColor(PrimaryColor.opacity(0.7))
-                        .padding(.horizontal, 12)
-                        .padding(.bottom, 8)
-                }
                 
                 let indices: [Int] = [0, 1, 2, 3, 4, 5, 6, 9, 12]
 
@@ -176,7 +197,7 @@ struct HphoneClassEditor: View {
                 Divider()
                 
                 // NEW: Second Lunch Toggle
-                HStack {
+                HStack(spacing: 40) {
                     Text("Second Lunch")
                         .font(.system(
                             size: iPad ? 20 : 16,
@@ -185,23 +206,43 @@ struct HphoneClassEditor: View {
                         ))
                         .foregroundStyle(PrimaryColor)
                     
-                    Spacer()
-                    
-                    Toggle("", isOn: $data.isSecondLunch)
-                        .toggleStyle(SwitchToggleStyle(tint: PrimaryColor))
+                    VStack{
+                        
+                        HStack(spacing: 8) {
+                            
+                            Text("Gold Day")
+                                .font(.system(
+                                    size: iPad ? 18 : 14,
+                                    weight: .semibold,
+                                    design: .monospaced
+                                ))
+                                .foregroundStyle(PrimaryColor)
+                            
+                            Toggle("", isOn: $data.isSecondLunch[0])
+                                .toggleStyle(SwitchToggleStyle(tint: PrimaryColor))
+                        }
+                        .fixedSize()
+                        
+                        HStack(spacing: 8) {
+                            
+                            Text("Brown Day")
+                                .font(.system(
+                                    size: iPad ? 18 : 14,
+                                    weight: .semibold,
+                                    design: .monospaced
+                                ))
+                                .foregroundStyle(PrimaryColor)
+                            
+                            Toggle("", isOn: $data.isSecondLunch[1])
+                                .toggleStyle(SwitchToggleStyle(tint: PrimaryColor))
+                        }
+                        .fixedSize()
+                    }
                 }
                 .padding(12)
+                .frame(maxWidth: .infinity)
                 .background(SecondaryColor)
                 .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-                .padding(.horizontal)
-                
-                if data.isSecondLunch {
-                    Text("Period 4/5 will come before lunch")
-                        .font(.caption)
-                        .foregroundColor(PrimaryColor.opacity(0.7))
-                        .padding(.horizontal, 12)
-                        .padding(.bottom, 8)
-                }
                 
                 HStack{
                     let indices: [Int] = [0, 1, 2, 3, 4, 5, 6, 9, 12]

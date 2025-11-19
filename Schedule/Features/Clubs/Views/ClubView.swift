@@ -27,7 +27,7 @@ struct ClubView: View {
             Divider()
             
             ScrollView {
-                Text("Comming Soon")
+                Text("Coming Soon")
                     .font(.system(size: iPad ? 20 : 12, weight: .semibold))
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
