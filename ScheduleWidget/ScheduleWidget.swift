@@ -1,4 +1,4 @@
-// Enhanced ScheduleWidget.swift
+// Enhanced ScheduleWidget.swift with Auto-updating Schedule
 import WidgetKit
 import SwiftUI
 
@@ -18,7 +18,6 @@ private extension Array where Element == ScheduleLine {
             if let start = line.startSec, let end = line.endSec {
                 let progress = progressValue(start: start, end: end, now: nowSec)
                 updatedLine.progress = progress
-                // Update current class status based on time
                 updatedLine.isCurrentClass = nowSec >= start && nowSec < end
             }
             return updatedLine
@@ -26,7 +25,6 @@ private extension Array where Element == ScheduleLine {
         
         // 1. Try to find current class based on time
         if let currentIdx = updatedLines.firstIndex(where: { $0.isCurrentClass }) {
-            // If it's the last item, show prev + current
             if currentIdx == endIndex - 1 {
                 if indices.contains(currentIdx - 1) {
                     return [updatedLines[currentIdx - 1], updatedLines[currentIdx]]
@@ -34,7 +32,6 @@ private extension Array where Element == ScheduleLine {
                     return [updatedLines[currentIdx]]
                 }
             }
-            // Otherwise show current + next
             var out = [updatedLines[currentIdx]]
             if indices.contains(currentIdx + 1) { out.append(updatedLines[currentIdx + 1]) }
             return out
@@ -52,91 +49,227 @@ private extension Array where Element == ScheduleLine {
     }
 }
 
-// MARK: - Enhanced Provider with Smart Updates
+// MARK: - Enhanced Provider with Daily Updates
 struct Provider: TimelineProvider {
     func placeholder(in context: Context) -> SimpleEntry {
-        SimpleEntry(date: Date(), lines: [])
+        SimpleEntry(date: Date(), lines: [], dayCode: "")
     }
 
     func getSnapshot(in context: Context, completion: @escaping (SimpleEntry) -> Void) {
-        completion(SimpleEntry(date: Date(), lines: loadScheduleLines()))
+        let (lines, dayCode) = loadTodaysSchedule()
+        completion(SimpleEntry(date: Date(), lines: lines, dayCode: dayCode))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<SimpleEntry>) -> Void) {
-        let lines = loadScheduleLines()
         let now = Date()
-        
-        var entries: [SimpleEntry] = []
         let cal = Calendar.current
         
-        // Create multiple timeline entries for the next few hours
-        for minuteOffset in stride(from: 0, to: 240, by: 1) { // Update every minute for 4 hours
+        // Get today's schedule
+        let (lines, dayCode) = loadTodaysSchedule()
+        
+        var entries: [SimpleEntry] = []
+        
+        // Create entries for every minute for the next 4 hours
+        for minuteOffset in stride(from: 0, to: 240, by: 1) {
             let entryDate = cal.date(byAdding: .minute, value: minuteOffset, to: now) ?? now
-            entries.append(SimpleEntry(date: entryDate, lines: lines))
+            
+            // Only create entries for the current day
+            if cal.isDate(entryDate, inSameDayAs: now) {
+                entries.append(SimpleEntry(date: entryDate, lines: lines, dayCode: dayCode))
+            }
         }
         
-        // Determine next significant update time
-        let nextUpdateTime = determineNextUpdateTime(lines: lines, now: now)
+        // Determine when to refresh (next day at midnight or next significant event)
+        let nextUpdate = determineNextUpdateTime(lines: lines, now: now)
         
-        // Request app refresh if data is stale
         let timeline = Timeline(
             entries: entries,
-            policy: .after(nextUpdateTime)
+            policy: .after(nextUpdate)
         )
         
         completion(timeline)
+    }
+    
+    private func loadTodaysSchedule() -> ([ScheduleLine], String) {
+        let now = Date()
         
-        // Try to trigger background app refresh if data seems stale
-        requestBackgroundAppRefresh()
+        // 1. Get the schedule dictionary from shared storage
+        guard let scheduleDict = loadScheduleDict() else {
+            print("❌ Widget: Failed to load schedule dictionary")
+            return ([], "")
+        }
+        
+        // 2. Get today's date key
+        let dateKey = getKeyForDate(now)
+        
+        // 3. Get today's day code
+        guard let dayInfo = scheduleDict[dateKey],
+              dayInfo.count >= 1 else {
+            print("❌ Widget: No schedule for \(dateKey)")
+            return ([], "")
+        }
+        
+        let dayCode = dayInfo[0]
+        
+        // 4. Load the class data
+        guard let data = loadScheduleData() else {
+            print("❌ Widget: Failed to load schedule data")
+            return ([], dayCode)
+        }
+        
+        // 5. Generate schedule lines for today
+        let lines = generateScheduleLines(for: dayCode, data: data, date: now)
+        
+        return (lines, dayCode)
+    }
+    
+    private func generateScheduleLines(for dayCode: String, data: ScheduleData, date: Date) -> [ScheduleLine] {
+        let map = ["g1":0,"b1":1,"g2":2,"b2":3,"a1":4,"a2":5,"a3":6,"a4":7,"l1":8,"l2":9,"s1":10]
+        guard let di = map[dayCode.lowercased()], data.days.indices.contains(di) else {
+            return []
+        }
+        
+        let day = data.days[di]
+        let now = Time.now()
+        let nowSec = now.seconds
+        
+        // Check if we need to swap lunch and period 4/5
+        let shouldSwap = shouldSwapLunchAndPeriod(dayIndex: di, isSecondLunch: data.isSecondLunch)
+        
+        var lines: [ScheduleLine] = []
+        
+        for i in day.names.indices {
+            let nameRaw = day.names[i]
+            var start = day.startTimes[i]
+            var end = day.endTimes[i]
+            
+            // Apply second lunch override
+            if shouldSwap {
+                if nameRaw == "Lunch" {
+                    start = Time(h: 12, m: 25, s: 0)
+                    end = Time(h: 13, m: 5, s: 0)
+                } else if nameRaw.contains("$4") || nameRaw.contains("$5") ||
+                          nameRaw.contains("Period 4") || nameRaw.contains("Period 5") {
+                    start = Time(h: 11, m: 0, s: 0)
+                    end = Time(h: 12, m: 20, s: 0)
+                }
+            }
+            
+            let isCurrentClass = (start <= now && now < end) && Calendar.current.isDateInToday(date)
+            
+            // Handle class references ($1, $2, etc.)
+            if nameRaw.hasPrefix("$"),
+               let idx = Int(nameRaw.dropFirst()),
+               (1...data.classes.count).contains(idx) {
+                let c = data.classes[idx-1]
+                let teacher = (c.teacher == "N" || c.teacher.isEmpty) ? "" : c.teacher
+                let room = (c.room == "N" || c.room.isEmpty) ? "" : c.room
+                
+                let p = progressValue(start: start.seconds, end: end.seconds, now: nowSec)
+                
+                lines.append(ScheduleLine(
+                    content: "",
+                    isCurrentClass: isCurrentClass,
+                    timeRange: "\(start.string()) to \(end.string())",
+                    className: c.name,
+                    teacher: teacher,
+                    room: room,
+                    startSec: start.seconds,
+                    endSec: end.seconds,
+                    progress: p
+                ))
+            } else {
+                lines.append(ScheduleLine(
+                    content: "",
+                    isCurrentClass: isCurrentClass,
+                    timeRange: "\(start.string()) to \(end.string())",
+                    className: nameRaw,
+                    startSec: start.seconds,
+                    endSec: end.seconds
+                ))
+            }
+        }
+        
+        return lines
+    }
+    
+    private func shouldSwapLunchAndPeriod(dayIndex: Int, isSecondLunch: Bool) -> Bool {
+        let daysWithLunchPeriod = [0, 1, 2, 3, 4, 5]
+        return isSecondLunch && daysWithLunchPeriod.contains(dayIndex)
     }
     
     private func determineNextUpdateTime(lines: [ScheduleLine], now: Date) -> Date {
-        let nowSec = secondsSinceMidnight(now)
         let cal = Calendar.current
         
-        // Find the next class start or end time
-        let upcomingTimes = lines.compactMap { line -> Date? in
-            guard let start = line.startSec, let end = line.endSec else { return nil }
+        // Always update at midnight to get new day's schedule
+        if let midnight = cal.date(bySettingHour: 0, minute: 0, second: 0, of: now),
+           let nextMidnight = cal.date(byAdding: .day, value: 1, to: midnight) {
             
-            let today = cal.startOfDay(for: now)
-            if start > nowSec {
-                // Next class starts
-                return cal.date(byAdding: .second, value: start, to: today)
-            } else if end > nowSec {
-                // Current class ends
-                return cal.date(byAdding: .second, value: end, to: today)
+            // Also check for next class transition
+            let nowSec = secondsSinceMidnight(now)
+            let upcomingTimes = lines.compactMap { line -> Date? in
+                guard let start = line.startSec, let end = line.endSec else { return nil }
+                
+                let today = cal.startOfDay(for: now)
+                if start > nowSec {
+                    return cal.date(byAdding: .second, value: start, to: today)
+                } else if end > nowSec {
+                    return cal.date(byAdding: .second, value: end, to: today)
+                }
+                return nil
+            }.sorted()
+            
+            // Use the sooner of: next class event or midnight
+            if let nextClassTime = upcomingTimes.first, nextClassTime < nextMidnight {
+                return nextClassTime
             }
-            return nil
-        }.sorted()
+            
+            return nextMidnight
+        }
         
-        // Update at the next significant time, or in 15 minutes if nothing found
-        return upcomingTimes.first ?? cal.date(byAdding: .minute, value: 15, to: now) ?? now
+        // Fallback: update in 15 minutes
+        return cal.date(byAdding: .minute, value: 15, to: now) ?? now
+    }
+}
+
+// MARK: - Data Loading Functions
+
+private func loadScheduleDict() -> [String: [String]]? {
+    guard let data = SharedGroup.defaults.data(forKey: "ScheduleDict") else {
+        return nil
+    }
+    return try? JSONDecoder().decode([String: [String]].self, from: data)
+}
+
+private func loadScheduleData() -> ScheduleData? {
+    // Try to load from shared defaults (saved by main app)
+    guard let classesData = SharedGroup.defaults.data(forKey: "ScheduleClasses"),
+          let daysData = SharedGroup.defaults.data(forKey: "ScheduleDays") else {
+        return nil
     }
     
-    private func requestBackgroundAppRefresh() {
-        // This will hint to the system that the widget wants fresh data
-        // The system may choose to launch your app in the background
-        WidgetCenter.shared.reloadTimelines(ofKind: "ScheduleWidget")
-        
-        // Store when we last requested an update to avoid spam
-        let lastUpdate = SharedGroup.defaults.object(forKey: "LastWidgetUpdate") as? Date ?? Date.distantPast
-        let now = Date()
-        
-        if now.timeIntervalSince(lastUpdate) > 300 { // 5 minutes minimum between requests
-            SharedGroup.defaults.set(now, forKey: "LastWidgetUpdate")
-            
-            // You could also store a flag that the main app checks
-            SharedGroup.defaults.set(true, forKey: "WidgetRequestsUpdate")
-        }
+    guard let classes = try? JSONDecoder().decode([ClassItem].self, from: classesData),
+          let days = try? JSONDecoder().decode([Day].self, from: daysData) else {
+        return nil
     }
+    
+    let isSecondLunch = SharedGroup.defaults.bool(forKey: "IsSecondLunch")
+    
+    return ScheduleData(classes: classes, days: days, isSecondLunch: isSecondLunch)
+}
+
+private func getKeyForDate(_ date: Date) -> String {
+    let formatter = DateFormatter()
+    formatter.dateFormat = "MM-dd-yy"
+    return formatter.string(from: date)
 }
 
 // MARK: - Enhanced Entry
 struct SimpleEntry: TimelineEntry {
     let date: Date
     let lines: [ScheduleLine]
+    let dayCode: String
     
-    // Add computed property to check if data is stale
     var isDataStale: Bool {
         let lastAppUpdate = SharedGroup.defaults.object(forKey: "LastAppDataUpdate") as? Date ?? Date.distantPast
         return Date().timeIntervalSince(lastAppUpdate) > 1800 // 30 minutes
@@ -158,17 +291,22 @@ struct ScheduleWidgetEntryView: View {
         let TertiaryColor = Color(hex: theme?.tertiary ?? "#FFFFFFFF")
         
         VStack(alignment: .leading, spacing: 6) {
+            // Show day code
             if display.isEmpty {
-                // Show placeholder when no data
+                if !entry.dayCode.isEmpty {
+                    Text(entry.dayCode.uppercased())
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(PrimaryColor.opacity(0.7))
+                        .padding(.bottom, 2)
+                }
+                
                 VStack {
-                    Image(systemName: "calendar.badge.exclamationmark")
+                    Image(systemName: "calendar.badge.clock")
                         .foregroundColor(PrimaryColor)
-                    Text("No schedule data")
+                        .font(.title2)
+                    Text("No Classes Today")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(PrimaryColor)
-                    Text("Open app to sync")
-                        .font(.system(size: 12))
-                        .foregroundColor(PrimaryColor.opacity(0.7))
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -182,13 +320,12 @@ struct ScheduleWidgetEntryView: View {
                     )
                 }
                 
-                // Show data age indicator if stale
                 if entry.isDataStale {
                     HStack {
-                        Image(systemName: "clock.badge.exclamationmark")
-                            .font(.system(size: 10))
-                        Text("Data may be outdated")
-                            .font(.system(size: 10))
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 9))
+                        Text("Open app to refresh")
+                            .font(.system(size: 9))
                     }
                     .foregroundColor(PrimaryColor.opacity(0.6))
                     .padding(.top, 2)
@@ -199,11 +336,10 @@ struct ScheduleWidgetEntryView: View {
     }
 }
 
-// MARK: - Row View with Real-time Updates
+// MARK: - Row View
 @ViewBuilder
 func rowView(_ line: ScheduleLine, note: String, PrimaryColor: Color, SecondaryColor: Color, TertiaryColor: Color) -> some View {
     HStack(spacing: 12) {
-        // Progress bar with real-time updates
         if let p = line.progress {
             ClassProgressBar(
                 progress: p,
@@ -237,16 +373,16 @@ func rowView(_ line: ScheduleLine, note: String, PrimaryColor: Color, SecondaryC
                         ))
                         .foregroundStyle(
                             line.isCurrentClass ? TertiaryColor : PrimaryColor.opacity(0.8))
+                        .lineLimit(1)
                     
-                    // Real-time minutes left calculation
                     if let end = line.endSec, let start = line.startSec {
                         let now = secondsSinceMidnight()
                         let remainMin = max(0, (end - now) / 60)
                         if line.isCurrentClass && remainMin > 0 {
-                            Text("• \(remainMin)m left")
+                            Text("• \(remainMin)m")
                                 .font(.system(
-                                    size: 15,
-                                    weight: line.isCurrentClass ? .bold : .regular,
+                                    size: 13,
+                                    weight: .semibold,
                                     design: .monospaced
                                 ))
                                 .foregroundStyle(
@@ -261,12 +397,13 @@ func rowView(_ line: ScheduleLine, note: String, PrimaryColor: Color, SecondaryC
             if !line.room.isEmpty {
                 Text(line.room)
                     .font(.system(
-                        size: 14,
+                        size: 13,
                         weight: line.isCurrentClass ? .bold : .regular,
                         design: .monospaced
                     ))
                     .foregroundStyle(
                         line.isCurrentClass ? TertiaryColor : PrimaryColor.opacity(0.8))
+                    .lineLimit(1)
             }
         } else {
             Text(line.content)
@@ -314,12 +451,12 @@ extension Color {
 
         let r, g, b, a: Double
         switch hexSanitized.count {
-        case 8: // RRGGBBAA
+        case 8:
             r = Double((int & 0xFF000000) >> 24) / 255
             g = Double((int & 0x00FF0000) >> 16) / 255
             b = Double((int & 0x0000FF00) >> 8) / 255
             a = Double(int & 0x000000FF) / 255
-        case 6: // RRGGBB
+        case 6:
             r = Double((int & 0xFF0000) >> 16) / 255
             g = Double((int & 0x00FF00) >> 8) / 255
             b = Double(int & 0x0000FF) / 255
@@ -367,5 +504,5 @@ struct ScheduleWidget: Widget {
 #Preview(as: .systemMedium) {
     ScheduleWidget()
 } timeline: {
-    SimpleEntry(date: .now, lines: [])
+    SimpleEntry(date: .now, lines: [], dayCode: "G1")
 }

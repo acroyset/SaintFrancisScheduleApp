@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		E4257E872E5FE2BF00948AE0 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = E4257E862E5FE2BF00948AE0 /* FirebaseAuth */; };
 		E4257E892E5FE2BF00948AE0 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = E4257E882E5FE2BF00948AE0 /* FirebaseFirestore */; };
+		E439AB752ECBC02B0078C9FA /* HelperStructs.swift in Sources */ = {isa = PBXBuildFile; fileRef = E439AB5D2ECBC02B0078C9FA /* HelperStructs.swift */; };
+		E439AB8F2ECC14C00078C9FA /* HelperStructs.swift in Sources */ = {isa = PBXBuildFile; fileRef = E439AB5D2ECBC02B0078C9FA /* HelperStructs.swift */; };
 		E45D486B2E638E9200D88084 /* ScheduleLine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E45D48632E638E9200D88084 /* ScheduleLine.swift */; };
 		E45D486D2E638E9200D88084 /* Time.swift in Sources */ = {isa = PBXBuildFile; fileRef = E45D48642E638E9200D88084 /* Time.swift */; };
 		E45D48822E691D4700D88084 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = E45D48812E691D4700D88084 /* GoogleSignIn */; };
@@ -68,6 +70,7 @@
 		E4072D132E4D72DE004A81A7 /* Schedule.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Schedule.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E4072D202E4D72E0004A81A7 /* ScheduleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ScheduleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E4072D2A2E4D72E0004A81A7 /* ScheduleUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ScheduleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E439AB5D2ECBC02B0078C9FA /* HelperStructs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelperStructs.swift; sourceTree = "<group>"; };
 		E45D48632E638E9200D88084 /* ScheduleLine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleLine.swift; sourceTree = "<group>"; };
 		E45D48642E638E9200D88084 /* Time.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Time.swift; sourceTree = "<group>"; };
 		E45D48892E6A54D700D88084 /* ScheduleWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ScheduleWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -178,6 +181,7 @@
 				E45D48B32E6A6DE500D88084 /* ThemeColors.swift */,
 				E45D48642E638E9200D88084 /* Time.swift */,
 				E45D48A42E6A579D00D88084 /* ClassProgressBar.swift */,
+				E439AB5D2ECBC02B0078C9FA /* HelperStructs.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -388,6 +392,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E439AB752ECBC02B0078C9FA /* HelperStructs.swift in Sources */,
 				E45D48B42E6A6DE500D88084 /* ThemeColors.swift in Sources */,
 				E45D486B2E638E9200D88084 /* ScheduleLine.swift in Sources */,
 				E45D48B12E6A632E00D88084 /* SharedGroup.swift in Sources */,
@@ -418,6 +423,7 @@
 				E45D48AD2E6A58AF00D88084 /* Time.swift in Sources */,
 				E45D48B52E6A6DE500D88084 /* ThemeColors.swift in Sources */,
 				E45D48B22E6A632E00D88084 /* SharedGroup.swift in Sources */,
+				E439AB8F2ECC14C00078C9FA /* HelperStructs.swift in Sources */,
 				E45D48A52E6A579E00D88084 /* ClassProgressBar.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

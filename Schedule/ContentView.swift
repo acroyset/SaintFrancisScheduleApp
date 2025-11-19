@@ -536,6 +536,10 @@ struct ContentView: View {
         .onAppear {
             loadData()
             setScroll()
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    self.saveDataForWidget()
+                }
         }
         .onChange(of: dayCode) { oldDay, newDay in
             guard oldDay != newDay else { return }
@@ -581,6 +585,7 @@ struct ContentView: View {
             saveTheme()
             renderWithEvents() // Use enhanced rendering
             saveScheduleLinesWithEvents() // Use enhanced saving
+            saveDataForWidget()
             setIsPortrait()
             
             // Handle widget refresh requests
@@ -606,6 +611,12 @@ struct ContentView: View {
         loadFromCloud()
         
         loadEventsFromCloud()
+        
+        // Fetch schedule from Google Sheets
+        if !hasTriedFetchingSchedule {
+            hasTriedFetchingSchedule = true
+            fetchScheduleFromGoogleSheets()
+        }
     }
     
     private func saveThemeLocally(_ theme: ThemeColors) {
@@ -626,7 +637,6 @@ struct ContentView: View {
         PrimaryColor = Color(hex: theme.primary)
         SecondaryColor = Color(hex: theme.secondary)
         TertiaryColor = Color(hex: theme.tertiary)
-        print("✅ Loaded theme from local storage")
     }
 
     // 5. Update the existing saveTheme function
@@ -701,9 +711,9 @@ struct ContentView: View {
                     
                     // Also save theme locally
                     self.saveThemeLocally(theme)
+                    self.saveDataForWidget()
                     
                     self.hasLoadedFromCloud = true
-                    print("✅ Loaded theme from cloud: \(theme)")
                 }
             } catch {
                 print("❌ Failed to load from cloud: \(error)")
@@ -732,7 +742,6 @@ struct ContentView: View {
                 DispatchQueue.main.async {
                     overwriteClassesFile(with: data.classes)
                 }
-                print("✅ Saved theme to cloud: \(theme)")
             } catch {
                 print("❌ Failed to save classes to cloud: \(error)")
             }
@@ -895,7 +904,7 @@ struct ContentView: View {
             let conflicts = eventsManager.detectConflicts(for: event, with: scheduleLines)
             
             if !conflicts.isEmpty {
-                print("Event '\(event.title)' has \(conflicts.count) conflicts")
+                //print("Event '\(event.title)' has \(conflicts.count) conflicts")
             }
         }
     }
@@ -991,7 +1000,43 @@ struct ContentView: View {
         DispatchQueue.main.async {
             self.scheduleDict = tempDict
             self.applySelectedDate(self.selectedDate)
+            
+            if let dictData = try? JSONEncoder().encode(tempDict) {
+                SharedGroup.defaults.set(dictData, forKey: "ScheduleDict")
+            }
+            
+            self.saveDataForWidget()
         }
+    }
+    
+    private func saveDataForWidget() {
+        guard let data = data else { return }
+        
+        // 1. Save schedule dict
+        if let scheduleDict = scheduleDict {
+            if let dictData = try? JSONEncoder().encode(scheduleDict) {
+                SharedGroup.defaults.set(dictData, forKey: "ScheduleDict")
+            }
+        }
+        
+        // 2. Save classes
+        if let classesData = try? JSONEncoder().encode(data.classes) {
+            SharedGroup.defaults.set(classesData, forKey: "ScheduleClasses")
+        }
+        
+        // 3. Save days
+        if let daysData = try? JSONEncoder().encode(data.days) {
+            SharedGroup.defaults.set(daysData, forKey: "ScheduleDays")
+        }
+        
+        // 4. Save lunch preference
+        SharedGroup.defaults.set(data.isSecondLunch, forKey: "IsSecondLunch")
+        
+        // 5. Update timestamp
+        SharedGroup.defaults.set(Date(), forKey: "LastAppDataUpdate")
+        
+        // 6. Reload widget
+        WidgetCenter.shared.reloadTimelines(ofKind: "ScheduleWidget")
     }
     
     private func getTodaysType() -> [String]? {
@@ -1007,6 +1052,10 @@ struct ContentView: View {
             guard error == nil, let data = data, let csv = String(data: data, encoding: .utf8) else { return }
             self.parseCSV(csv)
             applySelectedDate(selectedDate)
+            
+            DispatchQueue.main.async {
+                self.saveDataForWidget()
+            }
         }.resume()
     }
     

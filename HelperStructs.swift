@@ -6,13 +6,13 @@
 //
 import SwiftUI
 
-struct ScheduleData {
+struct ScheduleData: Codable {
     var classes: [ClassItem]
     var days: [Day]
     var isSecondLunch: Bool = false  // NEW: Track lunch preference
 }
 
-struct ClassItem: Equatable {
+struct ClassItem: Equatable, Codable {  // Added Codable here
     var name: String
     var teacher: String
     var room: String
@@ -22,7 +22,7 @@ struct ClassItem: Equatable {
     }
 }
 
-struct Day {
+struct Day: Codable {  // Added Codable here
     var name = ""
     var names: [String] = []
     var startTimes: [Time] = []
