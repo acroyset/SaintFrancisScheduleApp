@@ -45,3 +45,20 @@ struct Time: Comparable, Equatable, Codable {
 extension Time {
     var seconds: Int { h * 3600 + m * 60 + s }
 }
+
+extension Time {
+    // Convert this Time to a Date on "today" (date portion is irrelevant for .hourAndMinute DatePickers)
+    func toDate(on date: Date = Date()) -> Date {
+        var comps = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        comps.hour = h
+        comps.minute = m
+        comps.second = s
+        return Calendar.current.date(from: comps) ?? date
+    }
+    
+    // Build a Time from a Date’s hour/minute/second
+    static func fromDate(_ date: Date) -> Time {
+        let comps = Calendar.current.dateComponents([.hour, .minute, .second], from: date)
+        return Time(h: comps.hour ?? 0, m: comps.minute ?? 0, s: comps.second ?? 0)
+    }
+}

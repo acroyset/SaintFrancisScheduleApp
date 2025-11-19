@@ -220,13 +220,13 @@ extension Time {
 
 extension Color {
     static let eventColors: [Color] = [
-        Color("#FF6B6B"), // Red
-        Color("#4ECDC4"), // Teal
-        Color("#45B7D1"), // Blue
-        Color("#96CEB4"), // Green
-        Color("#FFEAA7"), // Yellow
-        Color("#DDA0DD"), // Plum
-        Color("#FFB347"), // Orange
-        Color("#87CEEB")  // Sky Blue
+        Color(hex: "#FF6B6BFF"), // Red
+        Color(hex: "#4ECDC4FF"), // Teal
+        Color(hex: "#45B7D1FF"), // Blue
+        Color(hex: "#96CEB4FF"), // Green
+        Color(hex: "#FFEAA7FF"), // Yellow
+        Color(hex: "#DDA0DDFF"), // Plum
+        Color(hex: "#FFB347FF"), // Orange
+        Color(hex: "#87CEEBFF")  // Sky Blue
     ]
 }

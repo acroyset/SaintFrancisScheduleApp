@@ -1,6 +1,8 @@
 //
-//  ContentView.swift (Updated with Firebase)
+//  ContentView.swift (MINIMAL FIX)
 //  Schedule
+//
+//  Only extract UI components, keep all logic intact
 //
 
 import SwiftUI
@@ -10,7 +12,6 @@ import WidgetKit
 let version = "Beta 1.9"
 let whatsNew = "\n- Second Lunch! <----- !!!\n- Personal Events\n- Bug Fixes"
 
-// Updated ContentView with Firebase integration
 struct ContentView: View {
     @EnvironmentObject var authManager: AuthenticationManager
     @StateObject private var dataManager = DataManager()
@@ -42,31 +43,6 @@ struct ContentView: View {
     @StateObject private var eventsManager = CustomEventsManager()
     
     let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-    
-    var title: String {
-        switch tutorial {
-        case .Hidden:      return "Error"
-        case .Intro:       return "Welcome to Schedule!"
-        case .DateNavigator: return "Date Navigator"
-        case .News:        return "News"
-        case .ClassEditor: return "Class Editor"
-        case .Settings:    return "Settings"
-        case .Profile:     return "Profile"
-        case .Outro:       return "Thanks!"
-        }
-    }
-    var info: String {
-        switch tutorial {
-        case .Hidden:      return "Error"
-        case .Intro:       return "This is a schedule app for Saint Francis High School. It allows you to view your schedule, add new classes, and edit your existing ones!"
-        case .DateNavigator: return "Access the date navigator by clicking on the date in the home screen.\n\nThis is how you can choose your dates for the whole year!"
-        case .News:        return "Access the news tab by clicking on the news icon in the toolbar.\n\nThis is where you can see current events like clubs football games and everything inbetween!"
-        case .ClassEditor: return "Access the class editor by clicking on the edit class icon in the toolbar.\n\nThis is how you can edit your classes. You can also select if you are second lunch or not."
-        case .Settings:    return "Access the settings tab by clicking on the settings icon in the toolbar.\n\nThis is where you can change preferances like the color scheme!"
-        case .Profile:     return "Access the profile tab by clicking on the profile icon in the toolbar.\n\nThis is how you can sign out or sync your devices."
-        case .Outro:       return "Thanks for downloading Saint Francis Schedule!"
-        }
-    }
     
     @Environment(\.scenePhase) private var scenePhase
     
@@ -100,130 +76,7 @@ struct ContentView: View {
                     }
                 })
                 
-                switch window {
-                case .Home:
-                    VStack {
-                        dayHeaderView(
-                            dayInfo: getDayInfo(for: dayCode),
-                            PrimaryColor: PrimaryColor,
-                            SecondaryColor: SecondaryColor,
-                            TertiaryColor: TertiaryColor
-                        )
-                        .onTapGesture(perform: {
-                            withAnimation(.snappy){
-                                showCalendarGrid = false
-                                whatsNewPopup = false
-                                tutorial = .Hidden
-                            }
-                        })
-                        
-                        DateNavigator(
-                            showCalendar: $showCalendarGrid,
-                            date: $selectedDate,
-                            onPick: { applySelectedDate($0)},
-                            PrimaryColor: PrimaryColor,
-                            SecondaryColor: SecondaryColor,
-                            TertiaryColor: TertiaryColor,
-                            scheduleDict: scheduleDict
-                        )
-                        .padding(.horizontal, 12)
-                        .zIndex(10)
-                        
-                        Divider()
-                        
-                        let cal = Calendar.current
-                        let isToday = cal.isDateInToday(selectedDate)
-                        
-                        ClassItemScroll(
-                            scheduleLines: scheduleLines,
-                            PrimaryColor: PrimaryColor,
-                            SecondaryColor: SecondaryColor,
-                            TertiaryColor: TertiaryColor,
-                            note: note,
-                            dayCode: dayCode,
-                            output: output,
-                            isToday: isToday,
-                            iPad: iPad,
-                            scrollTarget: $scrollTarget,
-                            addEvent: $addEvent,
-                            currentDate: selectedDate
-                        )
-                        .onTapGesture(perform: {
-                            withAnimation(.snappy){
-                                showCalendarGrid = false;
-                                whatsNewPopup = false
-                                tutorial = .Hidden
-                            }
-                        })
-                    }
-                    .gesture(
-                        DragGesture()
-                            .onEnded { value in
-                                let threshold: CGFloat = 50
-                                if value.translation.width > threshold {
-                                    withAnimation(.snappy) {
-                                        let new = Calendar.current.date(byAdding: .day, value: -1, to: selectedDate) ?? selectedDate
-                                        selectedDate = new
-                                        applySelectedDate(new)
-                                    }
-                                } else if value.translation.width < -threshold {
-                                    withAnimation(.snappy) {
-                                        let new = Calendar.current.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate
-                                        selectedDate = new
-                                        applySelectedDate(new)
-                                    }
-                                }
-                            }
-                    )
-                    
-                case .News:
-                    NewsMenu(
-                        PrimaryColor: PrimaryColor,
-                        SecondaryColor: SecondaryColor,
-                        TertiaryColor: TertiaryColor
-                    )
-                    
-                case .Clubs:
-                    ClubView(
-                        PrimaryColor: PrimaryColor,
-                        SecondaryColor: SecondaryColor,
-                        TertiaryColor: TertiaryColor
-                    )
-                    
-                case .ClassEditor:
-                    let bindingData = Binding<ScheduleData>(
-                        get: { self.data ?? ScheduleData(classes: [], days: []) },
-                        set: {
-                            self.data = $0
-                            saveClassesToCloud()
-                        }
-                    )
-                    
-                    ClassEditor(
-                        data: bindingData,
-                        PrimaryColor: PrimaryColor,
-                        SecondaryColor: SecondaryColor,
-                        TertiaryColor: TertiaryColor,
-                        isPortrait: isPortrait
-                    )
-                    
-                case .Settings:
-                    Settings(
-                        PrimaryColor: $PrimaryColor,
-                        SecondaryColor: $SecondaryColor,
-                        TertiaryColor: $TertiaryColor,
-                        isPortrait: isPortrait
-                    )
-                    
-                case .Profile:
-                    ProfileMenu(
-                        data: $data,
-                        PrimaryColor: $PrimaryColor,
-                        SecondaryColor: $SecondaryColor,
-                        TertiaryColor: $TertiaryColor,
-                        iPad: iPad
-                    )
-                }
+                mainContentView
                     
                 Divider()
                 Spacer(minLength: 12)
@@ -238,117 +91,21 @@ struct ContentView: View {
             }
             
             if tutorial != TutorialState.Hidden {
-                VStack{
-                    Text(title)
-                        .font(.system(
-                            size: iPad ? 40 : 30,
-                            weight: .bold,
-                            design: .monospaced
-                        ))
-                        .padding(12)
-                        .foregroundStyle(PrimaryColor)
-                    
-                    Divider()
-                    
-                    Text(info)
-                        .font(.system(
-                            size: iPad ? 24 : 15,
-                            weight: .bold,
-                            design: .monospaced
-                        ))
-                        .padding(12)
-                        .foregroundStyle(PrimaryColor)
-                        .frame(alignment: .leading)
-                    
-                    HStack {
-                        Text("For more help visit our ")
-                            .font(.footnote)
-                            .foregroundStyle(TertiaryColor.highContrastTextColor())
-                        Text("support website")
-                            .font(.footnote)
-                            .foregroundColor(.blue)
-                            .underline()
-                            .onTapGesture {
-                                if let url = URL(string: "https://sites.google.com/view/sf-schedule-help/home") {
-                                    UIApplication.shared.open(url)
-                                }
-                            }
-                    }
-                    
-                    HStack {
-                        Button {
-                            // Swipe right - go to previous day
-                            if let x = TutorialState(rawValue: tutorial.rawValue-1){
-                                tutorial = x
-                            }
-                        } label: { Image(systemName: "chevron.left") }
-
-                        Spacer()
-
-                        Button {
-                            if tutorial == .Outro{
-                                tutorial = .Hidden
-                            } else if let x = TutorialState(rawValue: tutorial.rawValue+1){
-                                tutorial = x
-                            }
-                        } label: { Image(systemName: "chevron.right") }
-                    }
-                    .padding(8)
-                    .padding(.horizontal)
-                }
-                .padding(12)
-                .frame(maxWidth: iPad ? 500 : 300)
-                .background(TertiaryColor)
-                .clipShape(RoundedRectangle(cornerRadius: 15))
-                .shadow(radius: 20)
+                TutorialView(
+                    tutorial: $tutorial,
+                    PrimaryColor: PrimaryColor,
+                    TertiaryColor: TertiaryColor
+                )
             }
             
-            
             if whatsNewPopup {
-                VStack{
-                    Text("Whats New?")
-                        .font(.system(
-                            size: iPad ? 40 : 30,
-                            weight: .bold,
-                            design: .monospaced
-                        ))
-                        .padding(12)
-                        .foregroundStyle(PrimaryColor)
-                    
-                    Divider()
-                    
-                    Text(whatsNew)
-                        .font(.system(
-                            size: iPad ? 24 : 15,
-                            weight: .bold,
-                            design: .monospaced
-                        ))
-                        .padding(12)
-                        .foregroundStyle(PrimaryColor)
-                        .frame(alignment: .leading)
-                    
-                    Button {
-                        tutorial = TutorialState.Intro
-                        whatsNewPopup = false
-                    } label: {
-                        Text("Start Tutorial")
-                            .font(.system(
-                                size: iPad ? 24 : 15,
-                                weight: .bold,
-                                design: .monospaced
-                            ))
-                            .foregroundColor(PrimaryColor)
-                            .multilineTextAlignment(.trailing)
-                            .padding(12)
-                            .background(SecondaryColor)
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                    }
-                }
-                .padding(12)
-                .frame(maxWidth: iPad ? 500 : 300)
-                .background(TertiaryColor)
-                .clipShape(RoundedRectangle(cornerRadius: 15))
-                .shadow(radius: 20)
+                WhatsNewView(
+                    whatsNewPopup: $whatsNewPopup,
+                    tutorial: $tutorial,
+                    PrimaryColor: PrimaryColor,
+                    SecondaryColor: SecondaryColor,
+                    TertiaryColor: TertiaryColor
+                )
             }
         }
         .padding()
@@ -370,12 +127,10 @@ struct ContentView: View {
         .onChange(of: scenePhase) { oldPhase, newPhase in
             switch newPhase {
             case .active:
-                // App became active - refresh widget
                 saveDataForWidget()
                 WidgetCenter.shared.reloadAllTimelines()
                 
             case .background:
-                // App going to background - save final state
                 saveDataForWidget()
                 
             default:
@@ -392,12 +147,11 @@ struct ContentView: View {
         }
         .onReceive(ticker) { _ in
             saveTheme()
-            renderWithEvents() // Use enhanced rendering
-            saveScheduleLinesWithEvents() // Use enhanced saving
+            renderWithEvents()
+            saveScheduleLinesWithEvents()
             saveDataForWidget()
             setIsPortrait()
             
-            // Handle widget refresh requests
             let now = Date()
             let lastWidgetCheck = SharedGroup.defaults.object(forKey: "LastWidgetCheck") as? Date ?? Date.distantPast
             
@@ -408,20 +162,150 @@ struct ContentView: View {
         }
     }
     
+    // MARK: - Main Content View
+    @ViewBuilder
+    private var mainContentView: some View {
+        switch window {
+        case .Home:
+            homeView
+            
+        case .News:
+            NewsMenu(
+                PrimaryColor: PrimaryColor,
+                SecondaryColor: SecondaryColor,
+                TertiaryColor: TertiaryColor
+            )
+            
+        case .Clubs:
+            ClubView(
+                PrimaryColor: PrimaryColor,
+                SecondaryColor: SecondaryColor,
+                TertiaryColor: TertiaryColor
+            )
+            
+        case .ClassEditor:
+            classEditorView
+            
+        case .Settings:
+            Settings(
+                PrimaryColor: $PrimaryColor,
+                SecondaryColor: $SecondaryColor,
+                TertiaryColor: $TertiaryColor,
+                isPortrait: isPortrait
+            )
+            
+        case .Profile:
+            ProfileMenu(
+                data: $data,
+                PrimaryColor: $PrimaryColor,
+                SecondaryColor: $SecondaryColor,
+                TertiaryColor: $TertiaryColor,
+                iPad: iPad
+            )
+        }
+    }
+    
+    private var homeView: some View {
+        VStack {
+            dayHeaderView(
+                dayInfo: getDayInfo(for: dayCode),
+                PrimaryColor: PrimaryColor,
+                SecondaryColor: SecondaryColor,
+                TertiaryColor: TertiaryColor
+            )
+            .onTapGesture(perform: {
+                withAnimation(.snappy){
+                    showCalendarGrid = false
+                    whatsNewPopup = false
+                    tutorial = .Hidden
+                }
+            })
+            
+            DateNavigator(
+                showCalendar: $showCalendarGrid,
+                date: $selectedDate,
+                onPick: { applySelectedDate($0)},
+                PrimaryColor: PrimaryColor,
+                SecondaryColor: SecondaryColor,
+                TertiaryColor: TertiaryColor,
+                scheduleDict: scheduleDict
+            )
+            .padding(.horizontal, 12)
+            .zIndex(10)
+            
+            Divider()
+            
+            let cal = Calendar.current
+            let isToday = cal.isDateInToday(selectedDate)
+            
+            ClassItemScroll(
+                scheduleLines: scheduleLines,
+                PrimaryColor: PrimaryColor,
+                SecondaryColor: SecondaryColor,
+                TertiaryColor: TertiaryColor,
+                note: note,
+                dayCode: dayCode,
+                output: output,
+                isToday: isToday,
+                iPad: iPad,
+                scrollTarget: $scrollTarget,
+                addEvent: $addEvent,
+                currentDate: selectedDate
+            )
+            .onTapGesture(perform: {
+                withAnimation(.snappy){
+                    showCalendarGrid = false;
+                    whatsNewPopup = false
+                    tutorial = .Hidden
+                }
+            })
+        }
+        .gesture(
+            DragGesture()
+                .onEnded { value in
+                    let threshold: CGFloat = 50
+                    if value.translation.width > threshold {
+                        withAnimation(.snappy) {
+                            let new = Calendar.current.date(byAdding: .day, value: -1, to: selectedDate) ?? selectedDate
+                            selectedDate = new
+                            applySelectedDate(new)
+                        }
+                    } else if value.translation.width < -threshold {
+                        withAnimation(.snappy) {
+                            let new = Calendar.current.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate
+                            selectedDate = new
+                            applySelectedDate(new)
+                        }
+                    }
+                }
+        )
+    }
+    
+    private var classEditorView: some View {
+        ClassEditor(
+            data: Binding(
+                get: { data ?? ScheduleData(classes: [], days: []) },
+                set: { newValue in
+                    data = newValue
+                    saveClassesToCloud()
+                }
+            ),
+            PrimaryColor: PrimaryColor,
+            SecondaryColor: SecondaryColor,
+            TertiaryColor: TertiaryColor,
+            isPortrait: isPortrait
+        )
+    }
+    
     // MARK: - Firebase Integration Methods
     
     private func loadData() {
         guard data == nil else { return }
         
-        // Load local data first (for offline support)
         loadLocalData()
-        
-        // Then try to load from cloud
         loadFromCloud()
-        
         loadEventsFromCloud()
         
-        // Fetch schedule from Google Sheets
         if !hasTriedFetchingSchedule {
             hasTriedFetchingSchedule = true
             fetchScheduleFromGoogleSheets()
@@ -436,7 +320,6 @@ struct ContentView: View {
         }
     }
 
-    // 4. Add loadThemeLocally helper function
     private func loadThemeLocally() {
         guard let data = UserDefaults.standard.data(forKey: "LocalTheme"),
               let theme = try? JSONDecoder().decode(ThemeColors.self, from: data) else {
@@ -448,7 +331,6 @@ struct ContentView: View {
         TertiaryColor = Color(hex: theme.tertiary)
     }
 
-    // 5. Update the existing saveTheme function
     private func saveTheme() {
         let theme = ThemeColors(
             primary: PrimaryColor.toHex() ?? "#0000FF",
@@ -456,14 +338,12 @@ struct ContentView: View {
             tertiary: TertiaryColor.toHex() ?? "#FFFFFF"
         )
         
-        // Save locally
         if let data = try? JSONEncoder().encode(theme) {
             UserDefaults.standard.set(data, forKey: "LocalTheme")
             SharedGroup.defaults.set(data, forKey: "ThemeColors")
             WidgetCenter.shared.reloadTimelines(ofKind: "ScheduleWidget")
         }
         
-        // Also save to cloud if user is logged in
         if authManager.user != nil {
             saveClassesToCloud()
         }
@@ -495,7 +375,6 @@ struct ContentView: View {
         }
     }
 
-    // In loadFromCloud():
     private func loadFromCloud() {
         guard let user = authManager.user, !hasLoadedFromCloud else { return }
         
@@ -513,12 +392,10 @@ struct ContentView: View {
                         overwriteClassesFile(with: cloudClasses)
                     }
                     
-                    // Apply theme colors
                     self.PrimaryColor = Color(hex: theme.primary)
                     self.SecondaryColor = Color(hex: theme.secondary)
                     self.TertiaryColor = Color(hex: theme.tertiary)
                     
-                    // Also save theme locally
                     self.saveThemeLocally(theme)
                     self.saveDataForWidget()
                     
@@ -530,7 +407,6 @@ struct ContentView: View {
         }
     }
     
-    // In saveClassesToCloud():
     private func saveClassesToCloud() {
         guard let user = authManager.user,
               let data = data else { return }
@@ -556,10 +432,8 @@ struct ContentView: View {
             }
         }
     }
-
-    // Also update refreshAllData() similarly
     
-    // MARK: - Helper Methods (same as before)
+    // MARK: - Helper Methods
     
     private func getDayInfo(for currentDay: String) -> Day? {
         let di = getDayNumber(for: currentDay) ?? 0
@@ -575,9 +449,6 @@ struct ContentView: View {
     }
     
     private func shouldSwapLunchAndPeriod(dayIndex: Int, isSecondLunch: Bool) -> Bool {
-        // Day indices: G1=0, B1=1, G2=2, B2=3, A1=4, A2=5, A3=6, A4=7, L1=8, L2=9, S1=10
-        // We only swap on days that have period 4 or 5 with lunch
-        // These are: G1, B1, G2, B2, A1, A2
         let daysWithLunchPeriod = [0, 1, 2, 3, 4, 5, 8, 9]
         return isSecondLunch && daysWithLunchPeriod.contains(dayIndex)
     }
@@ -605,10 +476,8 @@ struct ContentView: View {
         let now = Time.now()
         let nowSec = now.seconds
         
-        // Check if we need to swap lunch and period 4/5
         let shouldSwap = shouldSwapLunchAndPeriod(dayIndex: di, isSecondLunch: data.isSecondLunch)
         
-        // Build schedule lines with potential swap
         var tempLines: [(index: Int, line: ScheduleLine)] = []
         
         for i in d.names.indices {
@@ -617,7 +486,6 @@ struct ContentView: View {
             let end     = d.endTimes[i]
             let isCurrentClass = (start <= now && now < end) && isToday
             
-            // Add passing periods for today
             if (isToday){
                 if i != 0 && d.endTimes[i-1] <= now && now < start {
                     let endT = start
@@ -642,7 +510,6 @@ struct ContentView: View {
                 }
             }
             
-            // Add regular classes
             if nameRaw.hasPrefix("$"),
                let idx = Int(nameRaw.dropFirst()),
                (1...data.classes.count).contains(idx) {
@@ -674,13 +541,9 @@ struct ContentView: View {
             }
         }
         
-        // Apply SECOND LUNCH override
         if shouldSwap {
-
             for (i, item) in tempLines.enumerated() {
-
                 if item.line.className == "Lunch" {
-                    // 2nd lunch time
                     var line = item.line
                     line.startSec = Time(h:12, m:25, s:0).seconds
                     line.endSec   = Time(h:13, m:05, s:0).seconds
@@ -688,10 +551,7 @@ struct ContentView: View {
                     tempLines[i].line = line
                 }
 
-                if item.line.base.contains("$4")
-                    || item.line.base.contains("$5") {
-
-                    // 4th/5th for 2nd lunch
+                if item.line.base.contains("$4") || item.line.base.contains("$5") {
                     var line = item.line
                     line.startSec = Time(h:11, m:00, s:0).seconds
                     line.endSec   = Time(h:12, m:20, s:0).seconds
@@ -700,28 +560,24 @@ struct ContentView: View {
                 }
             }
         }
-
         
-        // Extract just the schedule lines in order
         scheduleLines = tempLines.map { $0.line }
         
-        // Check for conflicts with custom events
         let todaysEvents = eventsManager.eventsFor(dayCode: dayCode, date: selectedDate)
         checkForEventConflicts(events: todaysEvents)
     }
 
-    // Add this new conflict checking function:
     private func checkForEventConflicts(events: [CustomEvent]) {
         for event in events {
             let conflicts = eventsManager.detectConflicts(for: event, with: scheduleLines)
             
             if !conflicts.isEmpty {
-                //conflic
+                // Handle conflicts
             }
         }
     }
     
-    // MARK: - Parsing / Utils (same as before)
+    // MARK: - Parsing / Utils
     
     private func applySelectedDate(_ date: Date) {
         selectedDate = date
@@ -731,7 +587,6 @@ struct ContentView: View {
             dayCode = day[0]
             note = day[1]
             
-            // Save current day code for widget
             SharedGroup.defaults.set(dayCode, forKey: "CurrentDayCode")
             
             renderWithEvents()
@@ -823,29 +678,22 @@ struct ContentView: View {
     private func saveDataForWidget() {
         guard let data = data else { return }
         
-        // Save all required data
         if let scheduleDict = scheduleDict,
            let dictData = try? JSONEncoder().encode(scheduleDict) {
             SharedGroup.defaults.set(dictData, forKey: "ScheduleDict")
         }
         
-        // 2. Save classes
         if let classesData = try? JSONEncoder().encode(data.classes) {
             SharedGroup.defaults.set(classesData, forKey: "ScheduleClasses")
         }
         
-        // 3. Save days
         if let daysData = try? JSONEncoder().encode(data.days) {
             SharedGroup.defaults.set(daysData, forKey: "ScheduleDays")
         }
         
-        // 4. Save lunch preference
         SharedGroup.defaults.set(data.isSecondLunch, forKey: "IsSecondLunch")
-        
-        // 5. Update timestamp
         SharedGroup.defaults.set(Date(), forKey: "LastAppDataUpdate")
         
-        // 6. Reload widget
         WidgetCenter.shared.reloadTimelines(ofKind: "ScheduleWidget")
     }
     
@@ -883,11 +731,9 @@ struct ContentView: View {
     }
     
     private func handleWidgetRefreshRequest() {
-        // Check if widget requested an update
         if SharedGroup.defaults.bool(forKey: "WidgetRequestsUpdate") {
             SharedGroup.defaults.set(false, forKey: "WidgetRequestsUpdate")
             
-            // Refresh data from cloud and Google Sheets
             Task {
                 await refreshAllData()
             }
@@ -895,10 +741,8 @@ struct ContentView: View {
     }
 
     private func refreshAllData() async {
-        // Refresh from Google Sheets
         await fetchScheduleFromGoogleSheetsAsync()
         
-        // Refresh from Firebase if user is logged in
         if let user = authManager.user {
             do {
                 let (cloudClasses, theme, _) = try await dataManager.loadFromCloud(for: user.id)
@@ -914,10 +758,8 @@ struct ContentView: View {
                     self.SecondaryColor = Color(hex: theme.secondary)
                     self.TertiaryColor = Color(hex: theme.tertiary)
                     
-                    // Update timestamp for widget
                     SharedGroup.defaults.set(Date(), forKey: "LastAppDataUpdate")
                     
-                    // Re-render and save data for widget
                     self.renderWithEvents()
                     self.saveScheduleLinesWithEvents()
                     self.saveTheme()
@@ -945,10 +787,6 @@ struct ContentView: View {
         }
     }
     
-    private func enableBackgroundAppRefresh() {
-        
-    }
-    
     private func saveEventsToCloud() {
         eventsManager.saveToCloud(using: authManager)
     }
@@ -958,12 +796,8 @@ struct ContentView: View {
     }
     
     private func saveScheduleLinesWithEvents() {
-        // Combine regular schedule lines with today's events for widget
         var allItems: [ScheduleLine] = scheduleLines
         
-        let now = Time.now()
-        
-        // Convert events to ScheduleLine format for widget compatibility
         let todaysEvents = eventsManager.eventsFor(dayCode: dayCode, date: selectedDate)
         for event in todaysEvents where event.isEnabled {
             let eventLine = ScheduleLine(
@@ -981,7 +815,6 @@ struct ContentView: View {
             allItems.append(eventLine)
         }
         
-        // Sort by start time
         allItems.sort { first, second in
             guard let firstStart = first.startSec, let secondStart = second.startSec else {
                 return false
@@ -994,10 +827,8 @@ struct ContentView: View {
             SharedGroup.defaults.set(data, forKey: SharedGroup.key)
             SharedGroup.defaults.set(Date(), forKey: "LastAppDataUpdate")
             
-            // NEW: Save current day code for widget
             SharedGroup.defaults.set(dayCode, forKey: "CurrentDayCode")
             
-            // NEW: Save custom events separately for widget
             let eventsData = try JSONEncoder().encode(eventsManager.events)
             SharedGroup.defaults.set(eventsData, forKey: "CustomEvents")
             
