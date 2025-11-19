@@ -75,6 +75,7 @@
 		E439AB9D2ECD56B80078C9FA /* Exceptions for "Schedule" folder in "ScheduleWidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Core/Extensions/DateFormatterExtensions.swift,
 				Core/Models/ScheduleLine.swift,
 				Core/Models/Time.swift,
 				Core/Utilities/Constants.swift,
