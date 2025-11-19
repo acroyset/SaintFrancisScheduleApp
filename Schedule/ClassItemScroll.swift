@@ -380,6 +380,7 @@ struct EnhancedClassItemScroll: View {
                 // Create a temporary ScheduleLine to represent the other event for conflict detection
                 let tempLine = ScheduleLine(
                     content: "",
+                    base: "",
                     isCurrentClass: false,
                     timeRange: "\(otherEvent.startTime.string()) to \(otherEvent.endTime.string())",
                     className: otherEvent.title,

@@ -85,7 +85,7 @@ struct ProfileMenu: View {
                 HStack {
                     Image(systemName: syncMessage.contains("✅") ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
                         .foregroundColor(syncMessage.contains("✅") ? .green : .red)
-                    Text(syncMessage)
+                    Text(syncMessage.dropFirst())
                         .font(.footnote)
                         .foregroundStyle(TertiaryColor.highContrastTextColor())
                     Spacer()
@@ -214,7 +214,7 @@ struct ProfileMenu: View {
                 }
             } catch {
                 await MainActor.run {
-                    showMessage("❌ Sync failed: \(error.localizedDescription)")
+                    showMessage(" Sync failed: \(error.localizedDescription)")
                     isLoadingSync = false
                 }
                 print("❌ Failed to sync: \(error)")
@@ -263,7 +263,7 @@ struct ProfileMenu: View {
                 }
             } catch {
                 await MainActor.run {
-                    showMessage("❌ Load failed: \(error.localizedDescription)")
+                    showMessage(" Load failed: \(error.localizedDescription)")
                     isLoadingLoad = false
                 }
                 print("❌ Failed to load: \(error)")

@@ -369,6 +369,7 @@ struct AddEventView: View {
                 // Create a temporary ScheduleLine to represent the other event
                 let tempLine = ScheduleLine(
                     content: "",
+                    base: "",
                     isCurrentClass: false,
                     timeRange: "\(otherEvent.startTime.string()) to \(otherEvent.endTime.string())",
                     className: "📅 \(otherEvent.title)", // Add emoji to distinguish from class conflicts

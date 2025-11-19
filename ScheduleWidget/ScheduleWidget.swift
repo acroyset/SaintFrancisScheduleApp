@@ -68,23 +68,61 @@ struct Provider: TimelineProvider {
         let (lines, dayCode) = loadTodaysSchedule()
         
         var entries: [SimpleEntry] = []
+        let nowSec = secondsSinceMidnight(now)
         
-        // Create entries for every minute for the next 4 hours
-        for minuteOffset in stride(from: 0, to: 240, by: 1) {
-            let entryDate = cal.date(byAdding: .minute, value: minuteOffset, to: now) ?? now
+        entries.append(SimpleEntry(date: now, lines: lines, dayCode: dayCode))
+        
+        let today = cal.startOfDay(for: now)
+        
+        for line in lines {
+            guard let startSec = line.startSec, let endSec = line.endSec else { continue }
             
-            // Only create entries for the current day
-            if cal.isDate(entryDate, inSameDayAs: now) {
-                entries.append(SimpleEntry(date: entryDate, lines: lines, dayCode: dayCode))
+            // Class start
+            if startSec > nowSec {
+                let startTime = today.addingTimeInterval(TimeInterval(startSec))
+                entries.append(SimpleEntry(date: startTime, lines: lines, dayCode: dayCode))
+            }
+            
+            // Class end
+            if endSec > nowSec {
+                let endTime = today.addingTimeInterval(TimeInterval(endSec))
+                entries.append(SimpleEntry(date: endTime, lines: lines, dayCode: dayCode))
+            }
+            
+            // During current class: add update every 5 minutes
+            if nowSec >= startSec && nowSec < endSec {
+                var nextMin = ((nowSec / 300) + 1) * 300 // Next 5-min mark
+                while nextMin < endSec {
+                    let updateTime = today.addingTimeInterval(TimeInterval(nextMin))
+                    if updateTime > now {
+                        entries.append(SimpleEntry(date: updateTime, lines: lines, dayCode: dayCode))
+                    }
+                    nextMin += 300 // Every 5 minutes
+                }
             }
         }
         
-        // Determine when to refresh (next day at midnight or next significant event)
-        let nextUpdate = determineNextUpdateTime(lines: lines, now: now)
+        // 3. Remove duplicates and sort
+        let uniqueEntries = Dictionary(grouping: entries) { $0.date }
+            .map { $0.value.first! }
+            .sorted { $0.date < $1.date }
         
+        entries = uniqueEntries
+        
+        // 4. Determine next major refresh (midnight for new day)
+        var nextMajorUpdate = cal.startOfDay(for: now)
+        nextMajorUpdate = cal.date(byAdding: .day, value: 1, to: nextMajorUpdate)!
+        
+        // Also consider next class event if sooner
+        if let nextClassTime = entries.dropFirst().first?.date,
+           nextClassTime < nextMajorUpdate {
+            nextMajorUpdate = nextClassTime
+        }
+        
+        // Create timeline with smart refresh policy
         let timeline = Timeline(
-            entries: entries,
-            policy: .after(nextUpdate)
+            entries: entries.isEmpty ? [SimpleEntry(date: now, lines: lines, dayCode: dayCode)] : entries,
+            policy: .after(nextMajorUpdate)
         )
         
         completion(timeline)
@@ -169,6 +207,7 @@ struct Provider: TimelineProvider {
                 
                 lines.append(ScheduleLine(
                     content: "",
+                    base: nameRaw,
                     isCurrentClass: isCurrentClass,
                     timeRange: "\(start.string()) to \(end.string())",
                     className: c.name,
@@ -181,6 +220,7 @@ struct Provider: TimelineProvider {
             } else {
                 lines.append(ScheduleLine(
                     content: "",
+                    base: nameRaw,
                     isCurrentClass: isCurrentClass,
                     timeRange: "\(start.string()) to \(end.string())",
                     className: nameRaw,
@@ -196,39 +236,6 @@ struct Provider: TimelineProvider {
     private func shouldSwapLunchAndPeriod(dayIndex: Int, isSecondLunch: Bool) -> Bool {
         let daysWithLunchPeriod = [0, 1, 2, 3, 4, 5]
         return isSecondLunch && daysWithLunchPeriod.contains(dayIndex)
-    }
-    
-    private func determineNextUpdateTime(lines: [ScheduleLine], now: Date) -> Date {
-        let cal = Calendar.current
-        
-        // Always update at midnight to get new day's schedule
-        if let midnight = cal.date(bySettingHour: 0, minute: 0, second: 0, of: now),
-           let nextMidnight = cal.date(byAdding: .day, value: 1, to: midnight) {
-            
-            // Also check for next class transition
-            let nowSec = secondsSinceMidnight(now)
-            let upcomingTimes = lines.compactMap { line -> Date? in
-                guard let start = line.startSec, let end = line.endSec else { return nil }
-                
-                let today = cal.startOfDay(for: now)
-                if start > nowSec {
-                    return cal.date(byAdding: .second, value: start, to: today)
-                } else if end > nowSec {
-                    return cal.date(byAdding: .second, value: end, to: today)
-                }
-                return nil
-            }.sorted()
-            
-            // Use the sooner of: next class event or midnight
-            if let nextClassTime = upcomingTimes.first, nextClassTime < nextMidnight {
-                return nextClassTime
-            }
-            
-            return nextMidnight
-        }
-        
-        // Fallback: update in 15 minutes
-        return cal.date(byAdding: .minute, value: 15, to: now) ?? now
     }
 }
 
@@ -265,7 +272,7 @@ private func getKeyForDate(_ date: Date) -> String {
 }
 
 // MARK: - Enhanced Entry
-struct SimpleEntry: TimelineEntry {
+struct SimpleEntry: TimelineEntry, Hashable {
     let date: Date
     let lines: [ScheduleLine]
     let dayCode: String
@@ -274,11 +281,22 @@ struct SimpleEntry: TimelineEntry {
         let lastAppUpdate = SharedGroup.defaults.object(forKey: "LastAppDataUpdate") as? Date ?? Date.distantPast
         return Date().timeIntervalSince(lastAppUpdate) > 1800 // 30 minutes
     }
+    
+    // Hashable conformance
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(date)
+        hasher.combine(dayCode)
+    }
+    
+    static func == (lhs: SimpleEntry, rhs: SimpleEntry) -> Bool {
+        return lhs.date == rhs.date && lhs.dayCode == rhs.dayCode
+    }
 }
 
 // MARK: - Enhanced Widget View
 struct ScheduleWidgetEntryView: View {
     var entry: Provider.Entry
+    @Environment(\.widgetFamily) var family
 
     var body: some View {
         let nowSec = secondsSinceMidnight(entry.date)
@@ -293,22 +311,10 @@ struct ScheduleWidgetEntryView: View {
         VStack(alignment: .leading, spacing: 6) {
             // Show day code
             if display.isEmpty {
-                if !entry.dayCode.isEmpty {
-                    Text(entry.dayCode.uppercased())
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(PrimaryColor.opacity(0.7))
-                        .padding(.bottom, 2)
-                }
-                
-                VStack {
-                    Image(systemName: "calendar.badge.clock")
-                        .foregroundColor(PrimaryColor)
-                        .font(.title2)
-                    Text("No Classes Today")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(PrimaryColor)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                emptyScheduleView(
+                    dayCode: entry.dayCode,
+                    PrimaryColor: PrimaryColor
+                )
             } else {
                 ForEach(display) { line in
                     rowView(
@@ -320,7 +326,7 @@ struct ScheduleWidgetEntryView: View {
                     )
                 }
                 
-                if entry.isDataStale {
+                if false && entry.isDataStale {
                     HStack {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.system(size: 9))
@@ -333,6 +339,26 @@ struct ScheduleWidgetEntryView: View {
             }
         }
         .modifier(WidgetBackground(background: TertiaryColor))
+    }
+    
+    @ViewBuilder
+    private func emptyScheduleView(dayCode: String, PrimaryColor: Color) -> some View {
+        VStack {
+            if !dayCode.isEmpty {
+                Text(dayCode.uppercased())
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(PrimaryColor.opacity(0.7))
+                    .padding(.bottom, 2)
+            }
+            
+            Image(systemName: "calendar.badge.clock")
+                .foregroundColor(PrimaryColor)
+                .font(.title2)
+            Text("No Classes Today")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(PrimaryColor)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

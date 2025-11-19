@@ -19,8 +19,11 @@ struct ScheduleLine: Identifiable, Codable {
     var startSec: Int?     // Changed from 'let' to 'var'
     var endSec: Int?       // Changed from 'let' to 'var'
     var progress: Double?
+    
+    let base: String
 
     init(content: String,
+         base: String,
          isCurrentClass: Bool = false,
          timeRange: String = "",
          className: String = "",
@@ -38,6 +41,7 @@ struct ScheduleLine: Identifiable, Codable {
         self.startSec = startSec
         self.endSec = endSec
         self.progress = progress
+        self.base = base
     }
 }
 

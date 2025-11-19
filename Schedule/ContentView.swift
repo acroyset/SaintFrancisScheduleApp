@@ -266,7 +266,7 @@ struct ContentView: View {
             
             VStack {
                 
-                Text("Version - Beta 1.8\nBugs / Ideas - Email acroyset@gmail.com")
+                Text("Version - Beta 1.9\nBugs / Ideas - Email acroyset@gmail.com")
                     .font(.footnote)
                     .foregroundStyle(TertiaryColor.highContrastTextColor())
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -537,6 +537,10 @@ struct ContentView: View {
             loadData()
             setScroll()
             
+            UIApplication.shared.setMinimumBackgroundFetchInterval(
+                    UIApplication.backgroundFetchIntervalMinimum
+                )
+            
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                     self.saveDataForWidget()
                 }
@@ -549,25 +553,13 @@ struct ContentView: View {
         .onChange(of: scenePhase) { oldPhase, newPhase in
             switch newPhase {
             case .active:
-                // App became active - check for widget requests
-                handleWidgetRefreshRequest()
-                
-                if hasLoadedFromCloud {
-                    saveClassesToCloud()
-                    saveEventsToCloud() // NEW: Save events to cloud
-                }
-                
-                // Load events from cloud
-                loadEventsFromCloud() // NEW: Load events from cloud
-                
-                applySelectedDate(Date())
+                // App became active - refresh widget
+                saveDataForWidget()
+                WidgetCenter.shared.reloadAllTimelines()
                 
             case .background:
-                // App going to background - save current state
-                SharedGroup.defaults.set(Date(), forKey: "LastAppDataUpdate")
-                saveScheduleLinesWithEvents()
-                saveTheme()
-                saveEventsToCloud() // NEW: Save events to cloud
+                // App going to background - save final state
+                saveDataForWidget()
                 
             default:
                 break
@@ -769,7 +761,7 @@ struct ContentView: View {
         // Day indices: G1=0, B1=1, G2=2, B2=3, A1=4, A2=5, A3=6, A4=7, L1=8, L2=9, S1=10
         // We only swap on days that have period 4 or 5 with lunch
         // These are: G1, B1, G2, B2, A1, A2
-        let daysWithLunchPeriod = [0, 1, 2, 3, 4, 5]
+        let daysWithLunchPeriod = [0, 1, 2, 3, 4, 5, 8, 9]
         return isSecondLunch && daysWithLunchPeriod.contains(dayIndex)
     }
     
@@ -821,6 +813,7 @@ struct ContentView: View {
                     ){
                         tempLines.append((i, ScheduleLine(
                             content: "",
+                            base: "",
                             isCurrentClass: true,
                             timeRange: "\(startT.string()) to \(endT.string())",
                             className: "Passing Period",
@@ -844,6 +837,7 @@ struct ContentView: View {
                 
                 tempLines.append((i, ScheduleLine(
                     content: "",
+                    base: nameRaw,
                     isCurrentClass: isCurrentClass,
                     timeRange: "\(start.string()) to \(end.string())",
                     className: c.name,
@@ -856,6 +850,7 @@ struct ContentView: View {
             } else {
                 tempLines.append((i, ScheduleLine(
                     content: "",
+                    base: nameRaw,
                     isCurrentClass: isCurrentClass,
                     timeRange: "\(start.string()) to \(end.string())",
                     className: nameRaw)))
@@ -876,8 +871,8 @@ struct ContentView: View {
                     tempLines[i].line = line
                 }
 
-                if item.line.className.contains("Period 4")
-                    || item.line.className.contains("Period 5") {
+                if item.line.base.contains("$4")
+                    || item.line.base.contains("$5") {
 
                     // 4th/5th for 2nd lunch
                     var line = item.line
@@ -1012,11 +1007,10 @@ struct ContentView: View {
     private func saveDataForWidget() {
         guard let data = data else { return }
         
-        // 1. Save schedule dict
-        if let scheduleDict = scheduleDict {
-            if let dictData = try? JSONEncoder().encode(scheduleDict) {
-                SharedGroup.defaults.set(dictData, forKey: "ScheduleDict")
-            }
+        // Save all required data
+        if let scheduleDict = scheduleDict,
+           let dictData = try? JSONEncoder().encode(scheduleDict) {
+            SharedGroup.defaults.set(dictData, forKey: "ScheduleDict")
         }
         
         // 2. Save classes
@@ -1158,6 +1152,7 @@ struct ContentView: View {
         for event in todaysEvents where event.isEnabled {
             let eventLine = ScheduleLine(
                 content: "",
+                base: "",
                 isCurrentClass: false,
                 timeRange: "\(event.startTime.string()) to \(event.endTime.string())",
                 className: "\(event.title)",
