@@ -53,6 +53,7 @@ struct EventsManagementView: View {
         .sheet(isPresented: $showingAddEvent) {
             AddEventView(
                 isPresented: $showingAddEvent,
+                eventsManager: eventsManager,
                 currentDayCode: "G1",
                 currentDate: Date(),
                 scheduleLines: [],
@@ -68,6 +69,7 @@ struct EventsManagementView: View {
                     set: { if !$0 { editingEvent = nil } }
                 ),
                 editingEvent: event,
+                eventsManager: eventsManager,
                 currentDayCode: "G1",
                 currentDate: Date(),
                 scheduleLines: [],

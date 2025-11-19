@@ -10,11 +10,12 @@ import Foundation
 import WidgetKit
 
 let version = "Beta 1.9"
-let whatsNew = "\n- Second Lunch! <----- !!!\n- Personal Events\n- Bug Fixes"
+let whatsNew = "\n- Second Lunch! <----- !!!\n- Bug Fixes with Personal Events"
 
 struct ContentView: View {
     @EnvironmentObject var authManager: AuthenticationManager
     @StateObject private var dataManager = DataManager()
+    @StateObject private var eventsManager = CustomEventsManager()
     
     @State private var output = "Loading…"
     @State private var dayCode = ""
@@ -39,8 +40,6 @@ struct ContentView: View {
     @State private var isPortrait: Bool = !iPad
     @State private var hasLoadedFromCloud = false
     @State private var tutorial = TutorialState.Hidden
-    
-    @StateObject private var eventsManager = CustomEventsManager()
     
     let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
@@ -77,6 +76,7 @@ struct ContentView: View {
                 })
                 
                 mainContentView
+                    .environmentObject(eventsManager)
                     
                 Divider()
                 Spacer(minLength: 12)
@@ -118,6 +118,12 @@ struct ContentView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                     self.saveDataForWidget()
                 }
+        }
+        .onChange(of: eventsManager.events) { _, _ in
+            renderWithEvents()
+            saveScheduleLinesWithEvents()
+            saveEventsToCloud()
+            saveDataForWidget()
         }
         .onChange(of: dayCode) { oldDay, newDay in
             guard oldDay != newDay else { return }
@@ -304,6 +310,7 @@ struct ContentView: View {
         
         loadLocalData()
         loadFromCloud()
+        eventsManager.setAuthManager(authManager)
         loadEventsFromCloud()
         
         if !hasTriedFetchingSchedule {

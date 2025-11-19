@@ -13,18 +13,29 @@ class CustomEventsManager: ObservableObject {
     
     private let userDefaults = UserDefaults.standard
     private let eventsKey = "CustomEvents"
+    private var authManager: AuthenticationManager?
     
     init() {
         loadEvents()
     }
     
+    func setAuthManager(_ manager: AuthenticationManager) {
+            self.authManager = manager
+        }
+    
     // MARK: - Persistence
     
-    func saveEvents() {
+    @MainActor func saveEvents() {
         do {
             let data = try JSONEncoder().encode(events)
             userDefaults.set(data, forKey: eventsKey)
             SharedGroup.defaults.set(data, forKey: "CustomEvents")
+            
+            if authManager?.user != nil {
+                Task {
+                    await saveToCloudAsync()
+                }
+            }
         } catch {
             print("❌ Failed to save custom events: \(error)")
         }
@@ -76,26 +87,38 @@ class CustomEventsManager: ObservableObject {
         }
     }
     
+    private func saveToCloudAsync() async {
+        guard let authManager = authManager,
+              let user = await authManager.user else { return }
+        
+        do {
+            try await CloudEventsDataManager().saveEvents(events, for: user.id)
+            print("✅ Events auto-saved to cloud")
+        } catch {
+            print("❌ Failed to auto-save events to cloud: \(error)")
+        }
+    }
+    
     // MARK: - Event Management
     
-    func addEvent(_ event: CustomEvent) {
+    @MainActor func addEvent(_ event: CustomEvent) {
         events.append(event)
         saveEvents()
     }
     
-    func updateEvent(_ event: CustomEvent) {
+    @MainActor func updateEvent(_ event: CustomEvent) {
         if let index = events.firstIndex(where: { $0.id == event.id }) {
             events[index] = event
             saveEvents()
         }
     }
     
-    func deleteEvent(_ event: CustomEvent) {
+    @MainActor func deleteEvent(_ event: CustomEvent) {
         events.removeAll { $0.id == event.id }
         saveEvents()
     }
     
-    func toggleEvent(_ event: CustomEvent) {
+    @MainActor func toggleEvent(_ event: CustomEvent) {
         if let index = events.firstIndex(where: { $0.id == event.id }) {
             events[index].isEnabled.toggle()
             saveEvents()

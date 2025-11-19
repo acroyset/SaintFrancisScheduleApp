@@ -16,11 +16,12 @@ struct ClassItemScroll: View {
     let isToday: Bool
     let iPad: Bool
     
+    @EnvironmentObject var eventsManager: CustomEventsManager
+    
     @Binding var scrollTarget: Int?
     @Binding var addEvent: Bool
     
     // Custom events integration
-    @StateObject private var eventsManager = CustomEventsManager()
     @State private var showingAddEvent = false
     @State private var editingEvent: CustomEvent?
     @State private var showingConflictAlert = false
@@ -104,6 +105,7 @@ struct ClassItemScroll: View {
             AddEventView(
                 isPresented: $showingAddEvent,
                 editingEvent: nil,
+                eventsManager: eventsManager,
                 currentDayCode: dayCode,
                 currentDate: currentDate,
                 scheduleLines: scheduleLines,
@@ -119,6 +121,7 @@ struct ClassItemScroll: View {
                     set: { if !$0 { editingEvent = nil } }
                 ),
                 editingEvent: event,
+                eventsManager: eventsManager,
                 currentDayCode: dayCode,
                 currentDate: currentDate,
                 scheduleLines: scheduleLines,

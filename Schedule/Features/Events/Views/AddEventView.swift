@@ -21,6 +21,7 @@ struct AddEventView: View {
     init(
         isPresented: Binding<Bool>,
         editingEvent: CustomEvent? = nil,
+        eventsManager: CustomEventsManager,
         currentDayCode: String,
         currentDate: Date,
         scheduleLines: [ScheduleLine],
@@ -33,9 +34,8 @@ struct AddEventView: View {
         self.SecondaryColor = SecondaryColor
         self.TertiaryColor = TertiaryColor
         
-        let manager = CustomEventsManager()
         let vm = AddEventViewModel(
-            eventsManager: manager,
+            eventsManager: eventsManager,
             editingEvent: editingEvent,
             currentDayCode: currentDayCode,
             currentDate: currentDate,

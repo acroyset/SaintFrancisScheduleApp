@@ -7,7 +7,6 @@
 
 import SwiftUI
 
-// This is the EnhancedClassItemScroll - renamed for clarity
 struct ScheduleListView: View {
     let scheduleLines: [ScheduleLine]
     let PrimaryColor: Color
@@ -19,10 +18,11 @@ struct ScheduleListView: View {
     let isToday: Bool
     let iPad: Bool
     
+    @EnvironmentObject var eventsManager: CustomEventsManager
+    
     @Binding var scrollTarget: Int?
     @Binding var addEvent: Bool
     
-    @StateObject private var eventsManager = CustomEventsManager()
     @State private var showingAddEvent = false
     @State private var editingEvent: CustomEvent?
     
@@ -88,6 +88,7 @@ struct ScheduleListView: View {
             AddEventView(
                 isPresented: $showingAddEvent,
                 editingEvent: nil,
+                eventsManager: eventsManager,
                 currentDayCode: dayCode,
                 currentDate: currentDate,
                 scheduleLines: scheduleLines,
@@ -103,6 +104,7 @@ struct ScheduleListView: View {
                     set: { if !$0 { editingEvent = nil } }
                 ),
                 editingEvent: event,
+                eventsManager: eventsManager,
                 currentDayCode: dayCode,
                 currentDate: currentDate,
                 scheduleLines: scheduleLines,
