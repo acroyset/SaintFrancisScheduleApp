@@ -6,29 +6,10 @@
 //
 import SwiftUI
 
-struct ScheduleData: Codable {
-    var classes: [ClassItem]
-    var days: [Day]
-    var isSecondLunch: Bool = false  // NEW: Track lunch preference
-}
 
-struct ClassItem: Equatable, Codable {  // Added Codable here
-    var name: String
-    var teacher: String
-    var room: String
-    
-    static func == (a: ClassItem, b: ClassItem) -> Bool {
-        return (a.name == b.name && a.room == b.room && a.teacher == b.teacher)
-    }
-}
 
-struct Day: Codable {  // Added Codable here
-    var name = ""
-    var names: [String] = []
-    var startTimes: [Time] = []
-    var endTimes: [Time] = []
-    var note = ""
-}
+
+
 
 enum Window: Int {
     case Home = 0

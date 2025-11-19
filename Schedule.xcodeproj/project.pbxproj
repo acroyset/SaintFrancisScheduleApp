@@ -11,21 +11,11 @@
 		E4257E892E5FE2BF00948AE0 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = E4257E882E5FE2BF00948AE0 /* FirebaseFirestore */; };
 		E439AB752ECBC02B0078C9FA /* HelperStructs.swift in Sources */ = {isa = PBXBuildFile; fileRef = E439AB5D2ECBC02B0078C9FA /* HelperStructs.swift */; };
 		E439AB8F2ECC14C00078C9FA /* HelperStructs.swift in Sources */ = {isa = PBXBuildFile; fileRef = E439AB5D2ECBC02B0078C9FA /* HelperStructs.swift */; };
-		E45D486B2E638E9200D88084 /* ScheduleLine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E45D48632E638E9200D88084 /* ScheduleLine.swift */; };
-		E45D486D2E638E9200D88084 /* Time.swift in Sources */ = {isa = PBXBuildFile; fileRef = E45D48642E638E9200D88084 /* Time.swift */; };
 		E45D48822E691D4700D88084 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = E45D48812E691D4700D88084 /* GoogleSignIn */; };
 		E45D48842E691D4700D88084 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = E45D48832E691D4700D88084 /* GoogleSignInSwift */; };
 		E45D488C2E6A54D800D88084 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E45D488B2E6A54D700D88084 /* WidgetKit.framework */; };
 		E45D488E2E6A54D800D88084 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E45D488D2E6A54D800D88084 /* SwiftUI.framework */; };
 		E45D489F2E6A54DA00D88084 /* ScheduleWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E45D48892E6A54D700D88084 /* ScheduleWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		E45D48A52E6A579E00D88084 /* ClassProgressBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = E45D48A42E6A579D00D88084 /* ClassProgressBar.swift */; };
-		E45D48AC2E6A58AA00D88084 /* ScheduleLine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E45D48632E638E9200D88084 /* ScheduleLine.swift */; };
-		E45D48AD2E6A58AF00D88084 /* Time.swift in Sources */ = {isa = PBXBuildFile; fileRef = E45D48642E638E9200D88084 /* Time.swift */; };
-		E45D48AE2E6A58B400D88084 /* ClassProgressBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = E45D48A42E6A579D00D88084 /* ClassProgressBar.swift */; };
-		E45D48B12E6A632E00D88084 /* SharedGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = E45D48B02E6A632E00D88084 /* SharedGroup.swift */; };
-		E45D48B22E6A632E00D88084 /* SharedGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = E45D48B02E6A632E00D88084 /* SharedGroup.swift */; };
-		E45D48B42E6A6DE500D88084 /* ThemeColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = E45D48B32E6A6DE500D88084 /* ThemeColors.swift */; };
-		E45D48B52E6A6DE500D88084 /* ThemeColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = E45D48B32E6A6DE500D88084 /* ThemeColors.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -71,22 +61,43 @@
 		E4072D202E4D72E0004A81A7 /* ScheduleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ScheduleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E4072D2A2E4D72E0004A81A7 /* ScheduleUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ScheduleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E439AB5D2ECBC02B0078C9FA /* HelperStructs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelperStructs.swift; sourceTree = "<group>"; };
-		E45D48632E638E9200D88084 /* ScheduleLine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleLine.swift; sourceTree = "<group>"; };
-		E45D48642E638E9200D88084 /* Time.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Time.swift; sourceTree = "<group>"; };
 		E45D48892E6A54D700D88084 /* ScheduleWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ScheduleWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		E45D488B2E6A54D700D88084 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		E45D488D2E6A54D800D88084 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
-		E45D48A42E6A579D00D88084 /* ClassProgressBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassProgressBar.swift; sourceTree = "<group>"; };
 		E45D48AF2E6A626500D88084 /* ScheduleWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ScheduleWidgetExtension.entitlements; sourceTree = "<group>"; };
-		E45D48B02E6A632E00D88084 /* SharedGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedGroup.swift; sourceTree = "<group>"; };
-		E45D48B32E6A6DE500D88084 /* ThemeColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeColors.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
 		E4257E5C2E54022700948AE0 /* Exceptions for "Schedule" folder in "Schedule" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				AddEventswift,
 				Info.plist,
+			);
+			target = E4072D122E4D72DE004A81A7 /* Schedule */;
+		};
+		E439AB9D2ECD56B80078C9FA /* Exceptions for "Schedule" folder in "ScheduleWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Core/Models/ScheduleLine.swift,
+				Core/Models/Time.swift,
+				Core/Utilities/Constants.swift,
+				Core/Utilities/SharedGroup.swift,
+				Core/Utilities/ThemeColors.swift,
+				Shared/Components/Background.swift,
+				Shared/Components/ClassProgressBar.swift,
+				Shared/Components/ToolBar.swift,
+			);
+			target = E45D48882E6A54D700D88084 /* ScheduleWidgetExtension */;
+		};
+		E439AC1C2ECD5B9D0078C9FA /* Exceptions for "ScheduleWidget" folder in "Schedule" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Models/SimpleEntry.swift,
+				Providers/ScheduleWidgetProvider.swift,
+				Utilites/WidgetDataLoader.swift,
+				Views/Components/WidgetRowView.swift,
+				Views/ScheduleWidgetEntryView.swift,
 			);
 			target = E4072D122E4D72DE004A81A7 /* Schedule */;
 		};
@@ -99,11 +110,23 @@
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
+/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+		E439ABE22ECD599D0078C9FA /* Exceptions for "Schedule" folder in "Compile Sources" phase from "Schedule" target */ = {
+			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
+			buildPhase = E4072D0F2E4D72DE004A81A7 /* Sources */;
+			membershipExceptions = (
+				AddEventswift,
+			);
+		};
+/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		E4072D152E4D72DE004A81A7 /* Schedule */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				E4257E5C2E54022700948AE0 /* Exceptions for "Schedule" folder in "Schedule" target */,
+				E439ABE22ECD599D0078C9FA /* Exceptions for "Schedule" folder in "Compile Sources" phase from "Schedule" target */,
+				E439AB9D2ECD56B80078C9FA /* Exceptions for "Schedule" folder in "ScheduleWidgetExtension" target */,
 			);
 			path = Schedule;
 			sourceTree = "<group>";
@@ -121,6 +144,7 @@
 		E45D488F2E6A54D800D88084 /* ScheduleWidget */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
+				E439AC1C2ECD5B9D0078C9FA /* Exceptions for "ScheduleWidget" folder in "Schedule" target */,
 				E45D48A32E6A54DA00D88084 /* Exceptions for "ScheduleWidget" folder in "ScheduleWidgetExtension" target */,
 			);
 			path = ScheduleWidget;
@@ -176,11 +200,6 @@
 				E45D488F2E6A54D800D88084 /* ScheduleWidget */,
 				E45D488A2E6A54D700D88084 /* Frameworks */,
 				E4072D142E4D72DE004A81A7 /* Products */,
-				E45D48632E638E9200D88084 /* ScheduleLine.swift */,
-				E45D48B02E6A632E00D88084 /* SharedGroup.swift */,
-				E45D48B32E6A6DE500D88084 /* ThemeColors.swift */,
-				E45D48642E638E9200D88084 /* Time.swift */,
-				E45D48A42E6A579D00D88084 /* ClassProgressBar.swift */,
 				E439AB5D2ECBC02B0078C9FA /* HelperStructs.swift */,
 			);
 			sourceTree = "<group>";
@@ -393,11 +412,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				E439AB752ECBC02B0078C9FA /* HelperStructs.swift in Sources */,
-				E45D48B42E6A6DE500D88084 /* ThemeColors.swift in Sources */,
-				E45D486B2E638E9200D88084 /* ScheduleLine.swift in Sources */,
-				E45D48B12E6A632E00D88084 /* SharedGroup.swift in Sources */,
-				E45D486D2E638E9200D88084 /* Time.swift in Sources */,
-				E45D48AE2E6A58B400D88084 /* ClassProgressBar.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -419,12 +433,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E45D48AC2E6A58AA00D88084 /* ScheduleLine.swift in Sources */,
-				E45D48AD2E6A58AF00D88084 /* Time.swift in Sources */,
-				E45D48B52E6A6DE500D88084 /* ThemeColors.swift in Sources */,
-				E45D48B22E6A632E00D88084 /* SharedGroup.swift in Sources */,
 				E439AB8F2ECC14C00078C9FA /* HelperStructs.swift in Sources */,
-				E45D48A52E6A579E00D88084 /* ClassProgressBar.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
