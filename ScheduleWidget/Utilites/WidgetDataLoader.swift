@@ -1,9 +1,0 @@
-//
-//  WidgetDataLoader.swift
-//  Schedule
-//
-//  Created by Andreas Royset on 11/18/25.
-//
-
-import WidgetKit
-import SwiftUI
