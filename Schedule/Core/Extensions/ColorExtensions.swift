@@ -43,7 +43,7 @@ extension Color {
     func toHex(includeAlpha: Bool = true) -> String? {
         // Get UIColor from SwiftUI Color
         guard let components = UIColor(self).cgColor.components else {
-            print("⚠️ Failed to get color components")
+            print("❌ Failed to get color components")
             return nil
         }
         
@@ -65,19 +65,17 @@ extension Color {
             b = components[2]
             a = components[3]
         default:
-            print("⚠️ Unexpected color component count: \(components.count)")
+            print("❌ Unexpected color component count: \(components.count)")
             return nil
         }
         
         if includeAlpha {
             let rgba: Int = (Int)(r * 255)<<24 | (Int)(g * 255)<<16 | (Int)(b * 255)<<8 | (Int)(a * 255)
             let hex = String(format:"#%08X", rgba)
-            print("🎨 Color to hex: \(hex)")
             return hex
         } else {
             let rgb: Int = (Int)(r * 255)<<16 | (Int)(g * 255)<<8 | (Int)(b * 255)
             let hex = String(format:"#%06X", rgb)
-            print("🎨 Color to hex (no alpha): \(hex)")
             return hex
         }
     }

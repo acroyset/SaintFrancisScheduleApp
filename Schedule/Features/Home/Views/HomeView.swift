@@ -49,7 +49,7 @@ struct HomeView: View {
             let cal = Calendar.current
             let isToday = cal.isDateInToday(selectedDate)
             
-            EnhancedClassItemScroll(
+            ClassItemScroll(
                 scheduleLines: scheduleLines,
                 PrimaryColor: PrimaryColor,
                 SecondaryColor: SecondaryColor,

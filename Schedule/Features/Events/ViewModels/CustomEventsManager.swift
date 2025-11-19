@@ -26,7 +26,7 @@ class CustomEventsManager: ObservableObject {
             userDefaults.set(data, forKey: eventsKey)
             SharedGroup.defaults.set(data, forKey: "CustomEvents")
         } catch {
-            print("Failed to save custom events: \(error)")
+            print("❌ Failed to save custom events: \(error)")
         }
     }
     
@@ -35,7 +35,7 @@ class CustomEventsManager: ObservableObject {
         do {
             events = try JSONDecoder().decode([CustomEvent].self, from: data)
         } catch {
-            print("Failed to load custom events: \(error)")
+            print("❌ Failed to load custom events: \(error)")
         }
     }
     
@@ -51,7 +51,7 @@ class CustomEventsManager: ObservableObject {
             do {
                 try await CloudEventsDataManager().saveEvents(eventsToSave, for: userId)
             } catch {
-                print("Failed to save events to cloud: \(error)")
+                print("❌ Failed to save events to cloud: \(error)")
             }
         }
     }
@@ -71,7 +71,7 @@ class CustomEventsManager: ObservableObject {
                     }
                 }
             } catch {
-                print("Failed to load events from cloud: \(error)")
+                print("❌ Failed to load events from cloud: \(error)")
             }
         }
     }

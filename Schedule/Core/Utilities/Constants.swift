@@ -60,7 +60,7 @@ func overwriteClassesFile(with classes: [ClassItem]) {
                           .joined(separator: "\n") + "\n"
         try text.write(to: url, atomically: true, encoding: .utf8)
     } catch {
-        print("overwriteClassesFile error:", error)
+        print("❌ overwriteClassesFile error:", error)
     }
 }
 

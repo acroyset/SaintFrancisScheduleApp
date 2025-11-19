@@ -5,7 +5,7 @@
 
 import SwiftUI
 
-struct EnhancedClassItemScroll: View {
+struct ClassItemScroll: View {
     let scheduleLines: [ScheduleLine]
     let PrimaryColor: Color
     let SecondaryColor: Color

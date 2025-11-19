@@ -63,7 +63,7 @@ class ProfileViewModel: ObservableObject {
             try await dataManager.deleteUserData(for: user.id)
             authManager.signOut()
         } catch {
-            print("Failed to delete account: \(error)")
+            print("❌ Failed to delete account: \(error)")
         }
     }
     

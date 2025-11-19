@@ -169,8 +169,6 @@ struct ProfileMenu: View {
                     tertiary: TertiaryColor.toHex() ?? "#FFFFFFFF"
                 )
                 
-                print("🔄 Syncing theme: \(theme)")
-                
                 try await dataManager.saveToCloud(
                     classes: scheduleData.classes,
                     theme: theme,
@@ -228,8 +226,6 @@ struct ProfileMenu: View {
                     
                     showMessage("✅ Loaded successfully")
                     isLoadingLoad = false
-                    
-                    print("✅ Loaded theme: \(theme)")
                 }
             } catch {
                 await MainActor.run {
@@ -249,7 +245,7 @@ struct ProfileMenu: View {
                 try await dataManager.deleteUserData(for: user.id)
                 authManager.signOut()
             } catch {
-                print("Failed to delete account: \(error)")
+                print("❌ Failed to delete account: \(error)")
             }
         }
     }

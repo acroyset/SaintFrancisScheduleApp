@@ -79,8 +79,8 @@ func rowView(_ line: ScheduleLine, note: String, PrimaryColor: Color, SecondaryC
                         ))
                         .foregroundStyle(
                             line.isCurrentClass ? TertiaryColor : PrimaryColor.opacity(0.8))
-                    // (optional) minutes left display
-                    if let end = line.endSec, let start = line.startSec {
+                    
+                    if let end = line.endSec {
                         let now = Time.now().seconds
                         let remainMin = max(0, (end - now) / 60)
                         if line.isCurrentClass && remainMin > 0 {

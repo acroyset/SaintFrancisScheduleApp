@@ -7,48 +7,8 @@ import SwiftUI
 import Foundation
 import WidgetKit
 
-
-struct ConflictNotificationView: View {
-    let conflicts: [EventConflict]
-    @Binding var isPresented: Bool
-    let PrimaryColor: Color
-    let SecondaryColor: Color
-    let TertiaryColor: Color
-    
-    var body: some View {
-        VStack(spacing: 16) {
-            HStack {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundColor(.orange)
-                    .font(.title2)
-                
-                Text("Schedule Conflicts Detected")
-                    .font(.headline)
-                    .foregroundColor(PrimaryColor)
-                
-                Spacer()
-                
-                Button("Dismiss") {
-                    isPresented = false
-                }
-                .foregroundColor(PrimaryColor)
-            }
-            
-            ScrollView {
-                LazyVStack(spacing: 8) {
-                    ForEach(conflicts.indices, id: \.self) { index in
-                        ConflictRowView(conflict: conflicts[index])
-                    }
-                }
-            }
-            .frame(maxHeight: 200)
-        }
-        .padding()
-        .background(TertiaryColor)
-        .cornerRadius(12)
-        .shadow(radius: 10)
-    }
-}
+let version = "Beta 1.9"
+let whatsNew = "\n- Second Lunch! <----- !!!\n- Personal Events\n- Bug Fixes"
 
 // Updated ContentView with Firebase integration
 struct ContentView: View {
@@ -127,7 +87,7 @@ struct ContentView: View {
             
             VStack {
                 
-                Text("Version - Beta 1.9\nBugs / Ideas - Email acroyset@gmail.com")
+                Text("Version - \(version)\nBugs / Ideas - Email acroyset@gmail.com")
                     .font(.footnote)
                     .foregroundStyle(TertiaryColor.highContrastTextColor())
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -174,7 +134,7 @@ struct ContentView: View {
                         let cal = Calendar.current
                         let isToday = cal.isDateInToday(selectedDate)
                         
-                        EnhancedClassItemScroll(
+                        ClassItemScroll(
                             scheduleLines: scheduleLines,
                             PrimaryColor: PrimaryColor,
                             SecondaryColor: SecondaryColor,
@@ -357,7 +317,7 @@ struct ContentView: View {
                     
                     Divider()
                     
-                    Text("\n- Second Lunch! <----- !!!\n- Personal Events\n- Bug Fixes")
+                    Text(whatsNew)
                         .font(.system(
                             size: iPad ? 24 : 15,
                             weight: .bold,
@@ -397,10 +357,6 @@ struct ContentView: View {
         .onAppear {
             loadData()
             setScroll()
-            
-            UIApplication.shared.setMinimumBackgroundFetchInterval(
-                    UIApplication.backgroundFetchIntervalMinimum
-                )
             
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                     self.saveDataForWidget()
@@ -520,7 +476,7 @@ struct ContentView: View {
                 let contents = try String(contentsOf: url, encoding: .utf8)
                 return contents.split(whereSeparator: \.isNewline).map { parseClass(String($0)) }
             } catch {
-                print("Failed to load Classes from Documents:", error)
+                print("❌ Failed to load Classes from Documents:", error)
                 return []
             }
         }()
@@ -760,7 +716,7 @@ struct ContentView: View {
             let conflicts = eventsManager.detectConflicts(for: event, with: scheduleLines)
             
             if !conflicts.isEmpty {
-                //print("Event '\(event.title)' has \(conflicts.count) conflicts")
+                //conflic
             }
         }
     }
@@ -808,7 +764,6 @@ struct ContentView: View {
         let parts = line.split(separator: "-").map { $0.trimmingCharacters(in: .whitespaces) }
         if parts.count == 4 {
             let nameNormal = parts[3]
-            let nameShort = parts[0]
             let name = nameNormal
             return ClassItem(
                 name: name,
@@ -946,12 +901,13 @@ struct ContentView: View {
         // Refresh from Firebase if user is logged in
         if let user = authManager.user {
             do {
-                let (cloudClasses, theme, secondLunch) = try await dataManager.loadFromCloud(for: user.id)
+                let (cloudClasses, theme, _) = try await dataManager.loadFromCloud(for: user.id)
                 DispatchQueue.main.async {
                     if !cloudClasses.isEmpty, var currentData = self.data {
                         currentData.classes = cloudClasses
                         self.data = currentData
                         overwriteClassesFile(with: cloudClasses)
+                        
                     }
                     
                     self.PrimaryColor = Color(hex: theme.primary)
@@ -967,7 +923,7 @@ struct ContentView: View {
                     self.saveTheme()
                 }
             } catch {
-                print("Failed to refresh from cloud: \(error)")
+                print("❌ Failed to refresh from cloud: \(error)")
             }
         }
     }
@@ -985,7 +941,7 @@ struct ContentView: View {
                 }
             }
         } catch {
-            print("Failed to fetch schedule: \(error)")
+            print("❌ Failed to fetch schedule: \(error)")
         }
     }
     
@@ -1006,7 +962,6 @@ struct ContentView: View {
         var allItems: [ScheduleLine] = scheduleLines
         
         let now = Time.now()
-        let nowSec = now.seconds
         
         // Convert events to ScheduleLine format for widget compatibility
         let todaysEvents = eventsManager.eventsFor(dayCode: dayCode, date: selectedDate)
@@ -1048,7 +1003,7 @@ struct ContentView: View {
             
             WidgetCenter.shared.reloadTimelines(ofKind: "ScheduleWidget")
         } catch {
-            print("Encoding failed:", error)
+            print("❌ Encoding failed:", error)
         }
     }
 }

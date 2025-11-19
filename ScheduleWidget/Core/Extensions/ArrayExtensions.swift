@@ -10,7 +10,7 @@ import SwiftUI
 extension Array where Element == ScheduleLine {
     func currentAndNextOrPrev(nowSec: Int) -> [ScheduleLine] {
         // Update progress values in real-time for current classes
-        var updatedLines = self.map { line -> ScheduleLine in
+        let updatedLines = self.map { line -> ScheduleLine in
             var updatedLine = line
             if let start = line.startSec, let end = line.endSec {
                 let progress = progressValue(start: start, end: end, now: nowSec)
