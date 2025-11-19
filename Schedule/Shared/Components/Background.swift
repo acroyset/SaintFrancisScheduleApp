@@ -5,4 +5,14 @@
 //  Created by Andreas Royset on 11/18/25.
 //
 
-import Foundation
+import SwiftUI
+
+struct Background: View {
+    var PrimaryColor: Color
+    var SecondaryColor: Color
+    var TertiaryColor: Color
+    
+    var body: some View {
+        TertiaryColor.ignoresSafeArea()
+    }
+}

@@ -7,72 +7,6 @@ import SwiftUI
 import Foundation
 import WidgetKit
 
-var iPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
-
-func progressValue(start: Int, end: Int, now: Int) -> Double {
-    guard end > start else { return 0 }
-    if now <= start { return 0 }
-    if now >= end { return 1 }
-    return Double(now - start) / Double(end - start)
-}
-
-
-
-private struct ToolBar: View {
-    @Binding var window: Window
-    var PrimaryColor: Color
-    var SecondaryColor: Color
-    var TertiaryColor: Color
-    
-    let tools = ["Home", "News", "Clubs", "Edit Classes", "Settings", "Profile"]
-    
-    var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
-                ForEach(Array(tools.enumerated()), id: \.offset) { index, tool in
-                    ToolButton(
-                        window: $window,
-                        index: index,
-                        tool: tool,
-                        PrimaryColor: PrimaryColor,
-                        SecondaryColor: SecondaryColor,
-                        TertiaryColor: TertiaryColor
-                    )
-                }
-            }
-            .padding(.horizontal) // optional: adds padding on left/right
-        }
-    }
-}
-
-struct ToolButton: View {
-    @Binding var window: Window
-    var index: Int
-    var tool: String
-    var PrimaryColor: Color
-    var SecondaryColor: Color
-    var TertiaryColor: Color
-    
-    var body: some View {
-        Button {
-            if let w = Window(rawValue: index) {
-                window = w
-            }
-        } label: {
-            Text(tool)
-                .font(.system(
-                    size: iPad ? 32 : 16,
-                    weight: .semibold,
-                    design: .rounded
-                ))
-                .foregroundColor(window.rawValue == index ? TertiaryColor : PrimaryColor)
-                .multilineTextAlignment(.trailing)
-                .padding(12)
-                .background(window.rawValue == index ? PrimaryColor : SecondaryColor)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-        }
-    }
-}
 
 struct ConflictNotificationView: View {
     let conflicts: [EventConflict]
@@ -1116,21 +1050,6 @@ struct ContentView: View {
         } catch {
             print("Encoding failed:", error)
         }
-    }
-}
-
-func copyText(from sourcePath: String, to destinationPath: String) {
-    let sourceURL = URL(fileURLWithPath: sourcePath)
-    let destinationURL = URL(fileURLWithPath: destinationPath)
-    
-    do {
-        // 1. Read text from source file
-        let text = try String(contentsOf: sourceURL, encoding: .utf8)
-        
-        // 2. Write text into destination file
-        try text.write(to: destinationURL, atomically: true, encoding: .utf8)
-    } catch {
-        print("❌ Error copying text: \(error)")
     }
 }
 

@@ -71,7 +71,6 @@
 		E4257E5C2E54022700948AE0 /* Exceptions for "Schedule" folder in "Schedule" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				AddEventswift,
 				Info.plist,
 			);
 			target = E4072D122E4D72DE004A81A7 /* Schedule */;
@@ -110,22 +109,11 @@
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
-/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
-		E439ABE22ECD599D0078C9FA /* Exceptions for "Schedule" folder in "Compile Sources" phase from "Schedule" target */ = {
-			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
-			buildPhase = E4072D0F2E4D72DE004A81A7 /* Sources */;
-			membershipExceptions = (
-				AddEventswift,
-			);
-		};
-/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		E4072D152E4D72DE004A81A7 /* Schedule */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				E4257E5C2E54022700948AE0 /* Exceptions for "Schedule" folder in "Schedule" target */,
-				E439ABE22ECD599D0078C9FA /* Exceptions for "Schedule" folder in "Compile Sources" phase from "Schedule" target */,
 				E439AB9D2ECD56B80078C9FA /* Exceptions for "Schedule" folder in "ScheduleWidgetExtension" target */,
 			);
 			path = Schedule;

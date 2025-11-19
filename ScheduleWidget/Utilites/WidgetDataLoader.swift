@@ -5,4 +5,5 @@
 //  Created by Andreas Royset on 11/18/25.
 //
 
-import Foundation
+import WidgetKit
+import SwiftUI

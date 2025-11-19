@@ -1,36 +1,6 @@
 import SwiftUI
 import Foundation
 
-func classesDocumentsURL() throws -> URL {
-    let docs = try FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-    return docs.appendingPathComponent("Classes.txt")
-}
-
-@discardableResult
-func ensureWritableClassesFile() throws -> URL {
-    let dst = try classesDocumentsURL()
-    let fm = FileManager.default
-    if !fm.fileExists(atPath: dst.path) {
-        if let src = Bundle.main.url(forResource: "Classes", withExtension: "txt") {
-            try? fm.copyItem(at: src, to: dst)
-        } else {
-            try "".write(to: dst, atomically: true, encoding: .utf8)
-        }
-    }
-    return dst
-}
-
-func overwriteClassesFile(with classes: [ClassItem]) {
-    do {
-        let url = try ensureWritableClassesFile()
-        let text = classes.map { "\($0.name) - \($0.teacher) - \($0.room)" }
-                          .joined(separator: "\n") + "\n"
-        try text.write(to: url, atomically: true, encoding: .utf8)
-    } catch {
-        print("overwriteClassesFile error:", error)
-    }
-}
-
 struct ProfileMenu: View {
     @EnvironmentObject var authManager: AuthenticationManager
     @StateObject private var dataManager = DataManager()

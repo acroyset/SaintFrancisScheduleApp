@@ -11,25 +11,9 @@ import SwiftUI
 
 
 
-enum Window: Int {
-    case Home = 0
-    case News = 1
-    case Clubs = 2
-    case ClassEditor = 3
-    case Settings = 4
-    case Profile = 5
-}
 
-enum TutorialState: Int {
-    case Hidden = 0
-    case Intro = 1
-    case DateNavigator = 2
-    case News = 3
-    case ClassEditor = 4
-    case Settings = 5
-    case Profile = 6
-    case Outro = 7
-}
+
+
 
 extension Color {
     func highContrastTextColor() -> Color {

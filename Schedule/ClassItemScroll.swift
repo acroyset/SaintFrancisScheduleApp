@@ -440,29 +440,3 @@ struct EnhancedClassItemScroll: View {
         }
     }
 }
-
-// MARK: - Schedule Display Item
-
-enum ScheduleDisplayItem {
-    case scheduleLine(ScheduleLine)
-    case customEvent(CustomEvent)
-    
-    var startTimeSeconds: Int {
-        switch self {
-        case .scheduleLine(let line):
-            return line.startSec ?? Int.max
-        case .customEvent(let event):
-            return event.startTime.seconds
-        }
-    }
-    
-    var isCurrentItem: Bool {
-        let now = Time.now().seconds
-        switch self {
-        case .scheduleLine(let line):
-            return line.isCurrentClass
-        case .customEvent(let event):
-            return now >= event.startTime.seconds && now < event.endTime.seconds
-        }
-    }
-}

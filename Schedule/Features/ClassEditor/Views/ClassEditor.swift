@@ -53,38 +53,6 @@ struct OutlinedTextFieldStyle: TextFieldStyle {
     }
 }
 
-struct Background: View {
-    var PrimaryColor: Color
-    var SecondaryColor: Color
-    var TertiaryColor: Color
-    
-    var body: some View {
-        TertiaryColor.ignoresSafeArea()
-    }
-}
-
-struct TextFieldClassEditor: View {
-    @Binding var inputText: String
-    var defaultText: String
-    
-    var PrimaryColor: Color
-    var SecondaryColor: Color
-    var TertiaryColor: Color
-    
-    var body: some View {
-        TextField(defaultText, text: $inputText)
-        .font(.system(
-            size: iPad ? 20 : 14,
-            weight: .bold,
-            design: .monospaced
-        ))
-        .padding(12)
-        .foregroundStyle(
-            PrimaryColor)
-        .background(SecondaryColor)
-        .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-    }
-}
     
 struct VphoneClassEditor: View {
     @Binding var data: ScheduleData
