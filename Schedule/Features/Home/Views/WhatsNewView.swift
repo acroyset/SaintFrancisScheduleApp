@@ -13,6 +13,7 @@ struct WhatsNewView: View {
     let PrimaryColor: Color
     let SecondaryColor: Color
     let TertiaryColor: Color
+    let isFirstLaunch: Bool
     
     private let whatsNew = "\n- Second Lunch! <----- !!!\n- Personal Events\n- Bug Fixes"
     
@@ -39,21 +40,24 @@ struct WhatsNewView: View {
                 .foregroundStyle(PrimaryColor)
                 .frame(alignment: .leading)
             
-            Button {
-                tutorial = .Intro
-                whatsNewPopup = false
-            } label: {
-                Text("Start Tutorial")
-                    .font(.system(
-                        size: iPad ? 24 : 15,
-                        weight: .bold,
-                        design: .monospaced
-                    ))
-                    .foregroundColor(PrimaryColor)
-                    .multilineTextAlignment(.trailing)
-                    .padding(12)
-                    .background(SecondaryColor)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+            if isFirstLaunch {
+                Button {
+                    UserDefaults.standard.set(version, forKey: "LastSeenVersion")
+                    tutorial = .Intro
+                    whatsNewPopup = false
+                } label: {
+                    Text("Start Tutorial")
+                        .font(.system(
+                            size: iPad ? 24 : 15,
+                            weight: .bold,
+                            design: .monospaced
+                        ))
+                        .foregroundColor(PrimaryColor)
+                        .multilineTextAlignment(.trailing)
+                        .padding(12)
+                        .background(SecondaryColor)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
             }
         }
         .padding(12)

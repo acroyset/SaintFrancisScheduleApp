@@ -71,6 +71,12 @@ struct CustomEvent: Identifiable, Codable, Equatable {
             // Same day type every week
             return applicableDays.contains(dayCode)
             
+        case .weekday:
+            let calendar = Calendar.current
+            let weekday = calendar.component(.weekday, from: date)
+            let weekdayString = "\(weekday)" // 1=Sunday, 2=Monday, etc.
+            return applicableDays.contains(weekdayString)
+            
         case .biweekly:
             // Every other week - need to implement week tracking
             return applicableDays.contains(dayCode) // Simplified for now
@@ -115,7 +121,8 @@ struct CustomEvent: Identifiable, Codable, Equatable {
 enum RepeatPattern: String, CaseIterable, Codable {
     case none = "None"
     case daily = "Every School Day"
-    case weekly = "Weekly"
+    case weekly = "Weekly (Day Type)"  // Gold 1, Brown 2, etc.
+    case weekday = "Weekly (Weekday)"  // Monday, Friday, etc.
     case biweekly = "Biweekly"
     case monthly = "Monthly"
     
@@ -208,25 +215,4 @@ class CloudEventsDataManager {
             )
         }
     }
-}
-
-// MARK: - Extensions
-
-extension Time {
-    static func from(hour: Int, minute: Int) -> Time {
-        return Time(h: hour, m: minute, s: 0)
-    }
-}
-
-extension Color {
-    static let eventColors: [Color] = [
-        Color(hex: "#FF6B6BFF"), // Red
-        Color(hex: "#4ECDC4FF"), // Teal
-        Color(hex: "#45B7D1FF"), // Blue
-        Color(hex: "#96CEB4FF"), // Green
-        Color(hex: "#FFEAA7FF"), // Yellow
-        Color(hex: "#DDA0DDFF"), // Plum
-        Color(hex: "#FFB347FF"), // Orange
-        Color(hex: "#87CEEBFF")  // Sky Blue
-    ]
 }

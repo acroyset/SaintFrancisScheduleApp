@@ -17,6 +17,9 @@ struct ContentView: View {
     @StateObject private var dataManager = DataManager()
     @StateObject private var eventsManager = CustomEventsManager()
     
+    @State private var themeDebounceTask: Task<Void, Never>?
+    @State private var lastSavedTheme: ThemeColors?
+    
     @State private var output = "Loading…"
     @State private var dayCode = ""
     @State private var note = ""
@@ -27,7 +30,9 @@ struct ContentView: View {
     @State private var selectedDate = Date()
     @State private var scrollTarget: Int? = nil
     @State private var showCalendarGrid = false
-    @State private var whatsNewPopup = true
+    @State private var whatsNewPopup = false
+    @State private var lastSeenVersion: String = UserDefaults.standard.string(forKey: "LastSeenVersion") ?? ""
+    @State private var isFirstLaunch: Bool = true//!UserDefaults.standard.bool(forKey: "HasLaunchedBefore")
     
     @State private var addEvent = false
     
@@ -57,6 +62,8 @@ struct ContentView: View {
                     showCalendarGrid = false
                     whatsNewPopup = false
                     tutorial = .Hidden
+                    
+                    UserDefaults.standard.set(version, forKey: "LastSeenVersion")
                 }
             })
             
@@ -72,6 +79,8 @@ struct ContentView: View {
                         showCalendarGrid = false
                         whatsNewPopup = false
                         tutorial = .Hidden
+                        
+                        UserDefaults.standard.set(version, forKey: "LastSeenVersion")
                     }
                 })
                 
@@ -104,7 +113,8 @@ struct ContentView: View {
                     tutorial: $tutorial,
                     PrimaryColor: PrimaryColor,
                     SecondaryColor: SecondaryColor,
-                    TertiaryColor: TertiaryColor
+                    TertiaryColor: TertiaryColor,
+                    isFirstLaunch: isFirstLaunch
                 )
             }
         }
@@ -115,9 +125,17 @@ struct ContentView: View {
             loadData()
             setScroll()
             
+            if lastSeenVersion != version {
+                whatsNewPopup = true
+            }
+            
+            if isFirstLaunch {
+                UserDefaults.standard.set(true, forKey: "HasLaunchedBefore")
+            }
+            
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                    self.saveDataForWidget()
-                }
+                self.saveDataForWidget()
+            }
         }
         .onChange(of: eventsManager.events) { _, _ in
             renderWithEvents()
@@ -151,8 +169,16 @@ struct ContentView: View {
             saveClassesToCloud()
             saveEventsToCloud()
         }
-        .onReceive(ticker) { _ in
+        .onChange(of: PrimaryColor) { _, _ in
             saveTheme()
+        }
+        .onChange(of: SecondaryColor) { _, _ in
+            saveTheme()
+        }
+        .onChange(of: TertiaryColor) { _, _ in
+            saveTheme()
+        }
+        .onReceive(ticker) { _ in
             renderWithEvents()
             saveScheduleLinesWithEvents()
             saveDataForWidget()
@@ -203,6 +229,7 @@ struct ContentView: View {
         case .Profile:
             ProfileMenu(
                 data: $data,
+                tutorial: $tutorial,
                 PrimaryColor: $PrimaryColor,
                 SecondaryColor: $SecondaryColor,
                 TertiaryColor: $TertiaryColor,
@@ -224,6 +251,8 @@ struct ContentView: View {
                     showCalendarGrid = false
                     whatsNewPopup = false
                     tutorial = .Hidden
+                    
+                    UserDefaults.standard.set(version, forKey: "LastSeenVersion")
                 }
             })
             
@@ -263,6 +292,8 @@ struct ContentView: View {
                     showCalendarGrid = false;
                     whatsNewPopup = false
                     tutorial = .Hidden
+                    
+                    UserDefaults.standard.set(version, forKey: "LastSeenVersion")
                 }
             })
         }
@@ -352,7 +383,36 @@ struct ContentView: View {
         }
         
         if authManager.user != nil {
-            saveClassesToCloud()
+            debouncedCloudSave(theme: theme)
+        }
+    }
+
+    private func debouncedCloudSave(theme: ThemeColors) {
+        // Cancel any pending save
+        themeDebounceTask?.cancel()
+        
+        // Check if theme actually changed
+        if let lastTheme = lastSavedTheme,
+           lastTheme.primary == theme.primary,
+           lastTheme.secondary == theme.secondary,
+           lastTheme.tertiary == theme.tertiary {
+            return // No change, don't save
+        }
+        
+        // Schedule a new save after 5 seconds of inactivity
+        themeDebounceTask = Task {
+            do {
+                try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+                
+                if !Task.isCancelled {
+                    await saveClassesToCloud()
+                    await MainActor.run {
+                        lastSavedTheme = theme
+                    }
+                }
+            } catch {
+                // Task was cancelled, do nothing
+            }
         }
     }
     
@@ -456,7 +516,7 @@ struct ContentView: View {
     }
     
     private func shouldSwapLunchAndPeriod(dayIndex: Int, isSecondLunch: [Bool]) -> Bool {
-        let daysWithLunchPeriodG = [0, 2, 4, 5, 8, 9]
+        let daysWithLunchPeriodG = [0, 2, 4, 5, 6, 7, 8, 9]
         let daysWithLunchPeriodB = [1, 3]
         return (isSecondLunch[0] && daysWithLunchPeriodG.contains(dayIndex)) || (isSecondLunch[1] && daysWithLunchPeriodB.contains(dayIndex))
     }
@@ -558,12 +618,33 @@ struct ContentView: View {
                     line.timeRange = "12:25 to 1:05"
                     tempLines[i].line = line
                 }
-
-                if item.line.base.contains("$4") || item.line.base.contains("$5") {
+                
+                // Handle Brunch
+                if item.line.className == "Brunch" {
+                    var line = item.line
+                    line.startSec = Time(h:11, m:10, s:0).seconds
+                    line.endSec = Time(h:11, m:35, s:0).seconds
+                    line.timeRange = "11:10 to 11:35"
+                    tempLines[i].line = line
+                }
+                
+                // Swap Period 4/5 for Lunch days
+                if (item.line.base.contains("$4") || item.line.base.contains("$5")) &&
+                   tempLines.contains(where: { $0.line.className == "Lunch" }) {
                     var line = item.line
                     line.startSec = Time(h:11, m:00, s:0).seconds
                     line.endSec   = Time(h:12, m:20, s:0).seconds
                     line.timeRange = "11:00 to 12:20"
+                    tempLines[i].line = line
+                }
+                
+                // Swap Period 4 for Brunch days
+                if item.line.base.contains("$4") &&
+                   tempLines.contains(where: { $0.line.className == "Brunch" }) {
+                    var line = item.line
+                    line.startSec = Time(h:9, m:45, s:0).seconds
+                    line.endSec = Time(h:11, m:05, s:0).seconds
+                    line.timeRange = "9:45 to 11:05"
                     tempLines[i].line = line
                 }
             }

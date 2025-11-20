@@ -119,7 +119,11 @@ class AddEventViewModel: ObservableObject {
             return [formatter.string(from: selectedDate)]
         case .daily:
             return []
-        case .weekly, .biweekly:
+        case .weekly:
+            return selectedDays
+        case .weekday:
+            return selectedDays
+        case .biweekly:
             return selectedDays
         case .monthly:
             let day = Calendar.current.component(.day, from: selectedDate)

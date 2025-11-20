@@ -94,3 +94,16 @@ extension Color {
         Color(hue: 0,saturation: 0,brightness: 0.6)
     }
 }
+
+extension Color {
+    static let eventColors: [Color] = [
+        Color(hex: "#FF6B6BFF"), // Red
+        Color(hex: "#4ECDC4FF"), // Teal
+        Color(hex: "#45B7D1FF"), // Blue
+        Color(hex: "#96CEB4FF"), // Green
+        Color(hex: "#FFEAA7FF"), // Yellow
+        Color(hex: "#DDA0DDFF"), // Plum
+        Color(hex: "#FFB347FF"), // Orange
+        Color(hex: "#87CEEBFF")  // Sky Blue
+    ]
+}

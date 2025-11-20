@@ -111,11 +111,32 @@ class ScheduleRenderer {
                     tempLines[i].line = line
                 }
                 
-                if item.line.base.contains("$4") || item.line.base.contains("$5") {
+                // Handle Brunch
+                if item.line.className == "Brunch" {
+                    var line = item.line
+                    line.startSec = Time(h:11, m:10, s:0).seconds
+                    line.endSec   = Time(h:11, m:35, s:0).seconds
+                    line.timeRange = "11:10 to 11:35"
+                    tempLines[i].line = line
+                }
+
+                // Swap Period 4/5 for Lunch days
+                if (item.line.base.contains("$4") || item.line.base.contains("$5")) &&
+                   tempLines.contains(where: { $0.line.className == "Lunch" }) {
                     var line = item.line
                     line.startSec = Time(h:11, m:00, s:0).seconds
                     line.endSec = Time(h:12, m:20, s:0).seconds
                     line.timeRange = "11:00 to 12:20"
+                    tempLines[i].line = line
+                }
+                
+                // Swap Period 4 for Brunch days
+                if item.line.base.contains("$4") &&
+                   tempLines.contains(where: { $0.line.className == "Brunch" }) {
+                    var line = item.line
+                    line.startSec = Time(h:9, m:45, s:0).seconds
+                    line.endSec   = Time(h:11, m:05, s:0).seconds
+                    line.timeRange = "9:45 to 11:05"
                     tempLines[i].line = line
                 }
             }
@@ -132,7 +153,7 @@ class ScheduleRenderer {
     
     // MARK: - Helper Methods
     private static func shouldSwapLunchAndPeriod(dayIndex: Int, isSecondLunch: [Bool]) -> Bool {
-        let daysWithLunchPeriodG = [0, 2, 4, 5, 8, 9]
+        let daysWithLunchPeriodG = [0, 2, 4, 5, 6, 7, 8, 9]
         let daysWithLunchPeriodB = [1, 3]
         return (isSecondLunch[0] && daysWithLunchPeriodG.contains(dayIndex)) || (isSecondLunch[1] && daysWithLunchPeriodB.contains(dayIndex))
     }

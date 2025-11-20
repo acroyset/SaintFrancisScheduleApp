@@ -111,7 +111,7 @@ struct TutorialView: View {
         case .Profile:
             return "Access the profile tab by clicking on the profile icon in the toolbar.\n\nThis is how you can sign out or sync your devices."
         case .Outro:
-            return "Thanks for downloading Saint Francis Schedule!"
+            return "Thanks for downloading Saint Francis Schedule! \n\nYou can find this tutorial in the Profile Menu."
         }
     }
 }

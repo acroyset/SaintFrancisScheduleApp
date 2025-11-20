@@ -180,9 +180,12 @@ private struct DateRepeatSection: View {
     var body: some View {
         Section("Date & Repeat") {
             Picker("Repeat Pattern", selection: $viewModel.repeatPattern) {
-                ForEach(RepeatPattern.allCases, id: \.self) { pattern in
-                    Text(pattern.description).tag(pattern)
-                }
+                Text("None").tag(RepeatPattern.none)
+                Text("Every School Day").tag(RepeatPattern.daily)
+                Text("Weekly (Day Type)").tag(RepeatPattern.weekly)
+                Text("Weekly (Weekday)").tag(RepeatPattern.weekday)  // ADD THIS
+                Text("Biweekly").tag(RepeatPattern.biweekly)
+                Text("Monthly").tag(RepeatPattern.monthly)
             }
             
             if viewModel.repeatPattern == .none {
@@ -217,6 +220,8 @@ private struct RepeatOptionsView: View {
     let PrimaryColor: Color
     let SecondaryColor: Color
     
+    let weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    
     var body: some View {
         switch viewModel.repeatPattern {
         case .none:
@@ -230,6 +235,14 @@ private struct RepeatOptionsView: View {
                 selectedDays: $viewModel.selectedDays,
                 dayTypes: dayTypes,
                 title: "Select which day types:",
+                PrimaryColor: PrimaryColor,
+                SecondaryColor: SecondaryColor
+            )
+        case .weekday:
+            WeekdaySelectorGrid(
+                selectedDays: $viewModel.selectedDays,
+                weekdays: weekdays,
+                title: "Select which weekdays:",
                 PrimaryColor: PrimaryColor,
                 SecondaryColor: SecondaryColor
             )
@@ -266,20 +279,87 @@ private struct DaySelectorGrid: View {
             
             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 8) {
                 ForEach(dayTypes, id: \.self) { dayType in
-                    Button(dayType) {
+                    Button(action:{
                         if selectedDays.contains(dayType) {
                             selectedDays.remove(dayType)
                         } else {
                             selectedDays.insert(dayType)
                         }
+                    }) {
+                        Text(dayType)
+                            .padding(8)
+                            .frame(maxWidth: .infinity)
+                            .background(selectedDays.contains(dayType) ? PrimaryColor : SecondaryColor)
+                            .foregroundColor(selectedDays.contains(dayType) ? .white : PrimaryColor)
+                            .cornerRadius(8)
                     }
-                    .padding(8)
-                    .background(selectedDays.contains(dayType) ? PrimaryColor : SecondaryColor)
-                    .foregroundColor(selectedDays.contains(dayType) ? .white : PrimaryColor)
-                    .cornerRadius(8)
+                    .buttonStyle(PlainButtonStyle())
                 }
             }
         }
+    }
+}
+
+// MARK: - Weekday Selector Grid
+
+private struct WeekdaySelectorGrid: View {
+    @Binding var selectedDays: Set<String>
+    let weekdays: [String]
+    let title: String
+    let PrimaryColor: Color
+    let SecondaryColor: Color
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 8) {
+                ForEach(weekdays.indices, id: \.self) { index in
+                    let weekday = weekdays[index]
+                    let weekdayValue = "\(index + 1)" // 1=Sunday, 2=Monday, etc.
+                    
+                    WeekdayButton(
+                        weekday: weekday,
+                        weekdayValue: weekdayValue,
+                        isSelected: selectedDays.contains(weekdayValue),
+                        onToggle: {
+                            if selectedDays.contains(weekdayValue) {
+                                selectedDays.remove(weekdayValue)
+                            } else {
+                                selectedDays.insert(weekdayValue)
+                            }
+                        },
+                        PrimaryColor: PrimaryColor,
+                        SecondaryColor: SecondaryColor
+                    )
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Weekday Button Component
+
+private struct WeekdayButton: View {
+    let weekday: String
+    let weekdayValue: String
+    let isSelected: Bool
+    let onToggle: () -> Void
+    let PrimaryColor: Color
+    let SecondaryColor: Color
+    
+    var body: some View {
+        Text(weekday)
+            .padding(8)
+            .frame(maxWidth: .infinity)
+            .background(isSelected ? PrimaryColor : SecondaryColor)
+            .foregroundColor(isSelected ? .white : PrimaryColor)
+            .cornerRadius(8)
+            .onTapGesture {
+                onToggle()
+            }
     }
 }
 

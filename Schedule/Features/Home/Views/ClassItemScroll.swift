@@ -46,9 +46,9 @@ struct ClassItemScroll: View {
     
     var body: some View {
         VStack {
-            if output.isEmpty && !scheduleLines.isEmpty {
-                let combinedItems = createCombinedScheduleItems()
-                
+            let combinedItems = createCombinedScheduleItems()
+            
+            if !combinedItems.isEmpty {
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(spacing: 12) {
@@ -154,7 +154,7 @@ struct ClassItemScroll: View {
         
         // Add custom events for this day
         let todaysEvents = eventsManager.eventsFor(dayCode: dayCode, date: currentDate)
-        for event in todaysEvents {
+        for event in todaysEvents where event.isEnabled {
             items.append(ScheduleDisplayItem.customEvent(event))
         }
         

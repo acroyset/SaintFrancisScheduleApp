@@ -145,10 +145,25 @@ struct Provider: TimelineProvider {
                 if nameRaw == "Lunch" {
                     start = Time(h: 12, m: 25, s: 0)
                     end = Time(h: 13, m: 5, s: 0)
-                } else if nameRaw.contains("$4") || nameRaw.contains("$5") ||
-                          nameRaw.contains("Period 4") || nameRaw.contains("Period 5") {
-                    start = Time(h: 11, m: 0, s: 0)
-                    end = Time(h: 12, m: 20, s: 0)
+                } else if nameRaw == "Brunch" {
+                    start = Time(h: 11, m: 10, s: 0)
+                    end = Time(h: 11, m: 35, s: 0)
+                } else if (nameRaw.contains("$4") || nameRaw.contains("$5") ||
+                           nameRaw.contains("Period 4") || nameRaw.contains("Period 5")) {
+                    // Check if this is a Lunch day or Brunch day
+                    // For widget, we need to check the day structure
+                    // Brunch days only have $4 (Activity 3 & 4), not $5
+                    if day.names.contains("Brunch") {
+                        // Brunch day - only swap Period 4
+                        if nameRaw.contains("$4") || nameRaw.contains("Period 4") {
+                            start = Time(h: 9, m: 45, s: 0)
+                            end = Time(h: 11, m: 5, s: 0)
+                        }
+                    } else {
+                        // Lunch day - swap Period 4 or 5
+                        start = Time(h: 11, m: 0, s: 0)
+                        end = Time(h: 12, m: 20, s: 0)
+                    }
                 }
             }
             
@@ -193,7 +208,7 @@ struct Provider: TimelineProvider {
     }
     
     private func shouldSwapLunchAndPeriod(dayIndex: Int, isSecondLunch: [Bool]) -> Bool {
-        let daysWithLunchPeriodG = [0, 2, 4, 5, 8, 9]
+        let daysWithLunchPeriodG = [0, 2, 4, 5, 6, 7, 8, 9]
         let daysWithLunchPeriodB = [1, 3]
         return (isSecondLunch[0] && daysWithLunchPeriodG.contains(dayIndex)) || (isSecondLunch[1] && daysWithLunchPeriodB.contains(dayIndex))
     }

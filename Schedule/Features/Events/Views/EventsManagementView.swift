@@ -141,7 +141,8 @@ struct EventsManagementView: View {
             switch event.repeatPattern {
             case .none: return "One-time Events"
             case .daily: return "Daily Events"
-            case .weekly: return "Weekly Events"
+            case .weekly: return "Day Type Events"
+            case .weekday: return "Weekday Events"
             case .biweekly: return "Biweekly Events"
             case .monthly: return "Monthly Events"
             }

@@ -5,6 +5,7 @@ struct ProfileMenu: View {
     @EnvironmentObject var authManager: AuthenticationManager
     @StateObject private var dataManager = DataManager()
     @Binding var data: ScheduleData?
+    @Binding var tutorial: TutorialState
     
     @Binding var PrimaryColor: Color
     @Binding var SecondaryColor: Color
@@ -104,6 +105,28 @@ struct ProfileMenu: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             .disabled(isLoadingLoad)
+            
+            Divider()
+
+            Button {
+                tutorial = .Intro
+            } label: {
+                HStack {
+                    Image(systemName: "questionmark.circle")
+                    Text("Start Tutorial")
+                        .font(.system(
+                            size: iPad ? 28 : 18,
+                            weight: .bold,
+                            design: .monospaced
+                        ))
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                }
+                .padding(12)
+                .foregroundStyle(PrimaryColor)
+                .background(SecondaryColor)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
             
             Spacer()
             

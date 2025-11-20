@@ -62,3 +62,9 @@ extension Time {
         return Time(h: comps.hour ?? 0, m: comps.minute ?? 0, s: comps.second ?? 0)
     }
 }
+
+extension Time {
+    static func from(hour: Int, minute: Int) -> Time {
+        return Time(h: hour, m: minute, s: 0)
+    }
+}
