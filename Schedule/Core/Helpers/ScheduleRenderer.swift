@@ -148,6 +148,10 @@ class ScheduleRenderer {
         let todaysEvents = eventsManager.eventsFor(dayCode: dayCode, date: selectedDate)
         let conflicts = checkForEventConflicts(events: todaysEvents, scheduleLines: scheduleLines)
         
+        if !conflicts.isEmpty{
+            print("conflict")
+        }
+        
         return (scheduleLines, "")
     }
     

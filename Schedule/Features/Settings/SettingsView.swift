@@ -113,5 +113,8 @@ struct Settings: View {
                     isPortrait: isPortrait)
             }
         }
+        .onTapGesture {
+            selectedOption = .none
+        }
     }
 }

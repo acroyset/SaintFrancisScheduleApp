@@ -42,9 +42,12 @@ struct CalendarGrid: View {
                                 Group {
                                     if isSelected {
                                         Circle().fill(PrimaryColor)
-                                    } else if !checkIfSchedule(day) {
+                                    } else if isToday {
                                         Circle().fill(SecondaryColor)
-                                    } else {
+                                    } else if !checkIfSchedule(day) {
+                                        Circle().fill(PrimaryColor.highContrastTextColor().opacity(0.1))
+                                    }
+                                    else {
                                         Circle().fill(Color.clear)
                                     }
                                 }
@@ -86,9 +89,9 @@ struct CalendarGrid: View {
         let key = getKeyToday(date)
         
         if (scheduleDict?[key]) != nil {
-            return true;
+            return true
         }
-        return false;
+        return false
     }
     
     private func getKeyToday (_ date: Date) -> String {

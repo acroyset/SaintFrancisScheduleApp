@@ -9,7 +9,7 @@ import SwiftUI
 import Foundation
 import WidgetKit
 
-let version = "Beta 1.9"
+let version = "Beta 1.10"
 let whatsNew = "\n- Second Lunch! <----- !!!\n- Bug Fixes with Personal Events"
 
 struct ContentView: View {
@@ -405,7 +405,7 @@ struct ContentView: View {
                 try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
                 
                 if !Task.isCancelled {
-                    await saveClassesToCloud()
+                    saveClassesToCloud()
                     await MainActor.run {
                         lastSavedTheme = theme
                     }
