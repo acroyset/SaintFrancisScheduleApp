@@ -17,6 +17,7 @@ struct HomeView: View {
     let note: String
     let scheduleLines: [ScheduleLine]
     let scheduleDict: [String: [String]]?
+    let data: ScheduleData?
     let PrimaryColor: Color
     let SecondaryColor: Color
     let TertiaryColor: Color
@@ -25,7 +26,7 @@ struct HomeView: View {
     
     var body: some View {
         VStack {
-            dayHeaderView(
+            DayHeaderView(
                 dayInfo: getDayInfo(for: dayCode),
                 PrimaryColor: PrimaryColor,
                 SecondaryColor: SecondaryColor,
@@ -85,8 +86,15 @@ struct HomeView: View {
         )
     }
     
-    private func getDayInfo(for currentDay: String) -> Day? {
-        // This would ideally come from a ViewModel
-        return nil // Placeholder - implement based on your data structure
+    func getDayInfo(for currentDay: String) -> Day? {
+        guard let di = getDayNumber(for: currentDay),
+              let data = data,
+              data.days.indices.contains(di) else { return nil }
+        return data.days[di]
+    }
+    
+    func getDayNumber(for currentDay: String) -> Int? {
+        let map = ["g1":0,"b1":1,"g2":2,"b2":3,"a1":4,"a2":5,"a3":6,"a4":7,"l1":8,"l2":9,"s1":10]
+        return map[currentDay.lowercased()]
     }
 }

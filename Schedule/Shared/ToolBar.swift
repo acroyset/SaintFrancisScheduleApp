@@ -31,6 +31,7 @@ struct ToolBar: View {
             }
             .padding(.horizontal)
         }
+        .background(TertiaryColor)
     }
 }
 
@@ -43,22 +44,36 @@ struct ToolButton: View {
     var TertiaryColor: Color
     
     var body: some View {
+        let active = window.rawValue == index
         Button {
             if let w = Window(rawValue: index) {
                 window = w
             }
         } label: {
-            Text(tool)
-                .font(.system(
-                    size: iPad ? 32 : 16,
-                    weight: .semibold,
-                    design: .rounded
-                ))
-                .foregroundColor(window.rawValue == index ? TertiaryColor : PrimaryColor)
-                .multilineTextAlignment(.trailing)
-                .padding(12)
-                .background(window.rawValue == index ? PrimaryColor : SecondaryColor)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+            if #available(iOS 26.0, *) {
+                Text(tool)
+                    .font(.system(
+                        size: iPad ? 32 : 16,
+                        weight: .semibold,
+                        design: .rounded
+                    ))
+                    .foregroundColor(active ? TertiaryColor : PrimaryColor)
+                    .multilineTextAlignment(.trailing)
+                    .padding(12)
+                    .glassEffect(.regular.tint(active ? PrimaryColor : SecondaryColor), in: .rect(cornerRadius: 16.0))
+            } else {
+                Text(tool)
+                    .font(.system(
+                        size: iPad ? 32 : 16,
+                        weight: .semibold,
+                        design: .rounded
+                    ))
+                    .foregroundColor(active ? TertiaryColor : PrimaryColor)
+                    .multilineTextAlignment(.trailing)
+                    .padding(12)
+                    .background()
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
         }
     }
 }

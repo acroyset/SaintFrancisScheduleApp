@@ -1,45 +1,12 @@
 //
-//  ViewBuilders.swift
+//  RowView.swift
 //  Schedule
 //
-//  Created by Andreas Royset on 8/15/25.
+//  Created by Andreas Royset on 11/19/25.
 //
 
-import Foundation
 import SwiftUI
 
-@ViewBuilder
-func dayHeaderView(dayInfo: Day?, PrimaryColor: Color, SecondaryColor: Color, TertiaryColor: Color) -> some View {
-    if let day = dayInfo {
-        VStack(spacing: 0) {
-            Text(day.name)
-                .font(.system(
-                    size: iPad ? 60 : 35,
-                    weight: .bold))  // fixed
-                .foregroundColor(PrimaryColor)
-                .frame(maxWidth: .infinity)
-                .multilineTextAlignment(.center)
-                .padding(12)
-                .background(SecondaryColor)
-                .cornerRadius(8)
-        }
-        .padding(.horizontal)
-    } else {
-        VStack(spacing: 0) {
-            Text(" ")
-                .font(.system(
-                    size: iPad ? 60 : 35,
-                    weight: .bold))  // fixed
-                .foregroundColor(PrimaryColor)
-                .frame(maxWidth: .infinity)
-                .multilineTextAlignment(.center)
-                .padding(12)
-                .background(SecondaryColor)
-                .cornerRadius(8)
-        }
-        .padding(.horizontal)
-    }
-}
 
 @ViewBuilder
 func rowView(_ line: ScheduleLine, note: String, PrimaryColor: Color, SecondaryColor: Color, TertiaryColor: Color) -> some View {

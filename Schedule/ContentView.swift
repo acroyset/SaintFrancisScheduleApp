@@ -199,7 +199,29 @@ struct ContentView: View {
     private var mainContentView: some View {
         switch window {
         case .Home:
-            homeView
+            HomeView(
+                selectedDate: $selectedDate,
+                showCalendarGrid: $showCalendarGrid,
+                scrollTarget: $scrollTarget,
+                addEvent: $addEvent,
+                dayCode: dayCode,
+                note: note,
+                scheduleLines: scheduleLines,
+                scheduleDict: scheduleDict,
+                data: data,
+                PrimaryColor: PrimaryColor,
+                SecondaryColor: SecondaryColor,
+                TertiaryColor: TertiaryColor,
+                onDatePick: applySelectedDate(_:))
+            .onTapGesture(perform: {
+                withAnimation(.snappy){
+                    showCalendarGrid = false
+                    whatsNewPopup = false
+                    tutorial = .Hidden
+                    
+                    UserDefaults.standard.set(version, forKey: "LastSeenVersion")
+                }
+            })
             
         case .News:
             NewsMenu(
@@ -236,86 +258,6 @@ struct ContentView: View {
                 iPad: iPad
             )
         }
-    }
-    
-    private var homeView: some View {
-        VStack {
-            dayHeaderView(
-                dayInfo: getDayInfo(for: dayCode),
-                PrimaryColor: PrimaryColor,
-                SecondaryColor: SecondaryColor,
-                TertiaryColor: TertiaryColor
-            )
-            .onTapGesture(perform: {
-                withAnimation(.snappy){
-                    showCalendarGrid = false
-                    whatsNewPopup = false
-                    tutorial = .Hidden
-                    
-                    UserDefaults.standard.set(version, forKey: "LastSeenVersion")
-                }
-            })
-            
-            DateNavigator(
-                showCalendar: $showCalendarGrid,
-                date: $selectedDate,
-                onPick: { applySelectedDate($0)},
-                PrimaryColor: PrimaryColor,
-                SecondaryColor: SecondaryColor,
-                TertiaryColor: TertiaryColor,
-                scheduleDict: scheduleDict
-            )
-            .padding(.horizontal, 12)
-            .zIndex(10)
-            
-            Divider()
-            
-            let cal = Calendar.current
-            let isToday = cal.isDateInToday(selectedDate)
-            
-            ClassItemScroll(
-                scheduleLines: scheduleLines,
-                PrimaryColor: PrimaryColor,
-                SecondaryColor: SecondaryColor,
-                TertiaryColor: TertiaryColor,
-                note: note,
-                dayCode: dayCode,
-                output: output,
-                isToday: isToday,
-                iPad: iPad,
-                scrollTarget: $scrollTarget,
-                addEvent: $addEvent,
-                currentDate: selectedDate
-            )
-            .onTapGesture(perform: {
-                withAnimation(.snappy){
-                    showCalendarGrid = false;
-                    whatsNewPopup = false
-                    tutorial = .Hidden
-                    
-                    UserDefaults.standard.set(version, forKey: "LastSeenVersion")
-                }
-            })
-        }
-        .gesture(
-            DragGesture()
-                .onEnded { value in
-                    let threshold: CGFloat = 50
-                    if value.translation.width > threshold {
-                        withAnimation(.snappy) {
-                            let new = Calendar.current.date(byAdding: .day, value: -1, to: selectedDate) ?? selectedDate
-                            selectedDate = new
-                            applySelectedDate(new)
-                        }
-                    } else if value.translation.width < -threshold {
-                        withAnimation(.snappy) {
-                            let new = Calendar.current.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate
-                            selectedDate = new
-                            applySelectedDate(new)
-                        }
-                    }
-                }
-        )
     }
     
     private var classEditorView: some View {
@@ -502,7 +444,7 @@ struct ContentView: View {
     
     // MARK: - Helper Methods
     
-    private func getDayInfo(for currentDay: String) -> Day? {
+    func getDayInfo(for currentDay: String) -> Day? {
         let di = getDayNumber(for: currentDay) ?? 0
         return data?.days[di]
     }

@@ -81,9 +81,9 @@
 				Core/Utilities/Constants.swift,
 				Core/Utilities/SharedGroup.swift,
 				Core/Utilities/ThemeColors.swift,
-				Shared/Components/Background.swift,
-				Shared/Components/ClassProgressBar.swift,
-				Shared/Components/ToolBar.swift,
+				Shared/Background.swift,
+				Shared/ClassProgressBar.swift,
+				Shared/ToolBar.swift,
 			);
 			target = E45D48882E6A54D700D88084 /* ScheduleWidgetExtension */;
 		};
@@ -92,6 +92,7 @@
 			membershipExceptions = (
 				Core/Extensions/ArrayExtensions.swift,
 				Core/Models/SimpleEntry.swift,
+				Core/Utilites/RowView.swift,
 				Core/Utilites/WidgetDataLoader.swift,
 				Providers/ScheduleWidgetProvider.swift,
 				Views/ScheduleWidgetEntryView.swift,

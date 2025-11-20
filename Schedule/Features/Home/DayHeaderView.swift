@@ -30,7 +30,7 @@ struct DayHeaderView: View {
             .padding(.horizontal)
         } else {
             VStack(spacing: 0) {
-                Text(" ")
+                Text(" Error ")
                     .font(.system(
                         size: iPad ? 60 : 35,
                         weight: .bold))
