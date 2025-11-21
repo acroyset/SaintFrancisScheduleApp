@@ -238,7 +238,19 @@ struct ContentView: View {
             )
             
         case .ClassEditor:
-            classEditorView
+            ClassEditor(
+                data: Binding(
+                    get: { data ?? ScheduleData(classes: [], days: []) },
+                    set: { newValue in
+                        data = newValue
+                        saveClassesToCloud()
+                    }
+                ),
+                PrimaryColor: PrimaryColor,
+                SecondaryColor: SecondaryColor,
+                TertiaryColor: TertiaryColor,
+                isPortrait: isPortrait
+            )
             
         case .Settings:
             Settings(
@@ -258,22 +270,6 @@ struct ContentView: View {
                 iPad: iPad
             )
         }
-    }
-    
-    private var classEditorView: some View {
-        ClassEditor(
-            data: Binding(
-                get: { data ?? ScheduleData(classes: [], days: []) },
-                set: { newValue in
-                    data = newValue
-                    saveClassesToCloud()
-                }
-            ),
-            PrimaryColor: PrimaryColor,
-            SecondaryColor: SecondaryColor,
-            TertiaryColor: TertiaryColor,
-            isPortrait: isPortrait
-        )
     }
     
     // MARK: - Firebase Integration Methods
