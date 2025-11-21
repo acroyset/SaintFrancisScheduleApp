@@ -490,31 +490,6 @@ struct ContentView: View {
             let nameRaw = d.names[i]
             let start   = d.startTimes[i]
             let end     = d.endTimes[i]
-            let isCurrentClass = (start <= now && now < end) && isToday
-            
-            if (isToday){
-                if i != 0 && d.endTimes[i-1] <= now && now < start {
-                    let endT = start
-                    let startT = d.endTimes[i-1]
-                    let p = progressValue(start: startT.seconds, end: endT.seconds, now: nowSec)
-                    if (
-                        startT > Time(h:8, m:0, s:0) &&
-                        endT < Time(h:14, m:30, s:0) &&
-                        endT.seconds - startT.seconds <= 600
-                    ){
-                        tempLines.append((i, ScheduleLine(
-                            content: "",
-                            base: "",
-                            isCurrentClass: true,
-                            timeRange: "\(startT.string()) to \(endT.string())",
-                            className: "Passing Period",
-                            startSec: startT.seconds,
-                            endSec: endT.seconds,
-                            progress: p
-                        )))
-                    }
-                }
-            }
             
             if nameRaw.hasPrefix("$"),
                let idx = Int(nameRaw.dropFirst()),
@@ -523,25 +498,23 @@ struct ContentView: View {
                 let teacher = (c.teacher == "N" || c.teacher.isEmpty) ? "" : c.teacher
                 let room    = (c.room    == "N" || c.room.isEmpty)    ? "" : c.room
                 
-                let p = progressValue(start: start.seconds, end: end.seconds, now: nowSec)
-                
                 tempLines.append((i, ScheduleLine(
                     content: "",
                     base: nameRaw,
-                    isCurrentClass: isCurrentClass,
+                    isCurrentClass: false,
                     timeRange: "\(start.string()) to \(end.string())",
                     className: c.name,
                     teacher: teacher,
                     room: room,
                     startSec: start.seconds,
                     endSec: end.seconds,
-                    progress: p
+                    progress: nil
                 )))
             } else {
                 tempLines.append((i, ScheduleLine(
                     content: "",
                     base: nameRaw,
-                    isCurrentClass: isCurrentClass,
+                    isCurrentClass: false,
                     timeRange: "\(start.string()) to \(end.string())",
                     className: nameRaw)))
             }
@@ -585,6 +558,57 @@ struct ContentView: View {
                     line.timeRange = "9:45 to 11:05"
                     tempLines[i].line = line
                 }
+            }
+        }
+        
+        tempLines.sort { first, second in
+            guard let firstStart = first.line.startSec, let secondStart = second.line.startSec else {
+                return false
+            }
+            return firstStart < secondStart
+        }
+        
+        for (i, item) in tempLines.enumerated() {
+            var line = item.line
+            if let startSec = line.startSec, let endSec = line.endSec {
+                line.isCurrentClass = (startSec <= nowSec && nowSec < endSec) && isToday
+                line.progress = progressValue(start: startSec, end: endSec, now: nowSec)
+                tempLines[i].line = line
+            }
+        }
+        
+        if isToday {
+            var passingSections: [(index: Int, line: ScheduleLine)] = []
+            for i in 1..<tempLines.count {
+                let prevEnd = tempLines[i-1].line.endSec ?? 0
+                let currStart = tempLines[i].line.startSec ?? 0
+                
+                // Check if there's a gap between classes
+                if currStart > prevEnd {
+                    let gapDuration = currStart - prevEnd
+                    let isCurrentPassing = (prevEnd <= nowSec && nowSec < currStart)
+                    
+                    // Only show passing period if it's currently active AND gap is 10 minutes or less
+                    if isCurrentPassing && gapDuration <= 600 {
+                        let p = progressValue(start: prevEnd, end: currStart, now: nowSec)
+                        
+                        passingSections.append((i, ScheduleLine(
+                            content: "",
+                            base: "",
+                            isCurrentClass: true,
+                            timeRange: "\(Time(seconds: prevEnd).string()) to \(Time(seconds: currStart).string())",
+                            className: "Passing Period",
+                            startSec: prevEnd,
+                            endSec: currStart,
+                            progress: p
+                        )))
+                    }
+                }
+            }
+            
+            // Insert passing periods in reverse order to maintain indices
+            for section in passingSections.reversed() {
+                tempLines.insert(section, at: section.index)
             }
         }
         

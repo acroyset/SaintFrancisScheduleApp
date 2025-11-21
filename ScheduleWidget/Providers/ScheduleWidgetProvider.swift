@@ -48,15 +48,15 @@ struct Provider: TimelineProvider {
                 entries.append(SimpleEntry(date: endTime, lines: lines, dayCode: dayCode))
             }
             
-            // During current class: add update every 5 minutes
+            // During current class: add update every 1 minutes
             if nowSec >= startSec && nowSec < endSec {
-                var nextMin = ((nowSec / 300) + 1) * 300 // Next 5-min mark
+                var nextMin = ((nowSec / 60) + 1) * 60 // Next 1-min mark
                 while nextMin < endSec {
                     let updateTime = today.addingTimeInterval(TimeInterval(nextMin))
                     if updateTime > now {
                         entries.append(SimpleEntry(date: updateTime, lines: lines, dayCode: dayCode))
                     }
-                    nextMin += 300 // Every 5 minutes
+                    nextMin += 60 // Every 1 minutes
                 }
             }
         }
@@ -133,41 +133,12 @@ struct Provider: TimelineProvider {
         // Check if we need to swap lunch and period 4/5
         let shouldSwap = shouldSwapLunchAndPeriod(dayIndex: di, isSecondLunch: data.isSecondLunch)
         
-        var lines: [ScheduleLine] = []
+        var tempLines: [(index: Int, line: ScheduleLine)] = []
         
         for i in day.names.indices {
             let nameRaw = day.names[i]
             var start = day.startTimes[i]
             var end = day.endTimes[i]
-            
-            // Apply second lunch override
-            if shouldSwap {
-                if nameRaw == "Lunch" {
-                    start = Time(h: 12, m: 25, s: 0)
-                    end = Time(h: 13, m: 5, s: 0)
-                } else if nameRaw == "Brunch" {
-                    start = Time(h: 11, m: 10, s: 0)
-                    end = Time(h: 11, m: 35, s: 0)
-                } else if (nameRaw.contains("$4") || nameRaw.contains("$5") ||
-                           nameRaw.contains("Period 4") || nameRaw.contains("Period 5")) {
-                    // Check if this is a Lunch day or Brunch day
-                    // For widget, we need to check the day structure
-                    // Brunch days only have $4 (Activity 3 & 4), not $5
-                    if day.names.contains("Brunch") {
-                        // Brunch day - only swap Period 4
-                        if nameRaw.contains("$4") || nameRaw.contains("Period 4") {
-                            start = Time(h: 9, m: 45, s: 0)
-                            end = Time(h: 11, m: 5, s: 0)
-                        }
-                    } else {
-                        // Lunch day - swap Period 4 or 5
-                        start = Time(h: 11, m: 0, s: 0)
-                        end = Time(h: 12, m: 20, s: 0)
-                    }
-                }
-            }
-            
-            let isCurrentClass = (start <= now && now < end) && Calendar.current.isDateInToday(date)
             
             // Handle class references ($1, $2, etc.)
             if nameRaw.hasPrefix("$"),
@@ -177,34 +148,128 @@ struct Provider: TimelineProvider {
                 let teacher = (c.teacher == "N" || c.teacher.isEmpty) ? "" : c.teacher
                 let room = (c.room == "N" || c.room.isEmpty) ? "" : c.room
                 
-                let p = progressValue(start: start.seconds, end: end.seconds, now: nowSec)
-                
-                lines.append(ScheduleLine(
+                tempLines.append((i, ScheduleLine(
                     content: "",
                     base: nameRaw,
-                    isCurrentClass: isCurrentClass,
+                    isCurrentClass: false,
                     timeRange: "\(start.string()) to \(end.string())",
                     className: c.name,
                     teacher: teacher,
                     room: room,
                     startSec: start.seconds,
                     endSec: end.seconds,
-                    progress: p
-                ))
+                    progress: nil
+                )))
             } else {
-                lines.append(ScheduleLine(
+                tempLines.append((i, ScheduleLine(
                     content: "",
                     base: nameRaw,
-                    isCurrentClass: isCurrentClass,
+                    isCurrentClass: false,
                     timeRange: "\(start.string()) to \(end.string())",
                     className: nameRaw,
                     startSec: start.seconds,
                     endSec: end.seconds
-                ))
+                )))
             }
         }
         
-        return lines
+        // Apply second lunch override
+        if shouldSwap {
+            for (i, item) in tempLines.enumerated() {
+                if item.line.className == "Lunch" {
+                    var line = item.line
+                    line.startSec = Time(h:12, m:25, s:0).seconds
+                    line.endSec   = Time(h:13, m:05, s:0).seconds
+                    line.timeRange = "12:25 to 1:05"
+                    tempLines[i].line = line
+                }
+                
+                // Handle Brunch
+                if item.line.className == "Brunch" {
+                    var line = item.line
+                    line.startSec = Time(h:11, m:10, s:0).seconds
+                    line.endSec = Time(h:11, m:35, s:0).seconds
+                    line.timeRange = "11:10 to 11:35"
+                    tempLines[i].line = line
+                }
+                
+                // Swap Period 4/5 for Lunch days
+                if (item.line.base.contains("$4") || item.line.base.contains("$5")) &&
+                   tempLines.contains(where: { $0.line.className == "Lunch" }) {
+                    var line = item.line
+                    line.startSec = Time(h:11, m:00, s:0).seconds
+                    line.endSec   = Time(h:12, m:20, s:0).seconds
+                    line.timeRange = "11:00 to 12:20"
+                    tempLines[i].line = line
+                }
+                
+                // Swap Period 4 for Brunch days
+                if item.line.base.contains("$4") &&
+                   tempLines.contains(where: { $0.line.className == "Brunch" }) {
+                    var line = item.line
+                    line.startSec = Time(h:9, m:45, s:0).seconds
+                    line.endSec = Time(h:11, m:05, s:0).seconds
+                    line.timeRange = "9:45 to 11:05"
+                    tempLines[i].line = line
+                }
+            }
+        }
+        
+        let isToday = Calendar.current.isDateInToday(date)
+        
+        // Recalculate isCurrentClass with updated times
+        for (i, item) in tempLines.enumerated() {
+            var line = item.line
+            if let startSec = line.startSec, let endSec = line.endSec {
+                line.isCurrentClass = (startSec <= nowSec && nowSec < endSec) && isToday
+                line.progress = progressValue(start: startSec, end: endSec, now: nowSec)
+                tempLines[i].line = line
+            }
+        }
+        
+        // Sort tempLines by start time after swapping
+        tempLines.sort { first, second in
+            guard let firstStart = first.line.startSec, let secondStart = second.line.startSec else {
+                return false
+            }
+            return firstStart < secondStart
+        }
+        
+        // Add passing periods after times are finalized
+        if isToday {
+            var passingSections: [(index: Int, line: ScheduleLine)] = []
+            for i in 1..<tempLines.count {
+                let prevEnd = tempLines[i-1].line.endSec ?? 0
+                let currStart = tempLines[i].line.startSec ?? 0
+                
+                // Check if there's a gap between classes of 10 minutes or less
+                let gapDuration = currStart - prevEnd
+                if gapDuration > 0 && gapDuration <= 600 {
+                    let isCurrentPassing = (prevEnd <= nowSec && nowSec < currStart)
+                    let p = progressValue(start: prevEnd, end: currStart, now: nowSec)
+                    
+                    if isCurrentPassing{
+                        passingSections.append((i, ScheduleLine(
+                            content: "",
+                            base: "",
+                            isCurrentClass: true,
+                            timeRange: "\(Time(seconds: prevEnd).string()) to \(Time(seconds: currStart).string())",
+                            className: "Passing Period",
+                            startSec: prevEnd,
+                            endSec: currStart,
+                            progress: p
+                        )))
+                    }
+                }
+            }
+            
+            // Insert passing periods in reverse order to maintain indices
+            for section in passingSections.reversed() {
+                tempLines.insert(section, at: section.index)
+            }
+        }
+        
+        return tempLines.map { $0.line }
     }
     
     private func shouldSwapLunchAndPeriod(dayIndex: Int, isSecondLunch: [Bool]) -> Bool {

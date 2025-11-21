@@ -31,12 +31,6 @@ func getKeyForDate(_ date: Date) -> String {
     return formatter.string(from: date)
 }
 
-func loadScheduleLines() -> [ScheduleLine] {
-    guard let data = UserDefaults(suiteName: SharedGroup.id)?
-                        .data(forKey: SharedGroup.key) else { return [] }
-    return (try? JSONDecoder().decode([ScheduleLine].self, from: data)) ?? []
-}
-
 func loadThemeColors() -> ThemeColors? {
     guard let data = SharedGroup.defaults.data(forKey: "ThemeColors") else { return nil }
     return try? JSONDecoder().decode(ThemeColors.self, from: data)

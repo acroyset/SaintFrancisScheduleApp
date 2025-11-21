@@ -212,7 +212,7 @@ struct ClassItemScroll: View {
                         if remainingMinutes > 0 {
                             Text("• \(remainingMinutes)m left")
                                 .font(.system(size: iPad ? 16 : 14, weight: .medium))
-                                .foregroundColor(line.isCurrentClass ? TertiaryColor.opacity(0.8) : PrimaryColor.opacity(0.6))
+                                .foregroundColor(TertiaryColor.opacity(0.8))
                         }
                     }
                 }

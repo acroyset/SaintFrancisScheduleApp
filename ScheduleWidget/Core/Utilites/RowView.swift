@@ -11,7 +11,6 @@ import SwiftUI
 @ViewBuilder
 func rowView(_ line: ScheduleLine, note: String, PrimaryColor: Color, SecondaryColor: Color, TertiaryColor: Color) -> some View {
     HStack(spacing: 12) {
-        // NEW: progress bar (only if we have a progress value)
         if let p = line.progress {
             ClassProgressBar(
                 progress: p,
@@ -47,18 +46,18 @@ func rowView(_ line: ScheduleLine, note: String, PrimaryColor: Color, SecondaryC
                         .foregroundStyle(
                             line.isCurrentClass ? TertiaryColor : PrimaryColor.opacity(0.8))
                     
-                    if let end = line.endSec {
+                    if let end = line.endSec, let start = line.startSec {
                         let now = Time.now().seconds
                         let remainMin = max(0, (end - now) / 60)
-                        if line.isCurrentClass && remainMin > 0 {
+                        let isCurrentlyActive = (now >= start && now < end)
+                        if isCurrentlyActive && remainMin > 0 {
                             Text("• \(remainMin)m left")
                                 .font(.system(
                                     size: iPad ? 19 : 15,
                                     weight: line.isCurrentClass ? .bold : .regular,
                                     design: .monospaced
                                 ))
-                                .foregroundStyle(
-                                    line.isCurrentClass ? TertiaryColor.opacity(0.9) : PrimaryColor.opacity(0.7))
+                                .foregroundStyle(TertiaryColor.opacity(0.9))
                         }
                     }
                 }
