@@ -137,8 +137,8 @@ struct Provider: TimelineProvider {
         
         for i in day.names.indices {
             let nameRaw = day.names[i]
-            var start = day.startTimes[i]
-            var end = day.endTimes[i]
+            let start = day.startTimes[i]
+            let end = day.endTimes[i]
             
             // Handle class references ($1, $2, etc.)
             if nameRaw.hasPrefix("$"),

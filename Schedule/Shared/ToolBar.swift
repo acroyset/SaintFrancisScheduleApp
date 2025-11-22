@@ -93,7 +93,7 @@ struct ToolButton: View {
         }
         
         if #available(iOS 26.1, *) {
-            content.buttonStyle(GlassButtonStyle(.regular.tint(active ? PrimaryColor.opacity(0.6) : .clear)))
+            content.buttonStyle(GlassButtonStyle(.regular.tint(active ? PrimaryColor.opacity(0.9) : .clear)))
         } else {
             content.background(
                 ZStack {

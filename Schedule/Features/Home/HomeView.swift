@@ -110,7 +110,7 @@ struct HomeView: View {
                                     SecondaryColor: SecondaryColor,
                                     TertiaryColor: TertiaryColor
                                 )
-                                glassEffect(.regular.tint(PrimaryColor.opacity(0.6)))
+                                .glassEffect(.regular.tint(PrimaryColor.opacity(0.9)))
                                 .padding(16)
                                 
                                 Spacer()
@@ -126,11 +126,12 @@ struct HomeView: View {
                                         TertiaryColor: TertiaryColor,
                                         scheduleDict: scheduleDict
                                     )
-                                    .background(.ultraThinMaterial.opacity(0.95))
+                                    .background(TertiaryColor.opacity(0.95))
                                     .cornerRadius(32)
                                     .padding(8)
                                     .padding(.top, iPad ? 10 : 0)
                                     .animation(.snappy, value: showCalendarGrid)
+                                    .shadow(radius: 16)
                                 } else {
                                     DateNavigator(
                                         showCalendar: $showCalendarGrid,
@@ -141,7 +142,7 @@ struct HomeView: View {
                                         TertiaryColor: TertiaryColor,
                                         scheduleDict: scheduleDict
                                     )
-                                    glassEffect()
+                                    .glassEffect()
                                     .padding(.horizontal, 8)
                                     .padding(.top, iPad ? 36 : 22)
                                     .animation(.snappy, value: showCalendarGrid)
@@ -158,7 +159,7 @@ struct HomeView: View {
                             TertiaryColor: TertiaryColor
                         )
                         .frame(maxWidth: .infinity)
-                        glassEffect(.regular.tint(PrimaryColor.opacity(0.6)))
+                        .glassEffect(.regular.tint(PrimaryColor.opacity(0.9)))
                         .padding(8)
                         
                         
@@ -172,10 +173,11 @@ struct HomeView: View {
                                 TertiaryColor: TertiaryColor,
                                 scheduleDict: scheduleDict
                             )
-                            .background(SecondaryColor)
+                            .background(TertiaryColor.opacity(0.95))
                             .cornerRadius(32)
                             .padding(.horizontal, 8)
                             .animation(.snappy, value: showCalendarGrid)
+                            .shadow(radius: 16)
                         } else {
                             DateNavigator(
                                 showCalendar: $showCalendarGrid,
@@ -186,7 +188,7 @@ struct HomeView: View {
                                 TertiaryColor: TertiaryColor,
                                 scheduleDict: scheduleDict
                             )
-                            glassEffect()
+                            .glassEffect()
                             .padding(.horizontal, 8)
                             .animation(.snappy, value: showCalendarGrid)
                         }
@@ -278,7 +280,7 @@ struct HomeView: View {
                     .padding(.vertical, iPad ? 18 : 14)
                     .padding(.horizontal, iPad ? 28 : 20)
                 }
-                glassEffect(.regular.tint(PrimaryColor.opacity(0.6)))
+                .glassEffect(.regular.tint(PrimaryColor.opacity(0.9)))
                 .padding(.horizontal, iPad ? 40 : 24)
                 .padding(.bottom, iPad ? 80 : 70)
                 .zIndex(5)
