@@ -110,8 +110,8 @@ struct HomeView: View {
                                     SecondaryColor: SecondaryColor,
                                     TertiaryColor: TertiaryColor
                                 )
-                                .glassEffect(.regular.tint(PrimaryColor.opacity(0.9)))
                                 .padding(16)
+                                .glassEffect(.regular.tint(PrimaryColor.opacity(0.9)))
                                 
                                 Spacer()
                             }
@@ -147,6 +147,31 @@ struct HomeView: View {
                                     .padding(.top, iPad ? 36 : 22)
                                     .animation(.snappy, value: showCalendarGrid)
                                 }
+                                
+                                Spacer()
+                            }
+                            
+                            VStack{
+                                Button(action: {
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                        addEvent = true
+                                    }
+                                }) {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: "plus.circle.fill")
+                                            .font(.system(size: iPad ? 24 : 20, weight: .semibold))
+                                        if (iPad){
+                                            Text("Add Personal Event")
+                                                .font(.system(size: iPad ? 20 : 16, weight: .semibold))
+                                        }
+                                    }
+                                    .foregroundColor(TertiaryColor)
+                                    .padding(12)
+                                }
+                                .glassEffect(.regular.tint(PrimaryColor.opacity(0.9)))
+                                .padding(.top, iPad ? 36 : 22)
+                                .padding(.horizontal, iPad ? 40 : 24)
+                                .zIndex(5)
                                 
                                 Spacer()
                             }
@@ -203,9 +228,9 @@ struct HomeView: View {
                                     SecondaryColor: SecondaryColor,
                                     TertiaryColor: TertiaryColor
                                 )
+                                .padding(8)
                                 .background(SecondaryColor)
                                 .cornerRadius(16)
-                                .padding(8)
                                 
                                 Spacer()
                             }
@@ -225,6 +250,34 @@ struct HomeView: View {
                                 .padding(8)
                                 .animation(.snappy, value: showCalendarGrid)
                                 .shadow(radius: 16)
+                                
+                                Spacer()
+                            }
+                            
+                            VStack{
+                                Button(action: {
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                        addEvent = true
+                                    }
+                                }) {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: "plus.circle.fill")
+                                            .font(.system(size: iPad ? 24 : 20, weight: .semibold))
+                                        if iPad{
+                                            Text("Add Personal Event")
+                                                .font(.system(size: iPad ? 20 : 16, weight: .semibold))
+                                        }
+                                    }
+                                    .foregroundColor(TertiaryColor)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(16)
+                                    .background(PrimaryColor)
+                                    .cornerRadius(16)
+                                    .shadow(radius: 8)
+                                }
+                                .padding(.horizontal, iPad ? 40 : 24)
+                                .padding(.bottom, 80)
+                                .zIndex(5)
                                 
                                 Spacer()
                             }
@@ -263,49 +316,51 @@ struct HomeView: View {
             .zIndex(10)
             
             // Add Personal Event button
-            if #available(iOS 26.0, *) {
-                Button(action: {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        addEvent = true
+            if isPortrait{
+                if #available(iOS 26.0, *) {
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            addEvent = true
+                        }
+                    }) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: iPad ? 24 : 20, weight: .semibold))
+                            Text("Add Personal Event")
+                                .font(.system(size: iPad ? 20 : 16, weight: .semibold))
+                        }
+                        .foregroundColor(TertiaryColor)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, iPad ? 18 : 14)
+                        .padding(.horizontal, iPad ? 28 : 20)
                     }
-                }) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: iPad ? 24 : 20, weight: .semibold))
-                        Text("Add Personal Event")
-                            .font(.system(size: iPad ? 20 : 16, weight: .semibold))
+                    .glassEffect(.regular.tint(PrimaryColor.opacity(0.9)))
+                    .padding(.horizontal, iPad ? 40 : 24)
+                    .padding(.bottom, iPad ? 80 : 70)
+                    .zIndex(5)
+                } else {
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            addEvent = true
+                        }
+                    }) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: iPad ? 24 : 20, weight: .semibold))
+                            Text("Add Personal Event")
+                                .font(.system(size: iPad ? 20 : 16, weight: .semibold))
+                        }
+                        .foregroundColor(TertiaryColor)
+                        .frame(maxWidth: .infinity)
+                        .padding(16)
+                        .background(PrimaryColor)
+                        .cornerRadius(16)
+                        .shadow(radius: 8)
                     }
-                    .foregroundColor(TertiaryColor)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, iPad ? 18 : 14)
-                    .padding(.horizontal, iPad ? 28 : 20)
+                    .padding(.horizontal, iPad ? 40 : 24)
+                    .padding(.bottom, 80)
+                    .zIndex(5)
                 }
-                .glassEffect(.regular.tint(PrimaryColor.opacity(0.9)))
-                .padding(.horizontal, iPad ? 40 : 24)
-                .padding(.bottom, iPad ? 80 : 70)
-                .zIndex(5)
-            } else {
-                Button(action: {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        addEvent = true
-                    }
-                }) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: iPad ? 24 : 20, weight: .semibold))
-                        Text("Add Personal Event")
-                            .font(.system(size: iPad ? 20 : 16, weight: .semibold))
-                    }
-                    .foregroundColor(TertiaryColor)
-                    .frame(maxWidth: .infinity)
-                    .padding(16)
-                    .background(PrimaryColor)
-                    .cornerRadius(16)
-                    .shadow(radius: 8)
-                }
-                .padding(.horizontal, iPad ? 40 : 24)
-                .padding(.bottom, 80)
-                .zIndex(5)
             }
         }
         .gesture(
