@@ -35,7 +35,7 @@ struct DateNavigator: View {
         ZStack(alignment: .topLeading) {
             // 1) The inline header:  < Wed 8-13-25 >
             if (!showCalendar){
-                VStack(spacing: 12) {
+                let content = VStack(spacing: 12) {
                     
                     Button {
                         calendarMonthAnchor = startOfMonth(date)
@@ -54,10 +54,15 @@ struct DateNavigator: View {
                     }
                 }
                 .padding(.trailing, 12)
-                .frame(maxWidth: .infinity)
+                
+                if iPad {
+                    content.frame(alignment: .leading)
+                } else {
+                    content.frame(maxWidth: .infinity)
+                }
             }
             else {
-                VStack(spacing: 8) {
+                let content = VStack(spacing: 8) {
                     Button {
                         calendarMonthAnchor = startOfMonth(date)
                         withAnimation(.snappy) { showCalendar.toggle() }
@@ -81,11 +86,21 @@ struct DateNavigator: View {
                             calendarMonthAnchor = cal.date(byAdding: .month, value: -1, to: calendarMonthAnchor) ?? calendarMonthAnchor
                         } label: { Image(systemName: "chevron.left") }
 
-                        Spacer()
+                        if iPad {
+                            Spacer(minLength: 12)
+                        } else {
+                            Spacer()
+                        }
+                        
                         Text(dfMonth.string(from: calendarMonthAnchor))
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(PrimaryColor)
-                        Spacer()
+                        
+                        if iPad {
+                            Spacer(minLength: 12)
+                        } else {
+                            Spacer()
+                        }
 
                         Button {
                             calendarMonthAnchor = cal.date(byAdding: .month, value: 1, to: calendarMonthAnchor) ?? calendarMonthAnchor
@@ -120,9 +135,14 @@ struct DateNavigator: View {
                          scheduleDict: scheduleDict)
                 }
                 .padding(.bottom, 8)
-                .padding(.top, 8)
                 .padding(.trailing, 12)
                 .transition(.opacity)
+                
+                if iPad{
+                    content.frame(alignment: .leading)
+                } else {
+                    content
+                }
             }
         }
     }

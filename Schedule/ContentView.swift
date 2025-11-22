@@ -10,7 +10,7 @@ import Foundation
 import WidgetKit
 
 let version = "Beta 1.10"
-let whatsNew = "\n- Second Lunch! <----- !!!\n- Bug Fixes with Personal Events"
+let whatsNew = "\n- Liquid Glass on iOS 26 <----- !!!\n- Bug Fixes"
 
 struct ContentView: View {
     @EnvironmentObject var authManager: AuthenticationManager
@@ -30,9 +30,9 @@ struct ContentView: View {
     @State private var selectedDate = Date()
     @State private var scrollTarget: Int? = nil
     @State private var showCalendarGrid = false
-    @State private var whatsNewPopup = true
+    @State private var whatsNewPopup = false
     @State private var lastSeenVersion: String = UserDefaults.standard.string(forKey: "LastSeenVersion") ?? ""
-    @State private var isFirstLaunch: Bool = true//!UserDefaults.standard.bool(forKey: "HasLaunchedBefore")
+    @State private var isFirstLaunch: Bool = !UserDefaults.standard.bool(forKey: "HasLaunchedBefore")
     
     @State private var addEvent = false
     
@@ -232,6 +232,7 @@ struct ContentView: View {
                 PrimaryColor: PrimaryColor,
                 SecondaryColor: SecondaryColor,
                 TertiaryColor: TertiaryColor,
+                isPortrait: isPortrait,
                 onDatePick: applySelectedDate(_:))
             .onTapGesture(perform: {
                 withAnimation(.snappy){

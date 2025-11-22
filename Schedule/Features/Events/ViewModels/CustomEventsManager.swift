@@ -94,7 +94,6 @@ class CustomEventsManager: ObservableObject {
         
         do {
             try await CloudEventsDataManager().saveEvents(events, for: user.id)
-            print("✅ Events auto-saved to cloud")
         } catch {
             print("❌ Failed to auto-save events to cloud: \(error)")
         }

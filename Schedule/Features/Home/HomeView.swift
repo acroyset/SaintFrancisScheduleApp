@@ -22,13 +22,15 @@ struct HomeView: View {
     let SecondaryColor: Color
     let TertiaryColor: Color
     
+    var isPortrait: Bool
+    
     var onDatePick: (Date) -> Void
     
     @State private var scrollOffset: CGFloat = 0
     
     // Calculate dynamic header height
     private var headerHeight: CGFloat {
-        showCalendarGrid ? iPad ? 530 : 480 : iPad ? 180 : 140
+        iPad ? isPortrait ? 185 : 130 : isPortrait ? 135 : 100
     }
     
     var body: some View {
@@ -62,88 +64,196 @@ struct HomeView: View {
                         )
                         
                         // Bottom padding to ensure last item isn't hidden behind button
-                        Color.clear.frame(height: iPad ? 160 : 140)
+                        Color.clear.frame(height: iPad ? 160 : 130)
                     }
                 }
             }
             .mask(
-                LinearGradient(
-                    gradient: Gradient(stops: [
-                        .init(color: .clear, location: 0),
-                        .init(color: .black, location: 0.12),
-                        .init(color: .black, location: 0.88),
-                        .init(color: .clear, location: 1.0)
-                    ]),
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
+                Group{
+                    if #available(iOS 26.0, *) {
+                        LinearGradient(
+                            gradient: Gradient(stops: [
+                                .init(color: .clear, location: 0),
+                                .init(color: .black, location: 0.1),
+                                .init(color: .black, location: 0.875),
+                                .init(color: .clear, location: 1.0)
+                            ]),
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    } else {
+                        LinearGradient(
+                            gradient: Gradient(stops: [
+                                .init(color: .clear, location: 0),
+                                .init(color: .clear, location: 0.15),
+                                .init(color: .black, location: 0.2),
+                                .init(color: .black, location: 0.875),
+                                .init(color: .clear, location: 1.0)
+                            ]),
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    }
+                }
             )
             .coordinateSpace(name: "scroll")
             
             // Floating header and date picker
             VStack(spacing: 0) {
                 if #available(iOS 26.0, *) {
-                    DayHeaderView(
-                        dayInfo: getDayInfo(for: dayCode),
-                        PrimaryColor: PrimaryColor,
-                        SecondaryColor: SecondaryColor,
-                        TertiaryColor: TertiaryColor
-                    )
-                    .glassEffect(.regular.tint(PrimaryColor.opacity(0.7)))
-                    .padding(8)
-                    
-                    if showCalendarGrid{
-                        DateNavigator(
-                            showCalendar: $showCalendarGrid,
-                            date: $selectedDate,
-                            onPick: onDatePick,
-                            PrimaryColor: PrimaryColor,
-                            SecondaryColor: SecondaryColor,
-                            TertiaryColor: TertiaryColor,
-                            scheduleDict: scheduleDict
-                        )
-                        .background(.ultraThinMaterial.opacity(0.95))
-                        .cornerRadius(32)
-                        .padding(8)
-                        .animation(.snappy, value: showCalendarGrid)
+                    if !isPortrait {
+                        HStack{
+                            VStack{
+                                DayHeaderView(
+                                    dayInfo: getDayInfo(for: dayCode),
+                                    PrimaryColor: PrimaryColor,
+                                    SecondaryColor: SecondaryColor,
+                                    TertiaryColor: TertiaryColor
+                                )
+                                glassEffect(.regular.tint(PrimaryColor.opacity(0.6)))
+                                .padding(16)
+                                
+                                Spacer()
+                            }
+                            VStack {
+                                if showCalendarGrid{
+                                    DateNavigator(
+                                        showCalendar: $showCalendarGrid,
+                                        date: $selectedDate,
+                                        onPick: onDatePick,
+                                        PrimaryColor: PrimaryColor,
+                                        SecondaryColor: SecondaryColor,
+                                        TertiaryColor: TertiaryColor,
+                                        scheduleDict: scheduleDict
+                                    )
+                                    .background(.ultraThinMaterial.opacity(0.95))
+                                    .cornerRadius(32)
+                                    .padding(8)
+                                    .padding(.top, iPad ? 10 : 0)
+                                    .animation(.snappy, value: showCalendarGrid)
+                                } else {
+                                    DateNavigator(
+                                        showCalendar: $showCalendarGrid,
+                                        date: $selectedDate,
+                                        onPick: onDatePick,
+                                        PrimaryColor: PrimaryColor,
+                                        SecondaryColor: SecondaryColor,
+                                        TertiaryColor: TertiaryColor,
+                                        scheduleDict: scheduleDict
+                                    )
+                                    glassEffect()
+                                    .padding(.horizontal, 8)
+                                    .padding(.top, iPad ? 36 : 22)
+                                    .animation(.snappy, value: showCalendarGrid)
+                                }
+                                
+                                Spacer()
+                            }
+                        }
                     } else {
-                        DateNavigator(
-                            showCalendar: $showCalendarGrid,
-                            date: $selectedDate,
-                            onPick: onDatePick,
+                        DayHeaderView(
+                            dayInfo: getDayInfo(for: dayCode),
                             PrimaryColor: PrimaryColor,
                             SecondaryColor: SecondaryColor,
-                            TertiaryColor: TertiaryColor,
-                            scheduleDict: scheduleDict
+                            TertiaryColor: TertiaryColor
                         )
-                        .glassEffect()
-                        .padding(.horizontal, 8)
-                        .animation(.snappy, value: showCalendarGrid)
+                        .frame(maxWidth: .infinity)
+                        glassEffect(.regular.tint(PrimaryColor.opacity(0.6)))
+                        .padding(8)
+                        
+                        
+                        if showCalendarGrid{
+                            DateNavigator(
+                                showCalendar: $showCalendarGrid,
+                                date: $selectedDate,
+                                onPick: onDatePick,
+                                PrimaryColor: PrimaryColor,
+                                SecondaryColor: SecondaryColor,
+                                TertiaryColor: TertiaryColor,
+                                scheduleDict: scheduleDict
+                            )
+                            .background(SecondaryColor)
+                            .cornerRadius(32)
+                            .padding(.horizontal, 8)
+                            .animation(.snappy, value: showCalendarGrid)
+                        } else {
+                            DateNavigator(
+                                showCalendar: $showCalendarGrid,
+                                date: $selectedDate,
+                                onPick: onDatePick,
+                                PrimaryColor: PrimaryColor,
+                                SecondaryColor: SecondaryColor,
+                                TertiaryColor: TertiaryColor,
+                                scheduleDict: scheduleDict
+                            )
+                            glassEffect()
+                            .padding(.horizontal, 8)
+                            .animation(.snappy, value: showCalendarGrid)
+                        }
                     }
                 } else {
-                    DayHeaderView(
-                        dayInfo: getDayInfo(for: dayCode),
-                        PrimaryColor: PrimaryColor,
-                        SecondaryColor: SecondaryColor,
-                        TertiaryColor: TertiaryColor
-                    )
-                    .background(.ultraThinMaterial.opacity(0.95))
-                    .cornerRadius(8)
-                    .padding(8)
-                    
-                    DateNavigator(
-                        showCalendar: $showCalendarGrid,
-                        date: $selectedDate,
-                        onPick: onDatePick,
-                        PrimaryColor: PrimaryColor,
-                        SecondaryColor: SecondaryColor,
-                        TertiaryColor: TertiaryColor,
-                        scheduleDict: scheduleDict
-                    )
-                    .background(.ultraThinMaterial.opacity(0.95))
-                    .cornerRadius(16)
-                    .padding(8)
-                    .animation(.snappy, value: showCalendarGrid)
+                    if !isPortrait {
+                        HStack{
+                            VStack {
+                                DayHeaderView(
+                                    dayInfo: getDayInfo(for: dayCode),
+                                    PrimaryColor: PrimaryColor,
+                                    SecondaryColor: SecondaryColor,
+                                    TertiaryColor: TertiaryColor
+                                )
+                                .background(SecondaryColor)
+                                .cornerRadius(16)
+                                .padding(8)
+                                
+                                Spacer()
+                            }
+                            
+                            VStack{
+                                DateNavigator(
+                                    showCalendar: $showCalendarGrid,
+                                    date: $selectedDate,
+                                    onPick: onDatePick,
+                                    PrimaryColor: PrimaryColor,
+                                    SecondaryColor: SecondaryColor,
+                                    TertiaryColor: TertiaryColor,
+                                    scheduleDict: scheduleDict
+                                )
+                                .background(TertiaryColor)
+                                .cornerRadius(16)
+                                .padding(8)
+                                .animation(.snappy, value: showCalendarGrid)
+                                .shadow(radius: 16)
+                                
+                                Spacer()
+                            }
+                        }
+                    } else {
+                        DayHeaderView(
+                            dayInfo: getDayInfo(for: dayCode),
+                            PrimaryColor: PrimaryColor,
+                            SecondaryColor: SecondaryColor,
+                            TertiaryColor: TertiaryColor
+                        )
+                        .background(SecondaryColor)
+                        .cornerRadius(16)
+                        .frame(maxWidth: .infinity)
+                        .padding(8)
+                        
+                        DateNavigator(
+                            showCalendar: $showCalendarGrid,
+                            date: $selectedDate,
+                            onPick: onDatePick,
+                            PrimaryColor: PrimaryColor,
+                            SecondaryColor: SecondaryColor,
+                            TertiaryColor: TertiaryColor,
+                            scheduleDict: scheduleDict
+                        )
+                        .background(TertiaryColor)
+                        .cornerRadius(16)
+                        .padding(.horizontal, 8)
+                        .animation(.snappy, value: showCalendarGrid)
+                        .shadow(radius: 16)
+                    }
                 }
                 
                 Spacer()
@@ -163,12 +273,12 @@ struct HomeView: View {
                         Text("Add Personal Event")
                             .font(.system(size: iPad ? 20 : 16, weight: .semibold))
                     }
-                    .foregroundColor(PrimaryColor)
+                    .foregroundColor(TertiaryColor)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, iPad ? 18 : 14)
                     .padding(.horizontal, iPad ? 28 : 20)
-                    .glassEffect()
                 }
+                glassEffect(.regular.tint(PrimaryColor.opacity(0.6)))
                 .padding(.horizontal, iPad ? 40 : 24)
                 .padding(.bottom, iPad ? 80 : 70)
                 .zIndex(5)
@@ -184,15 +294,15 @@ struct HomeView: View {
                         Text("Add Personal Event")
                             .font(.system(size: iPad ? 20 : 16, weight: .semibold))
                     }
-                    .foregroundColor(PrimaryColor)
+                    .foregroundColor(TertiaryColor)
                     .frame(maxWidth: .infinity)
                     .padding(16)
-                    .background(.ultraThinMaterial.opacity(0.95))
+                    .background(PrimaryColor)
                     .cornerRadius(16)
                     .shadow(radius: 8)
                 }
                 .padding(.horizontal, iPad ? 40 : 24)
-                .padding(.bottom, 70)
+                .padding(.bottom, 80)
                 .zIndex(5)
             }
         }

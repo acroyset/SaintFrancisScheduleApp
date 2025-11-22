@@ -31,134 +31,137 @@ struct ProfileMenu: View {
             
             Divider()
             
-            if let user = authManager.user {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Signed in as:")
-                        .font(.caption)
-                        .foregroundStyle(TertiaryColor.highContrastTextColor())
-                    
-                    Text(user.displayName ?? "User")
-                        .font(.headline)
-                        .foregroundColor(PrimaryColor)
-                    
-                    Text(user.email)
-                        .font(.caption)
-                        .foregroundStyle(TertiaryColor.highContrastTextColor())
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding()
-                .background(SecondaryColor)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-            }
-            
-            // Sync Status Message
-            if showSyncMessage {
-                HStack {
-                    Image(systemName: syncMessage.contains("✅") ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                        .foregroundColor(syncMessage.contains("✅") ? .green : .red)
-                    Text(syncMessage.dropFirst())
-                        .font(.footnote)
-                        .foregroundStyle(TertiaryColor.highContrastTextColor())
-                    Spacer()
-                }
-                .padding(.vertical, 4)
-                .transition(.opacity)
-            }
-            
-            // Manual Sync Button
-            Button {
-                sync()
-            } label: {
-                HStack {
-                    if isLoadingSync {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                    } else {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                    Text("Sync to Cloud")
-                }
-                .frame(maxWidth: .infinity, minHeight: iPad ? 44 : 30)
-                .padding()
-                .background(SecondaryColor)
-                .foregroundColor(PrimaryColor)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-            }
-            .disabled(isLoadingSync)
-            
-            Button {
-                load()
-            } label: {
-                HStack {
-                    if isLoadingLoad {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                    } else {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                    Text("Load from Cloud")
-                }
-                .frame(maxWidth: .infinity, minHeight: iPad ? 44 : 30)
-                .padding()
-                .background(SecondaryColor)
-                .foregroundColor(PrimaryColor)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-            }
-            .disabled(isLoadingLoad)
-            
-            Divider()
-
-            Button {
-                tutorial = .Intro
-            } label: {
-                HStack {
-                    Image(systemName: "questionmark.circle")
-                    Text("Start Tutorial")
-                        .font(.system(
-                            size: iPad ? 28 : 18,
-                            weight: .bold,
-                            design: .monospaced
-                        ))
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                }
-                .padding(12)
-                .foregroundStyle(PrimaryColor)
-                .background(SecondaryColor)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-            }
-            
-            Spacer()
-            
-            // Danger Zone
-            VStack(spacing: 8) {
-                Text("Danger Zone")
-                    .font(.caption)
-                    .foregroundColor(.red)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+            ScrollView{
                 
-                Button {
-                    showingDeleteAlert = true
-                } label: {
-                    Text("Delete Account")
-                        .frame(maxWidth: .infinity, minHeight: iPad ? 44 : 30)
-                        .padding()
-                        .background(Color.red.opacity(0.1))
-                        .foregroundColor(.red)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                if let user = authManager.user {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Signed in as:")
+                            .font(.caption)
+                            .foregroundStyle(TertiaryColor.highContrastTextColor())
+                        
+                        Text(user.displayName ?? "User")
+                            .font(.headline)
+                            .foregroundColor(PrimaryColor)
+                        
+                        Text(user.email)
+                            .font(.caption)
+                            .foregroundStyle(TertiaryColor.highContrastTextColor())
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+                    .background(SecondaryColor)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
-            }
-            
-            Button {
-                authManager.signOut()
-                copyText(from: "DefaultClasses.txt", to: "Classes.txt")
-            } label: {
-                Text("Sign Out")
+                
+                // Sync Status Message
+                if showSyncMessage {
+                    HStack {
+                        Image(systemName: syncMessage.contains("✅") ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                            .foregroundColor(syncMessage.contains("✅") ? .green : .red)
+                        Text(syncMessage.dropFirst())
+                            .font(.footnote)
+                            .foregroundStyle(TertiaryColor.highContrastTextColor())
+                        Spacer()
+                    }
+                    .padding(.vertical, 4)
+                    .transition(.opacity)
+                }
+                
+                // Manual Sync Button
+                Button {
+                    sync()
+                } label: {
+                    HStack {
+                        if isLoadingSync {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        } else {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                        Text("Sync to Cloud")
+                    }
                     .frame(maxWidth: .infinity, minHeight: iPad ? 44 : 30)
                     .padding()
                     .background(SecondaryColor)
                     .foregroundColor(PrimaryColor)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .disabled(isLoadingSync)
+                
+                Button {
+                    load()
+                } label: {
+                    HStack {
+                        if isLoadingLoad {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        } else {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                        Text("Load from Cloud")
+                    }
+                    .frame(maxWidth: .infinity, minHeight: iPad ? 44 : 30)
+                    .padding()
+                    .background(SecondaryColor)
+                    .foregroundColor(PrimaryColor)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .disabled(isLoadingLoad)
+                
+                Divider()
+                
+                Button {
+                    tutorial = .Intro
+                } label: {
+                    HStack {
+                        Image(systemName: "questionmark.circle")
+                        Text("Start Tutorial")
+                            .font(.system(
+                                size: iPad ? 28 : 18,
+                                weight: .bold,
+                                design: .monospaced
+                            ))
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                    }
+                    .padding(12)
+                    .foregroundStyle(PrimaryColor)
+                    .background(SecondaryColor)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
+                
+                Spacer()
+                
+                // Danger Zone
+                VStack(spacing: 8) {
+                    Text("Danger Zone")
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    Button {
+                        showingDeleteAlert = true
+                    } label: {
+                        Text("Delete Account")
+                            .frame(maxWidth: .infinity, minHeight: iPad ? 44 : 30)
+                            .padding()
+                            .background(Color.red.opacity(0.1))
+                            .foregroundColor(.red)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                }
+                
+                Button {
+                    authManager.signOut()
+                    copyText(from: "DefaultClasses.txt", to: "Classes.txt")
+                } label: {
+                    Text("Sign Out")
+                        .frame(maxWidth: .infinity, minHeight: iPad ? 44 : 30)
+                        .padding()
+                        .background(SecondaryColor)
+                        .foregroundColor(PrimaryColor)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
             }
         }
         .alert("Delete Account", isPresented: $showingDeleteAlert) {

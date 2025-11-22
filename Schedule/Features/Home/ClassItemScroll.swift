@@ -69,7 +69,7 @@ struct ClassItemScroll: View {
                 VStack {
                     Spacer()
                     if output.isEmpty {
-                        Text("No classes scheduled")
+                        Text("")
                             .font(.title2)
                             .foregroundColor(PrimaryColor)
                     } else {

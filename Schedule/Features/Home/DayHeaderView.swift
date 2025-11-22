@@ -15,14 +15,21 @@ struct DayHeaderView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            Text(dayInfo?.name ?? "Error")
-                .font(.system(
-                    size: iPad ? 60 : 35,
-                    weight: .bold))
-                .foregroundColor(TertiaryColor)
-                .frame(maxWidth: .infinity)
-                .multilineTextAlignment(.center)
-                .padding(12)
+            if #available(iOS 26.0, *) {
+                Text(dayInfo?.name ?? "No Classes")
+                    .font(.system(
+                        size: iPad ? 60 : 35,
+                        weight: .bold))
+                    .foregroundColor(TertiaryColor)
+                    .padding(iPad ? 16 : 12)
+            } else {
+                Text(dayInfo?.name ?? "No Classes")
+                    .font(.system(
+                        size: iPad ? 60 : 35,
+                        weight: .bold))
+                    .foregroundColor(PrimaryColor)
+                    .padding(iPad ? 16 : 12)
+            }
         }
     }
 }
