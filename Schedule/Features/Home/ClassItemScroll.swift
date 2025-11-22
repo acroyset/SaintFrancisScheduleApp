@@ -49,33 +49,18 @@ struct ClassItemScroll: View {
             let combinedItems = createCombinedScheduleItems()
             
             if !combinedItems.isEmpty {
-                GeometryReader { geometry in
-                    ScrollViewReader { proxy in
-                        ScrollView {
-                            LazyVStack(spacing: 12) {
-                                ForEach(Array(combinedItems.enumerated()), id: \.offset) { index, item in
-                                    scheduleItemView(item: item, index: index)
-                                        .id(index)
-                                }
-                            }
-                            .padding(.horizontal, 12)
+                ScrollViewReader { proxy in
+                    LazyVStack(spacing: 12) {
+                        ForEach(Array(combinedItems.enumerated()), id: \.offset) { index, item in
+                            scheduleItemView(item: item, index: index)
+                                .id(index)
                         }
-                        .mask(
-                            LinearGradient(
-                                gradient: Gradient(stops: [
-                                    .init(color: .black, location: 0),
-                                    .init(color: .black, location: 0.85),
-                                    .init(color: .clear, location: 1.0)
-                                ]),
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        .onChange(of: scrollTarget) { _, target in
-                            if let target = target {
-                                withAnimation(.easeInOut(duration: 0.5)) {
-                                    proxy.scrollTo(target, anchor: .center)
-                                }
+                    }
+                    .padding(.horizontal, 12)
+                    .onChange(of: scrollTarget) { _, target in
+                        if let target = target {
+                            withAnimation(.easeInOut(duration: 0.5)) {
+                                proxy.scrollTo(target, anchor: .center)
                             }
                         }
                     }

@@ -51,20 +51,12 @@ struct DateNavigator: View {
                             .frame(maxWidth: .infinity)
                             .multilineTextAlignment(.center)
                             .padding(12)
-                        }
                     }
-                .padding(.trailing, 12)    // keep inside screen edge
+                }
+                .padding(.trailing, 12)
                 .frame(maxWidth: .infinity)
             }
-
-            // 2) Calendar popup overlay (dismiss on outside tap)
             else {
-                // full-screen invisible layer to dismiss
-                //Color.black.opacity(0.1)
-                //    .ignoresSafeArea()
-                //    .onTapGesture { withAnimation(.snappy) { showCalendar = false } }
-
-                // the popup panel (anchored under the header)
                 VStack(spacing: 8) {
                     Button {
                         calendarMonthAnchor = startOfMonth(date)
@@ -80,13 +72,12 @@ struct DateNavigator: View {
                             .frame(maxWidth: .infinity)
                             .multilineTextAlignment(.center)
                             .padding(12)
-                        }
+                    }
                     
                     Divider()
-                    // month header with arrows
+                    
                     HStack {
                         Button {
-                            // Swipe right - go to previous day
                             calendarMonthAnchor = cal.date(byAdding: .month, value: -1, to: calendarMonthAnchor) ?? calendarMonthAnchor
                         } label: { Image(systemName: "chevron.left") }
 
@@ -101,9 +92,9 @@ struct DateNavigator: View {
                         } label: { Image(systemName: "chevron.right") }
                     }
                     .padding(8)
+                    .padding(.horizontal, 12)
 
-                    // weekday headers
-                    let symbols = cal.shortWeekdaySymbols // Sun Mon Tue ...
+                    let symbols = cal.shortWeekdaySymbols
                     let cols = Array(repeating: GridItem(.flexible(), spacing: 6), count: 7)
                     LazyVGrid(columns: cols, spacing: 6) {
                         ForEach(symbols, id: \.self) { s in
@@ -115,7 +106,6 @@ struct DateNavigator: View {
                     }
                     .padding(.horizontal, 8)
 
-                    // days grid
                     CalendarGrid(month: calendarMonthAnchor,
                          selected: date,
                          PrimaryColor: PrimaryColor,
@@ -128,16 +118,10 @@ struct DateNavigator: View {
                             }
                          },
                          scheduleDict: scheduleDict)
-
                 }
                 .padding(.bottom, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color(TertiaryColor))
-                        .shadow(radius: 8, y: 4)
-                )
-                .padding(.top, 8)         // drop just below header
-                .padding(.trailing, 12)    // keep inside screen edge
+                .padding(.top, 8)
+                .padding(.trailing, 12)
                 .transition(.opacity)
             }
         }

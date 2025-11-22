@@ -61,7 +61,7 @@ struct ToolButton: View {
             }
         } label: {
             if #available(iOS 26.1, *) {
-                VStack(spacing: 4) {
+                HStack(spacing: 8) {
                     Image(systemName: icon)
                         .font(.system(size: iPad ? 24 : 18, weight: .semibold))
                         .foregroundColor(active ? TertiaryColor : PrimaryColor)
@@ -69,13 +69,13 @@ struct ToolButton: View {
                     
                     if iPad {
                         Text(label)
-                            .font(.system(size: 10, weight: .medium))
+                            .font(.system(size: 16, weight: .regular))
                             .foregroundColor(active ? TertiaryColor : PrimaryColor)
                     }
                 }
                 .padding(6)
             } else {
-                VStack(spacing: 4) {
+                HStack(spacing: 8) {
                     Image(systemName: icon)
                         .font(.system(size: iPad ? 24 : 18, weight: .semibold))
                         .foregroundColor(active ? TertiaryColor : PrimaryColor)
@@ -83,7 +83,7 @@ struct ToolButton: View {
                     
                     if iPad {
                         Text(label)
-                            .font(.system(size: 10, weight: .medium))
+                            .font(.system(size: 16, weight: .regular))
                             .foregroundColor(active ? TertiaryColor : PrimaryColor)
                     }
                 }
@@ -93,7 +93,7 @@ struct ToolButton: View {
         }
         
         if #available(iOS 26.1, *) {
-            content.buttonStyle(GlassButtonStyle(.regular.tint(active ? PrimaryColor : .white)))
+            content.buttonStyle(GlassButtonStyle(.regular.tint(active ? PrimaryColor.opacity(0.7) : .clear)))
         } else {
             content.background(
                 ZStack {

@@ -53,7 +53,9 @@ struct CalendarGrid: View {
                                 }
                             )
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .buttonStyle(.plain)
+                    .contentShape(Rectangle())
                 } else {
                     // empty leading/trailing cell
                     Color.clear
@@ -63,7 +65,6 @@ struct CalendarGrid: View {
         }
         .padding(.horizontal, 8)
         .padding(.bottom, 10)
-        .background(TertiaryColor)
     }
 
     private func makeDays() -> [Date?] {

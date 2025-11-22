@@ -14,34 +14,15 @@ struct DayHeaderView: View {
     let TertiaryColor: Color
     
     var body: some View {
-        if let day = dayInfo {
-            VStack(spacing: 0) {
-                Text(day.name)
-                    .font(.system(
-                        size: iPad ? 60 : 35,
-                        weight: .bold))
-                    .foregroundColor(PrimaryColor)
-                    .frame(maxWidth: .infinity)
-                    .multilineTextAlignment(.center)
-                    .padding(12)
-                    .background(SecondaryColor)
-                    .cornerRadius(8)
-            }
-            .padding(.horizontal)
-        } else {
-            VStack(spacing: 0) {
-                Text(" Error ")
-                    .font(.system(
-                        size: iPad ? 60 : 35,
-                        weight: .bold))
-                    .foregroundColor(PrimaryColor)
-                    .frame(maxWidth: .infinity)
-                    .multilineTextAlignment(.center)
-                    .padding(12)
-                    .background(SecondaryColor)
-                    .cornerRadius(8)
-            }
-            .padding(.horizontal)
+        VStack(spacing: 0) {
+            Text(dayInfo?.name ?? "Error")
+                .font(.system(
+                    size: iPad ? 60 : 35,
+                    weight: .bold))
+                .foregroundColor(TertiaryColor)
+                .frame(maxWidth: .infinity)
+                .multilineTextAlignment(.center)
+                .padding(12)
         }
     }
 }

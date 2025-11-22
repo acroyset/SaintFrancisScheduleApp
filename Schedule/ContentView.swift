@@ -30,7 +30,7 @@ struct ContentView: View {
     @State private var selectedDate = Date()
     @State private var scrollTarget: Int? = nil
     @State private var showCalendarGrid = false
-    @State private var whatsNewPopup = false
+    @State private var whatsNewPopup = true
     @State private var lastSeenVersion: String = UserDefaults.standard.string(forKey: "LastSeenVersion") ?? ""
     @State private var isFirstLaunch: Bool = true//!UserDefaults.standard.bool(forKey: "HasLaunchedBefore")
     
@@ -60,8 +60,6 @@ struct ContentView: View {
             .onTapGesture(perform: {
                 withAnimation(.snappy){
                     showCalendarGrid = false
-                    whatsNewPopup = false
-                    tutorial = .Hidden
                     
                     UserDefaults.standard.set(version, forKey: "LastSeenVersion")
                 }
@@ -70,15 +68,15 @@ struct ContentView: View {
             VStack {
                 
                 Text("Version - \(version)\nBugs / Ideas - Email acroyset@gmail.com")
-                    .font(.footnote)
+                    .font(.system(
+                        size: iPad ? 12 : 10,
+                        weight: .regular))
                     .foregroundStyle(TertiaryColor.highContrastTextColor())
                     .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal)
+                .padding(.horizontal, 16)
                 .onTapGesture(perform: {
                     withAnimation(.snappy){
                         showCalendarGrid = false
-                        whatsNewPopup = false
-                        tutorial = .Hidden
                         
                         UserDefaults.standard.set(version, forKey: "LastSeenVersion")
                     }
@@ -98,15 +96,35 @@ struct ContentView: View {
             .zIndex(1000)
             
             if tutorial != TutorialState.Hidden {
+                Color.black.opacity(0.0001)
+                    .ignoresSafeArea()
+                    .zIndex(2500)
+                    .onTapGesture {
+                        withAnimation(.snappy) {
+                            tutorial = .Hidden
+                        }
+                    }
+                
                 TutorialView(
                     tutorial: $tutorial,
                     PrimaryColor: PrimaryColor,
                     TertiaryColor: TertiaryColor
                 )
-                .zIndex(2000)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                .zIndex(3000)
             }
-            
+                
             if whatsNewPopup {
+                Color.black.opacity(0.0001)
+                    .ignoresSafeArea()
+                    .zIndex(2500)
+                    .onTapGesture {
+                        withAnimation(.snappy) {
+                            whatsNewPopup = false
+                            UserDefaults.standard.set(version, forKey: "LastSeenVersion")
+                        }
+                    }
+                
                 WhatsNewView(
                     whatsNewPopup: $whatsNewPopup,
                     tutorial: $tutorial,
@@ -115,10 +133,12 @@ struct ContentView: View {
                     TertiaryColor: TertiaryColor,
                     isFirstLaunch: isFirstLaunch
                 )
-                .zIndex(2000)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                .zIndex(3000)
             }
         }
-        .padding()
+        .padding(.top)
+        .padding(.horizontal)
         .background(TertiaryColor.ignoresSafeArea())
         .animation(.easeInOut(duration: 0.1), value: dayCode)
         .onAppear {
@@ -229,7 +249,7 @@ struct ContentView: View {
                 SecondaryColor: SecondaryColor,
                 TertiaryColor: TertiaryColor
             )
-            .padding(.bottom, 80)
+            .padding(.bottom, iPad ? 90 : 80)
             
         case .ClassEditor:
             ClassEditor(
@@ -245,7 +265,7 @@ struct ContentView: View {
                 TertiaryColor: TertiaryColor,
                 isPortrait: isPortrait
             )
-            .padding(.bottom, 80)
+            .padding(.bottom, iPad ? 90 : 80)
             
         case .Settings:
             Settings(
@@ -254,7 +274,7 @@ struct ContentView: View {
                 TertiaryColor: $TertiaryColor,
                 isPortrait: isPortrait
             )
-            .padding(.bottom, 80)
+            .padding(.bottom, iPad ? 90 : 80)
             
         case .Profile:
             ProfileMenu(
@@ -265,7 +285,7 @@ struct ContentView: View {
                 TertiaryColor: $TertiaryColor,
                 iPad: iPad
             )
-            .padding(.bottom, 80)
+            .padding(.bottom, iPad ? 90 : 80)
         }
     }
     
