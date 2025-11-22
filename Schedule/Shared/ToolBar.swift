@@ -13,67 +13,107 @@ struct ToolBar: View {
     var SecondaryColor: Color
     var TertiaryColor: Color
     
-    let tools = ["Home", "News", "Clubs", "Edit Classes", "Settings", "Profile"]
+    let tools: [(name: String, icon: String)] = [
+        ("Home", "house.fill"),
+        ("News", "newspaper.fill"),
+        ("Edit Classes", "pencil.and.list.clipboard"),
+        ("Settings", "gearshape.fill"),
+        ("Profile", "person.crop.circle.fill")
+    ]
     
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
-                ForEach(Array(tools.enumerated()), id: \.offset) { index, tool in
-                    ToolButton(
-                        window: $window,
-                        index: index,
-                        tool: tool,
-                        PrimaryColor: PrimaryColor,
-                        SecondaryColor: SecondaryColor,
-                        TertiaryColor: TertiaryColor
-                    )
-                }
+        HStack {
+            ForEach(Array(tools.enumerated()), id: \.offset) { index, tool in
+                ToolButton(
+                    window: $window,
+                    index: index,
+                    icon: tool.icon,
+                    label: tool.name,
+                    PrimaryColor: PrimaryColor,
+                    SecondaryColor: SecondaryColor,
+                    TertiaryColor: TertiaryColor
+                    
+                )
             }
-            .padding(.horizontal)
         }
-        .background(TertiaryColor)
+        .padding(8)
     }
 }
 
 struct ToolButton: View {
     @Binding var window: Window
     var index: Int
-    var tool: String
+    var icon: String
+    var label: String
     var PrimaryColor: Color
     var SecondaryColor: Color
     var TertiaryColor: Color
     
+    
     var body: some View {
         let active = window.rawValue == index
-        Button {
-            if let w = Window(rawValue: index) {
-                window = w
+        
+        let content = Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                if let w = Window(rawValue: index) {
+                    window = w
+                }
             }
         } label: {
-            if #available(iOS 26.0, *) {
-                Text(tool)
-                    .font(.system(
-                        size: iPad ? 32 : 16,
-                        weight: .semibold,
-                        design: .rounded
-                    ))
-                    .foregroundColor(active ? TertiaryColor : PrimaryColor)
-                    .multilineTextAlignment(.trailing)
-                    .padding(12)
-                    .glassEffect(.regular.tint(active ? PrimaryColor : SecondaryColor), in: .rect(cornerRadius: 16.0))
+            if #available(iOS 26.1, *) {
+                VStack(spacing: 4) {
+                    Image(systemName: icon)
+                        .font(.system(size: iPad ? 24 : 18, weight: .semibold))
+                        .foregroundColor(active ? TertiaryColor : PrimaryColor)
+                        .scaleEffect(active ? 1.1 : 1.0)
+                    
+                    if iPad {
+                        Text(label)
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(active ? TertiaryColor : PrimaryColor)
+                    }
+                }
+                .padding(6)
             } else {
-                Text(tool)
-                    .font(.system(
-                        size: iPad ? 32 : 16,
-                        weight: .semibold,
-                        design: .rounded
-                    ))
-                    .foregroundColor(active ? TertiaryColor : PrimaryColor)
-                    .multilineTextAlignment(.trailing)
-                    .padding(12)
-                    .background()
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                VStack(spacing: 4) {
+                    Image(systemName: icon)
+                        .font(.system(size: iPad ? 24 : 18, weight: .semibold))
+                        .foregroundColor(active ? TertiaryColor : PrimaryColor)
+                        .scaleEffect(active ? 1.1 : 1.0)
+                    
+                    if iPad {
+                        Text(label)
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(active ? TertiaryColor : PrimaryColor)
+                    }
+                }
+                .padding(16)
             }
+
         }
+        
+        if #available(iOS 26.1, *) {
+            content.buttonStyle(GlassButtonStyle(.regular.tint(active ? PrimaryColor : .white)))
+        } else {
+            content.background(
+                ZStack {
+                    if active {
+                        Capsule()
+                            .fill(PrimaryColor)
+                    } else {
+                        Capsule()
+                            .fill(SecondaryColor)
+                    }
+                }
+            )
+        }
+    }
+}
+
+struct ScaleButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+            .animation(.spring(response: 0.2, dampingFraction: 0.7), value: configuration.isPressed)
     }
 }

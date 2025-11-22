@@ -49,20 +49,33 @@ struct ClassItemScroll: View {
             let combinedItems = createCombinedScheduleItems()
             
             if !combinedItems.isEmpty {
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(spacing: 12) {
-                            ForEach(Array(combinedItems.enumerated()), id: \.offset) { index, item in
-                                scheduleItemView(item: item, index: index)
-                                    .id(index)
+                GeometryReader { geometry in
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            LazyVStack(spacing: 12) {
+                                ForEach(Array(combinedItems.enumerated()), id: \.offset) { index, item in
+                                    scheduleItemView(item: item, index: index)
+                                        .id(index)
+                                }
                             }
+                            .padding(.horizontal, 12)
                         }
-                        .padding(.horizontal, 12)
-                    }
-                    .onChange(of: scrollTarget) { _, target in
-                        if let target = target {
-                            withAnimation(.easeInOut(duration: 0.5)) {
-                                proxy.scrollTo(target, anchor: .center)
+                        .mask(
+                            LinearGradient(
+                                gradient: Gradient(stops: [
+                                    .init(color: .black, location: 0),
+                                    .init(color: .black, location: 0.85),
+                                    .init(color: .clear, location: 1.0)
+                                ]),
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .onChange(of: scrollTarget) { _, target in
+                            if let target = target {
+                                withAnimation(.easeInOut(duration: 0.5)) {
+                                    proxy.scrollTo(target, anchor: .center)
+                                }
                             }
                         }
                     }
@@ -84,22 +97,7 @@ struct ClassItemScroll: View {
             }
             
             // Add Event Button
-            Button(action: {
-                showingAddEvent = true
-            }) {
-                HStack {
-                    Image(systemName: "plus.circle.fill")
-                    Text("Add Personal Event")
-                }
-                .font(.system(size: iPad ? 20 : 16, weight: .semibold))
-                .foregroundColor(TertiaryColor)
-                .padding()
-                .frame(maxWidth: .infinity)
-                .background(PrimaryColor)
-                .cornerRadius(12)
-            }
-            .padding(.horizontal, 12)
-            .padding(.top, 8)
+            
         }
         .sheet(isPresented: $showingAddEvent) {
             AddEventView(

@@ -51,7 +51,7 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     
     var body: some View {
-        ZStack {
+        ZStack(alignment: .bottom) {
             Background(
                 PrimaryColor: PrimaryColor,
                 SecondaryColor: SecondaryColor,
@@ -86,18 +86,16 @@ struct ContentView: View {
                 
                 mainContentView
                     .environmentObject(eventsManager)
-                    
-                Divider()
-                Spacer(minLength: 12)
-                
-                ToolBar(
-                    window: $window,
-                    PrimaryColor: PrimaryColor,
-                    SecondaryColor: SecondaryColor,
-                    TertiaryColor: TertiaryColor
-                )
-                    
             }
+            .zIndex(0)
+            
+            ToolBar(
+                window: $window,
+                PrimaryColor: PrimaryColor,
+                SecondaryColor: SecondaryColor,
+                TertiaryColor: TertiaryColor
+            )
+            .zIndex(1000)
             
             if tutorial != TutorialState.Hidden {
                 TutorialView(
@@ -105,6 +103,7 @@ struct ContentView: View {
                     PrimaryColor: PrimaryColor,
                     TertiaryColor: TertiaryColor
                 )
+                .zIndex(2000)
             }
             
             if whatsNewPopup {
@@ -116,6 +115,7 @@ struct ContentView: View {
                     TertiaryColor: TertiaryColor,
                     isFirstLaunch: isFirstLaunch
                 )
+                .zIndex(2000)
             }
         }
         .padding()
@@ -229,13 +229,7 @@ struct ContentView: View {
                 SecondaryColor: SecondaryColor,
                 TertiaryColor: TertiaryColor
             )
-            
-        case .Clubs:
-            ClubView(
-                PrimaryColor: PrimaryColor,
-                SecondaryColor: SecondaryColor,
-                TertiaryColor: TertiaryColor
-            )
+            .padding(.bottom, 80)
             
         case .ClassEditor:
             ClassEditor(
@@ -251,6 +245,7 @@ struct ContentView: View {
                 TertiaryColor: TertiaryColor,
                 isPortrait: isPortrait
             )
+            .padding(.bottom, 80)
             
         case .Settings:
             Settings(
@@ -259,6 +254,7 @@ struct ContentView: View {
                 TertiaryColor: $TertiaryColor,
                 isPortrait: isPortrait
             )
+            .padding(.bottom, 80)
             
         case .Profile:
             ProfileMenu(
@@ -269,6 +265,7 @@ struct ContentView: View {
                 TertiaryColor: $TertiaryColor,
                 iPad: iPad
             )
+            .padding(.bottom, 80)
         }
     }
     
