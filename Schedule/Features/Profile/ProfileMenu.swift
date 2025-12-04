@@ -190,8 +190,8 @@ struct ProfileMenu: View {
         Task {
             do {
                 let theme = ThemeColors(
-                    primary: PrimaryColor.toHex() ?? "#0000FFFF",
-                    secondary: SecondaryColor.toHex() ?? "#0000FF19",
+                    primary: PrimaryColor.toHex() ?? "#00A5FFFF",
+                    secondary: SecondaryColor.toHex() ?? "#00A5FF19",
                     tertiary: TertiaryColor.toHex() ?? "#FFFFFFFF"
                 )
                 

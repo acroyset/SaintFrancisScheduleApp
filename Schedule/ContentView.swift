@@ -8,8 +8,9 @@
 import SwiftUI
 import Foundation
 import WidgetKit
+import UserNotifications
 
-let version = "Beta 1.10"
+let version = "Beta 1.11"
 let whatsNew = "\n- Liquid Glass on iOS 26 <----- !!!\n- Bug Fixes"
 
 struct ContentView: View {
@@ -23,7 +24,7 @@ struct ContentView: View {
     @State private var output = "Loading…"
     @State private var dayCode = ""
     @State private var note = ""
-    @State private var scheduleDict: [String: [String]]? = nil
+    @State var scheduleDict: [String: [String]]? = nil
     @State private var hasTriedFetchingSchedule = false
     @State private var scheduleLines: [ScheduleLine] = []
     @State private var data: ScheduleData? = nil
@@ -67,20 +68,7 @@ struct ContentView: View {
             
             VStack {
                 
-                Text("Version - \(version)\nBugs / Ideas - Email acroyset@gmail.com")
-                    .font(.system(
-                        size: iPad ? 12 : 10,
-                        weight: .regular))
-                    .foregroundStyle(TertiaryColor.highContrastTextColor())
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 16)
-                .onTapGesture(perform: {
-                    withAnimation(.snappy){
-                        showCalendarGrid = false
-                        
-                        UserDefaults.standard.set(version, forKey: "LastSeenVersion")
-                    }
-                })
+                topHeader
                 
                 mainContentView
                     .environmentObject(eventsManager)
@@ -173,9 +161,11 @@ struct ContentView: View {
             case .active:
                 saveDataForWidget()
                 WidgetCenter.shared.reloadAllTimelines()
+                updateNightlyNotification()
                 
             case .background:
                 saveDataForWidget()
+                updateNightlyNotification()
                 
             default:
                 break
@@ -198,6 +188,12 @@ struct ContentView: View {
         .onChange(of: TertiaryColor) { _, _ in
             saveTheme()
         }
+        .onChange(of: NotificationSettings.isEnabled) { _, _ in
+            updateNightlyNotification()
+        }
+        .onChange(of: NotificationSettings.time) { _, _ in
+            updateNightlyNotification()
+        }
         .onReceive(ticker) { _ in
             renderWithEvents()
             saveScheduleLinesWithEvents()
@@ -215,6 +211,27 @@ struct ContentView: View {
     }
     
     // MARK: - Main Content View
+    
+    @ViewBuilder
+    private var topHeader: some View{
+        Text("Version - \(version)\nBugs / Ideas - Email acroyset@gmail.com")
+            .font(.system(
+                size: iPad ? 12 : 10,
+                weight: .regular))
+            .foregroundStyle(TertiaryColor.highContrastTextColor())
+            .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 16)
+        .onTapGesture(perform: {
+            withAnimation(.snappy){
+                showCalendarGrid = false
+                
+                UserDefaults.standard.set(version, forKey: "LastSeenVersion")
+            }
+        })
+
+
+    }
+    
     @ViewBuilder
     private var mainContentView: some View {
         switch window {
@@ -327,9 +344,9 @@ struct ContentView: View {
 
     private func saveTheme() {
         let theme = ThemeColors(
-            primary: PrimaryColor.toHex() ?? "#0000FF",
-            secondary: SecondaryColor.toHex() ?? "#0000FF10",
-            tertiary: TertiaryColor.toHex() ?? "#FFFFFF"
+            primary: PrimaryColor.toHex() ?? "#00A5FFFF",
+            secondary: SecondaryColor.toHex() ?? "#00A5FF19",
+            tertiary: TertiaryColor.toHex() ?? "#FFFFFFFF"
         )
         
         if let data = try? JSONEncoder().encode(theme) {
@@ -437,9 +454,9 @@ struct ContentView: View {
         Task {
             do {
                 let theme = ThemeColors(
-                    primary: PrimaryColor.toHex() ?? "#0000FF",
-                    secondary: SecondaryColor.toHex() ?? "#0000FF10",
-                    tertiary: TertiaryColor.toHex() ?? "#FFFFFF"
+                    primary: PrimaryColor.toHex() ?? "#00A5FFFF",
+                    secondary: SecondaryColor.toHex() ?? "#00A5FF19",
+                    tertiary: TertiaryColor.toHex() ?? "#FFFFFFFF"
                 )
                 try await dataManager.saveToCloud(
                     classes: data.classes,
@@ -462,6 +479,19 @@ struct ContentView: View {
         let di = getDayNumber(for: currentDay) ?? 0
         return data?.days[di]
     }
+    
+    func getTomorrowsDayCode() -> String {
+        guard let scheduleDict = scheduleDict else { return "Unknown" }
+
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date())!
+        let formatter = DateFormatter()
+        formatter.timeZone = .current
+        formatter.dateFormat = "MM-dd-yy"
+
+        let key = formatter.string(from: tomorrow)
+        return scheduleDict[key]?[0] ?? "Unknown"
+    }
+
     
     private func getDayNumber(for currentDay: String) -> Int? {
         let map = ["g1":0,"b1":1,"g2":2,"b2":3,"a1":4,"a2":5,"a3":6,"a4":7,"l1":8,"l2":9,"s1":10]
@@ -740,6 +770,8 @@ struct ContentView: View {
                 SharedGroup.defaults.set(dictData, forKey: "ScheduleDict")
             }
             
+            updateNightlyNotification()
+            
             self.saveDataForWidget()
         }
     }
@@ -904,6 +936,20 @@ struct ContentView: View {
             WidgetCenter.shared.reloadTimelines(ofKind: "ScheduleWidget")
         } catch {
             print("❌ Encoding failed:", error)
+        }
+    }
+    
+    func updateNightlyNotification() {
+        if let scheduleDict = scheduleDict {
+            let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date())!
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MM-dd-yy"
+            let key = formatter.string(from: tomorrow)
+            let rawCode = (scheduleDict[key] ?? ["",""])[0]
+            
+            NotificationManager.shared.scheduleNightly(dayCode: rawCode)
+        } else {
+            NotificationManager.shared.scheduleNightly(dayCode: "")
         }
     }
 }

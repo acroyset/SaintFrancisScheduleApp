@@ -32,85 +32,123 @@ struct Settings: View {
             
             Divider()
             
-            HStack{
-                Text("Primary Color")
-                    .font(.system(
-                        size: iPad ? 28 : 18,
-                        weight: .bold,
-                        design: .monospaced
-                    ))
-                    .padding(12)
-                    .foregroundStyle(PrimaryColor)
-                
-                Spacer()
-                
-                CompactColorPicker(
-                    selectedColor: $PrimaryColor,
-                    isExpanded: Binding(
-                        get: { selectedOption == .p },
-                        set: { newValue in
-                            if newValue {
-                                selectedOption = .p
-                            } else if selectedOption == .p {
-                                selectedOption = .none
+            ScrollView{
+                HStack{
+                    Text("Primary Color")
+                        .font(.system(
+                            size: iPad ? 28 : 18,
+                            weight: .bold,
+                            design: .monospaced
+                        ))
+                        .padding(12)
+                        .foregroundStyle(PrimaryColor)
+                    
+                    Spacer()
+                    
+                    CompactColorPicker(
+                        selectedColor: $PrimaryColor,
+                        isExpanded: Binding(
+                            get: { selectedOption == .p },
+                            set: { newValue in
+                                if newValue {
+                                    selectedOption = .p
+                                } else if selectedOption == .p {
+                                    selectedOption = .none
+                                }
                             }
-                        }
-                    ),
-                    isPortrait: isPortrait)
-            }
-            
-            HStack{
-                Text("Secondary Color")
-                    .font(.system(
-                        size: iPad ? 28 : 18,
-                        weight: .bold,
-                        design: .monospaced
-                    ))
-                    .padding(12)
-                    .foregroundStyle(PrimaryColor)
+                        ),
+                        isPortrait: isPortrait)
+                }
                 
-                Spacer()
-                
-                CompactColorPicker(
-                    selectedColor: $SecondaryColor,
-                    isExpanded: Binding(
-                        get: { selectedOption == .s },
-                        set: { newValue in
-                            if newValue {
-                                selectedOption = .s
-                            } else if selectedOption == .s {
-                                selectedOption = .none
+                HStack{
+                    Text("Secondary Color")
+                        .font(.system(
+                            size: iPad ? 28 : 18,
+                            weight: .bold,
+                            design: .monospaced
+                        ))
+                        .padding(12)
+                        .foregroundStyle(PrimaryColor)
+                    
+                    Spacer()
+                    
+                    CompactColorPicker(
+                        selectedColor: $SecondaryColor,
+                        isExpanded: Binding(
+                            get: { selectedOption == .s },
+                            set: { newValue in
+                                if newValue {
+                                    selectedOption = .s
+                                } else if selectedOption == .s {
+                                    selectedOption = .none
+                                }
                             }
-                        }
-                    ),
-                    isPortrait: isPortrait)
-            }
-            
-            HStack{
-                Text("Tertiary Color")
-                    .font(.system(
-                        size: iPad ? 28 : 18,
-                        weight: .bold,
-                        design: .monospaced
-                    ))
-                    .padding(12)
-                    .foregroundStyle(PrimaryColor)
+                        ),
+                        isPortrait: isPortrait)
+                }
                 
-                Spacer()
-                
-                CompactColorPicker(
-                    selectedColor: $TertiaryColor,
-                    isExpanded: Binding(
-                        get: { selectedOption == .t },
-                        set: { newValue in
-                            if newValue {
-                                selectedOption = .t
-                            } else if selectedOption == .t {
-                                selectedOption = .none
+                HStack{
+                    Text("Tertiary Color")
+                        .font(.system(
+                            size: iPad ? 28 : 18,
+                            weight: .bold,
+                            design: .monospaced
+                        ))
+                        .padding(12)
+                        .foregroundStyle(PrimaryColor)
+                    
+                    Spacer()
+                    
+                    CompactColorPicker(
+                        selectedColor: $TertiaryColor,
+                        isExpanded: Binding(
+                            get: { selectedOption == .t },
+                            set: { newValue in
+                                if newValue {
+                                    selectedOption = .t
+                                } else if selectedOption == .t {
+                                    selectedOption = .none
+                                }
                             }
-                        }
-                    ),
-                    isPortrait: isPortrait)
+                        ),
+                        isPortrait: isPortrait)
+                }
+                
+                Divider()
+                
+                Toggle(isOn: Binding(
+                    get: { NotificationSettings.isEnabled },
+                    set: { NotificationSettings.isEnabled = $0 }
+                )) {
+                    Text("Enable Nightly Notifications")
+                        .font(.system(
+                            size: iPad ? 28 : 18,
+                            weight: .bold,
+                            design: .monospaced
+                        ))
+                        .padding(12)
+                        .foregroundStyle(PrimaryColor)
+                }
+                
+                DatePicker(selection: Binding(
+                    get: { NotificationSettings.time },
+                    set: {
+                        NotificationSettings.time = $0
+                    }
+                ),
+                           displayedComponents: .hourAndMinute
+                ){
+                    Text("Alert Time")
+                        .font(.system(
+                            size: iPad ? 28 : 18,
+                            weight: .bold,
+                            design: .monospaced
+                        ))
+                        .padding(12)
+                        .foregroundStyle(PrimaryColor)
+                }
+                .disabled(!NotificationSettings.isEnabled)
+                
             }
         }
         .onTapGesture {

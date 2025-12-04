@@ -9,7 +9,14 @@ import SwiftUI
 
 
 @ViewBuilder
-func rowView(_ line: ScheduleLine, note: String, PrimaryColor: Color, SecondaryColor: Color, TertiaryColor: Color) -> some View {
+func rowView(
+    _ line: ScheduleLine,
+    note: String,
+    date: Date,
+    PrimaryColor: Color,
+    SecondaryColor: Color,
+    TertiaryColor: Color
+) -> some View {
     HStack(spacing: 12) {
         if let p = line.progress {
             ClassProgressBar(
@@ -22,7 +29,6 @@ func rowView(_ line: ScheduleLine, note: String, PrimaryColor: Color, SecondaryC
                 .frame(width: 6)               // slim left bar
         }
         
-        // existing content...
         if !line.timeRange.isEmpty {
             VStack(alignment: .leading, spacing: 4) {
                 Text(line.timeRange)
@@ -47,7 +53,7 @@ func rowView(_ line: ScheduleLine, note: String, PrimaryColor: Color, SecondaryC
                             line.isCurrentClass ? TertiaryColor : PrimaryColor.opacity(0.8))
                     
                     if let end = line.endSec, let start = line.startSec {
-                        let now = Time.now().seconds
+                        let now = secondsSinceMidnight(date)
                         let remainMin = max(0, (end - now) / 60)
                         let isCurrentlyActive = (now >= start && now < end)
                         if isCurrentlyActive && remainMin > 0 {

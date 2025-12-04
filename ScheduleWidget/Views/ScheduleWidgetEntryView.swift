@@ -55,6 +55,7 @@ struct ScheduleWidgetEntryView: View {
                     rowView(
                         line,
                         note: "",
+                        date: entry.date,
                         PrimaryColor: PrimaryColor,
                         SecondaryColor: SecondaryColor,
                         TertiaryColor: TertiaryColor

@@ -35,7 +35,7 @@ class DataManager: ObservableObject {
     func loadFromCloud(for userId: String) async throws -> ([ClassItem], ThemeColors, [Bool]) {
         let doc = try await db.collection("users").document(userId).getDocument()
         guard let data = doc.data() else {
-            return ([], ThemeColors(primary: "#0000FF", secondary: "#CCCCCC", tertiary: "#FFFFFF"), [false, false])
+            return ([], ThemeColors(primary: "#00A5FFFF", secondary: "#00A5FF19", tertiary: "#FFFFFFFF"), [false, false])
         }
         
         let classesArray = (data["classes"] as? [[String: String]]) ?? []
@@ -49,9 +49,9 @@ class DataManager: ObservableObject {
         
         let themeDict = (data["theme"] as? [String: String]) ?? [:]
         let theme = ThemeColors(
-            primary: themeDict["primary"] ?? "#0000FF",
-            secondary: themeDict["secondary"] ?? "#CCCCCC",
-            tertiary: themeDict["tertiary"] ?? "#FFFFFF"
+            primary: themeDict["primary"] ?? "#00A5FFFF",
+            secondary: themeDict["secondary"] ?? "#00A5FF19",
+            tertiary: themeDict["tertiary"] ?? "#FFFFFFFF"
         )
         
         let isSecondLunch = (data["isSecondLunch"] as? [Bool]) ?? [false, false]
