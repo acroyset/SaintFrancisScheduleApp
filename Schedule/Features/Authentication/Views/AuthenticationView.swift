@@ -13,6 +13,7 @@ struct AuthenticationView: View {
         Group {
             if authManager.user != nil {
                 ContentView()
+                    .overlay(UpdatePromptView())
                     .environmentObject(authManager)
             } else {
                 if isSignUp {
