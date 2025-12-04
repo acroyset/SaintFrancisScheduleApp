@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct HomeView: View {
+    @EnvironmentObject var analyticsManager: AnalyticsManager
     @Binding var selectedDate: Date
     @Binding var showCalendarGrid: Bool
     @Binding var scrollTarget: Int?
@@ -153,6 +154,7 @@ struct HomeView: View {
                             
                             VStack{
                                 Button(action: {
+                                    analyticsManager.trackButtonTap("Add Event")
                                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                         addEvent = true
                                     }
@@ -256,6 +258,7 @@ struct HomeView: View {
                             
                             VStack{
                                 Button(action: {
+                                    analyticsManager.trackButtonTap("Add Event")
                                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                         addEvent = true
                                     }
@@ -319,6 +322,7 @@ struct HomeView: View {
             if isPortrait{
                 if #available(iOS 26.0, *) {
                     Button(action: {
+                        analyticsManager.trackButtonTap("Add Event")
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                             addEvent = true
                         }
@@ -340,6 +344,7 @@ struct HomeView: View {
                     .zIndex(5)
                 } else {
                     Button(action: {
+                        analyticsManager.trackButtonTap("Add Event")
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                             addEvent = true
                         }
@@ -362,6 +367,9 @@ struct HomeView: View {
                     .zIndex(5)
                 }
             }
+        }
+        .onAppear {
+            analyticsManager.trackScreenView("Home")
         }
         .gesture(
             DragGesture()

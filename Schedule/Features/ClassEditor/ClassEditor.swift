@@ -9,6 +9,7 @@ import Foundation
 import SwiftUI
 
 struct ClassEditor: View {
+    @EnvironmentObject var analyticsManager: AnalyticsManager
     @Binding var data: ScheduleData
     var PrimaryColor: Color
     var SecondaryColor: Color
@@ -19,21 +20,26 @@ struct ClassEditor: View {
     @State var selector = 0
     
     var body: some View {
-        if (iPad || isPortrait){
-            VphoneClassEditor(
-                data: $data,
-                PrimaryColor: PrimaryColor,
-                SecondaryColor: SecondaryColor,
-                TertiaryColor: TertiaryColor,
-                isPortrait: isPortrait
-            )
-        } else {
-            HphoneClassEditor(
-                data: $data,
-                PrimaryColor: PrimaryColor,
-                SecondaryColor: SecondaryColor,
-                TertiaryColor: TertiaryColor
-            )
+        ZStack{
+            if (iPad || isPortrait){
+                VphoneClassEditor(
+                    data: $data,
+                    PrimaryColor: PrimaryColor,
+                    SecondaryColor: SecondaryColor,
+                    TertiaryColor: TertiaryColor,
+                    isPortrait: isPortrait
+                )
+            } else {
+                HphoneClassEditor(
+                    data: $data,
+                    PrimaryColor: PrimaryColor,
+                    SecondaryColor: SecondaryColor,
+                    TertiaryColor: TertiaryColor
+                )
+            }
+        }
+        .onAppear {
+            analyticsManager.trackScreenView("ClassEditor")
         }
     }
 }

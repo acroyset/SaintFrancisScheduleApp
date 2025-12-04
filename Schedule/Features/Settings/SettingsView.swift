@@ -12,6 +12,7 @@ enum SelectedOption {
 }
 
 struct Settings: View {
+    @EnvironmentObject var analyticsManager: AnalyticsManager
     @Binding var PrimaryColor: Color
     @Binding var SecondaryColor: Color
     @Binding var TertiaryColor: Color
@@ -150,6 +151,9 @@ struct Settings: View {
                 .disabled(!NotificationSettings.isEnabled)
                 
             }
+        }
+        .onAppear {
+            analyticsManager.trackScreenView("Settings")
         }
         .onTapGesture {
             selectedOption = .none

@@ -17,6 +17,7 @@ struct ContentView: View {
     @EnvironmentObject var authManager: AuthenticationManager
     @StateObject private var dataManager = DataManager()
     @StateObject private var eventsManager = CustomEventsManager()
+    @EnvironmentObject var analyticsManager: AnalyticsManager
     
     @State private var themeDebounceTask: Task<Void, Never>?
     @State private var lastSavedTheme: ThemeColors?
@@ -251,6 +252,7 @@ struct ContentView: View {
                 TertiaryColor: TertiaryColor,
                 isPortrait: isPortrait,
                 onDatePick: applySelectedDate(_:))
+            .environmentObject(analyticsManager)
             .onTapGesture(perform: {
                 withAnimation(.snappy){
                     showCalendarGrid = false
@@ -267,6 +269,7 @@ struct ContentView: View {
                 SecondaryColor: SecondaryColor,
                 TertiaryColor: TertiaryColor
             )
+            .environmentObject(analyticsManager)
             .padding(.bottom, iPad ? 90 : 80)
             
         case .ClassEditor:
@@ -283,6 +286,7 @@ struct ContentView: View {
                 TertiaryColor: TertiaryColor,
                 isPortrait: isPortrait
             )
+            .environmentObject(analyticsManager)
             .padding(.bottom, iPad ? 90 : 80)
             
         case .Settings:
@@ -292,6 +296,7 @@ struct ContentView: View {
                 TertiaryColor: $TertiaryColor,
                 isPortrait: isPortrait
             )
+            .environmentObject(analyticsManager)
             .padding(.bottom, iPad ? 90 : 80)
             
         case .Profile:
@@ -303,6 +308,7 @@ struct ContentView: View {
                 TertiaryColor: $TertiaryColor,
                 iPad: iPad
             )
+            .environmentObject(analyticsManager)
             .padding(.bottom, iPad ? 90 : 80)
         }
     }
