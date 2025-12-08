@@ -12,7 +12,7 @@ struct UpdatePromptView: View {
     @StateObject private var checker = VersionChecker()
     @State private var showUpdate = false
     
-    let appID = "6751200514" // <-- Replace
+    let appID = "6751200514"
     
     var body: some View {
         EmptyView()

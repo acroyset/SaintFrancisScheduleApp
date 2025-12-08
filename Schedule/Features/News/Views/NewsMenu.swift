@@ -9,7 +9,6 @@ import Foundation
 import SwiftUI
 
 struct NewsMenu: View {
-    @EnvironmentObject var analyticsManager: AnalyticsManager
     var PrimaryColor: Color
     var SecondaryColor: Color
     var TertiaryColor: Color
@@ -50,9 +49,6 @@ struct NewsMenu: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             
             .padding()
-        }
-        .onAppear {
-            analyticsManager.trackScreenView("NewsMenu")
         }
         .task { await store.startPolling() }   // begin 10s polling
         .onDisappear { store.stopPolling() }   // stop when view goes away

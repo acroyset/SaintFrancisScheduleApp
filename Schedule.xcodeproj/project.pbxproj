@@ -55,6 +55,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0D470F63103F239ACCE7123C /* Pods_Schedule.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Schedule.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		3E92B9E356B903173C4EA565 /* Pods_ScheduleWidgetExtension.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_ScheduleWidgetExtension.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		E4072D132E4D72DE004A81A7 /* Schedule.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Schedule.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E4072D202E4D72E0004A81A7 /* ScheduleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ScheduleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E4072D2A2E4D72E0004A81A7 /* ScheduleUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ScheduleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -206,6 +208,8 @@
 			children = (
 				E45D488B2E6A54D700D88084 /* WidgetKit.framework */,
 				E45D488D2E6A54D800D88084 /* SwiftUI.framework */,
+				0D470F63103F239ACCE7123C /* Pods_Schedule.framework */,
+				3E92B9E356B903173C4EA565 /* Pods_ScheduleWidgetExtension.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -217,10 +221,12 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = E4072D342E4D72E0004A81A7 /* Build configuration list for PBXNativeTarget "Schedule" */;
 			buildPhases = (
+				FBEB903C0E94EC8DFBC33749 /* [CP] Check Pods Manifest.lock */,
 				E4072D0F2E4D72DE004A81A7 /* Sources */,
 				E4072D102E4D72DE004A81A7 /* Frameworks */,
 				E4072D112E4D72DE004A81A7 /* Resources */,
 				E4257E082E517B0200948AE0 /* Embed Foundation Extensions */,
+				B14BA5C04D69335C844705C2 /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -258,8 +264,6 @@
 				E4072D232E4D72E0004A81A7 /* ScheduleTests */,
 			);
 			name = ScheduleTests;
-			packageProductDependencies = (
-			);
 			productName = ScheduleTests;
 			productReference = E4072D202E4D72E0004A81A7 /* ScheduleTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -281,8 +285,6 @@
 				E4072D2D2E4D72E0004A81A7 /* ScheduleUITests */,
 			);
 			name = ScheduleUITests;
-			packageProductDependencies = (
-			);
 			productName = ScheduleUITests;
 			productReference = E4072D2A2E4D72E0004A81A7 /* ScheduleUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -291,6 +293,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = E45D48A02E6A54DA00D88084 /* Build configuration list for PBXNativeTarget "ScheduleWidgetExtension" */;
 			buildPhases = (
+				6F9C77E15D0FC0900AE6C28E /* [CP] Check Pods Manifest.lock */,
 				E45D48852E6A54D700D88084 /* Sources */,
 				E45D48862E6A54D700D88084 /* Frameworks */,
 				E45D48872E6A54D700D88084 /* Resources */,
@@ -303,8 +306,6 @@
 				E45D488F2E6A54D800D88084 /* ScheduleWidget */,
 			);
 			name = ScheduleWidgetExtension;
-			packageProductDependencies = (
-			);
 			productName = ScheduleWidgetExtension;
 			productReference = E45D48892E6A54D700D88084 /* ScheduleWidgetExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
@@ -391,6 +392,74 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		6F9C77E15D0FC0900AE6C28E /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-ScheduleWidgetExtension-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+		B14BA5C04D69335C844705C2 /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-Schedule/Pods-Schedule-frameworks-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			inputPaths = (
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-Schedule/Pods-Schedule-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Schedule/Pods-Schedule-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		FBEB903C0E94EC8DFBC33749 /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-Schedule-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		E4072D0F2E4D72DE004A81A7 /* Sources */ = {
@@ -575,6 +644,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Schedule/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -585,7 +655,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.11;
+				MARKETING_VERSION = "Beta 1.11";
 				PRODUCT_BUNDLE_IDENTIFIER = Xcode.ScheduleApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -606,6 +676,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Schedule/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -616,7 +687,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.11;
+				MARKETING_VERSION = "Beta 1.11";
 				PRODUCT_BUNDLE_IDENTIFIER = Xcode.ScheduleApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -711,7 +782,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.11;
+				MARKETING_VERSION = "Beta 1.11";
 				PRODUCT_BUNDLE_IDENTIFIER = Xcode.ScheduleApp.ScheduleWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -739,7 +810,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.11;
+				MARKETING_VERSION = "Beta 1.11";
 				PRODUCT_BUNDLE_IDENTIFIER = Xcode.ScheduleApp.ScheduleWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;

@@ -8,7 +8,6 @@
 import SwiftUI
 
 struct HomeView: View {
-    @EnvironmentObject var analyticsManager: AnalyticsManager
     @Binding var selectedDate: Date
     @Binding var showCalendarGrid: Bool
     @Binding var scrollTarget: Int?
@@ -111,7 +110,6 @@ struct HomeView: View {
                                     SecondaryColor: SecondaryColor,
                                     TertiaryColor: TertiaryColor
                                 )
-                                .padding(16)
                                 .glassEffect(.regular.tint(PrimaryColor.opacity(0.9)))
                                 
                                 Spacer()
@@ -129,8 +127,7 @@ struct HomeView: View {
                                     )
                                     .background(TertiaryColor.opacity(0.95))
                                     .cornerRadius(32)
-                                    .padding(8)
-                                    .padding(.top, iPad ? 10 : 0)
+                                    .padding(iPad ? 16 : 8)
                                     .animation(.snappy, value: showCalendarGrid)
                                     .shadow(radius: 16)
                                 } else {
@@ -143,9 +140,9 @@ struct HomeView: View {
                                         TertiaryColor: TertiaryColor,
                                         scheduleDict: scheduleDict
                                     )
+                                    .padding(iPad ? 16 : 8)
                                     .glassEffect()
                                     .padding(.horizontal, 8)
-                                    .padding(.top, iPad ? 36 : 22)
                                     .animation(.snappy, value: showCalendarGrid)
                                 }
                                 
@@ -154,7 +151,6 @@ struct HomeView: View {
                             
                             VStack{
                                 Button(action: {
-                                    analyticsManager.trackButtonTap("Add Event")
                                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                         addEvent = true
                                     }
@@ -170,8 +166,8 @@ struct HomeView: View {
                                     .foregroundColor(TertiaryColor)
                                     .padding(12)
                                 }
+                                .padding(iPad ? 16 : 8)
                                 .glassEffect(.regular.tint(PrimaryColor.opacity(0.9)))
-                                .padding(.top, iPad ? 36 : 22)
                                 .padding(.horizontal, iPad ? 40 : 24)
                                 .zIndex(5)
                                 
@@ -247,6 +243,7 @@ struct HomeView: View {
                                     TertiaryColor: TertiaryColor,
                                     scheduleDict: scheduleDict
                                 )
+                                .padding(8)
                                 .background(TertiaryColor)
                                 .cornerRadius(16)
                                 .padding(8)
@@ -258,7 +255,6 @@ struct HomeView: View {
                             
                             VStack{
                                 Button(action: {
-                                    analyticsManager.trackButtonTap("Add Event")
                                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                         addEvent = true
                                     }
@@ -271,6 +267,7 @@ struct HomeView: View {
                                                 .font(.system(size: iPad ? 20 : 16, weight: .semibold))
                                         }
                                     }
+                                    .padding(8)
                                     .foregroundColor(TertiaryColor)
                                     .frame(maxWidth: .infinity)
                                     .padding(16)
@@ -306,6 +303,7 @@ struct HomeView: View {
                             TertiaryColor: TertiaryColor,
                             scheduleDict: scheduleDict
                         )
+                        .padding(8)
                         .background(TertiaryColor)
                         .cornerRadius(16)
                         .padding(.horizontal, 8)
@@ -322,7 +320,6 @@ struct HomeView: View {
             if isPortrait{
                 if #available(iOS 26.0, *) {
                     Button(action: {
-                        analyticsManager.trackButtonTap("Add Event")
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                             addEvent = true
                         }
@@ -344,7 +341,6 @@ struct HomeView: View {
                     .zIndex(5)
                 } else {
                     Button(action: {
-                        analyticsManager.trackButtonTap("Add Event")
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                             addEvent = true
                         }
@@ -367,9 +363,6 @@ struct HomeView: View {
                     .zIndex(5)
                 }
             }
-        }
-        .onAppear {
-            analyticsManager.trackScreenView("Home")
         }
         .gesture(
             DragGesture()

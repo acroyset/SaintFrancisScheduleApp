@@ -17,7 +17,6 @@ struct ContentView: View {
     @EnvironmentObject var authManager: AuthenticationManager
     @StateObject private var dataManager = DataManager()
     @StateObject private var eventsManager = CustomEventsManager()
-    @EnvironmentObject var analyticsManager: AnalyticsManager
     
     @State private var themeDebounceTask: Task<Void, Never>?
     @State private var lastSavedTheme: ThemeColors?
@@ -53,160 +52,162 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     
     var body: some View {
-        ZStack(alignment: .bottom) {
-            Background(
-                PrimaryColor: PrimaryColor,
-                SecondaryColor: SecondaryColor,
-                TertiaryColor: TertiaryColor
-            )
-            .onTapGesture(perform: {
-                withAnimation(.snappy){
-                    showCalendarGrid = false
-                    
-                    UserDefaults.standard.set(version, forKey: "LastSeenVersion")
-                }
-            })
-            
-            VStack {
-                
-                topHeader
-                
-                mainContentView
-                    .environmentObject(eventsManager)
-            }
-            .zIndex(0)
-            
-            ToolBar(
-                window: $window,
-                PrimaryColor: PrimaryColor,
-                SecondaryColor: SecondaryColor,
-                TertiaryColor: TertiaryColor
-            )
-            .zIndex(1000)
-            
-            if tutorial != TutorialState.Hidden {
-                Color.black.opacity(0.0001)
-                    .ignoresSafeArea()
-                    .zIndex(2500)
-                    .onTapGesture {
-                        withAnimation(.snappy) {
-                            tutorial = .Hidden
-                        }
-                    }
-                
-                TutorialView(
-                    tutorial: $tutorial,
-                    PrimaryColor: PrimaryColor,
-                    TertiaryColor: TertiaryColor
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                .zIndex(3000)
-            }
-                
-            if whatsNewPopup {
-                Color.black.opacity(0.0001)
-                    .ignoresSafeArea()
-                    .zIndex(2500)
-                    .onTapGesture {
-                        withAnimation(.snappy) {
-                            whatsNewPopup = false
-                            UserDefaults.standard.set(version, forKey: "LastSeenVersion")
-                        }
-                    }
-                
-                WhatsNewView(
-                    whatsNewPopup: $whatsNewPopup,
-                    tutorial: $tutorial,
+        NavigationStack{
+            ZStack(alignment: .bottom) {
+                Background(
                     PrimaryColor: PrimaryColor,
                     SecondaryColor: SecondaryColor,
-                    TertiaryColor: TertiaryColor,
-                    isFirstLaunch: isFirstLaunch
+                    TertiaryColor: TertiaryColor
                 )
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                .zIndex(3000)
-            }
-        }
-        .padding(.top)
-        .padding(.horizontal)
-        .background(TertiaryColor.ignoresSafeArea())
-        .animation(.easeInOut(duration: 0.1), value: dayCode)
-        .onAppear {
-            loadData()
-            setScroll()
-            
-            if lastSeenVersion != version {
-                whatsNewPopup = true
-            }
-            
-            if isFirstLaunch {
-                UserDefaults.standard.set(true, forKey: "HasLaunchedBefore")
-            }
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                self.saveDataForWidget()
-            }
-        }
-        .onChange(of: eventsManager.events) { _, _ in
-            renderWithEvents()
-            saveScheduleLinesWithEvents()
-            saveEventsToCloud()
-            saveDataForWidget()
-        }
-        .onChange(of: dayCode) { oldDay, newDay in
-            guard oldDay != newDay else { return }
-            setScroll()
-            saveEventsToCloud()
-        }
-        .onChange(of: scenePhase) { oldPhase, newPhase in
-            switch newPhase {
-            case .active:
-                saveDataForWidget()
-                WidgetCenter.shared.reloadAllTimelines()
-                updateNightlyNotification()
+                .onTapGesture(perform: {
+                    withAnimation(.snappy){
+                        showCalendarGrid = false
+                        
+                        UserDefaults.standard.set(version, forKey: "LastSeenVersion")
+                    }
+                })
                 
-            case .background:
-                saveDataForWidget()
-                updateNightlyNotification()
+                VStack {
+                    
+                    topHeader
+                    
+                    mainContentView
+                        .environmentObject(eventsManager)
+                }
+                .zIndex(0)
                 
-            default:
-                break
+                ToolBar(
+                    window: $window,
+                    PrimaryColor: PrimaryColor,
+                    SecondaryColor: SecondaryColor,
+                    TertiaryColor: TertiaryColor
+                )
+                .zIndex(1000)
+                
+                if tutorial != TutorialState.Hidden {
+                    Color.black.opacity(0.0001)
+                        .ignoresSafeArea()
+                        .zIndex(2500)
+                        .onTapGesture {
+                            withAnimation(.snappy) {
+                                tutorial = .Hidden
+                            }
+                        }
+                    
+                    TutorialView(
+                        tutorial: $tutorial,
+                        PrimaryColor: PrimaryColor,
+                        TertiaryColor: TertiaryColor
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .zIndex(3000)
+                }
+                
+                if whatsNewPopup {
+                    Color.black.opacity(0.0001)
+                        .ignoresSafeArea()
+                        .zIndex(2500)
+                        .onTapGesture {
+                            withAnimation(.snappy) {
+                                whatsNewPopup = false
+                                UserDefaults.standard.set(version, forKey: "LastSeenVersion")
+                            }
+                        }
+                    
+                    WhatsNewView(
+                        whatsNewPopup: $whatsNewPopup,
+                        tutorial: $tutorial,
+                        PrimaryColor: PrimaryColor,
+                        SecondaryColor: SecondaryColor,
+                        TertiaryColor: TertiaryColor,
+                        isFirstLaunch: isFirstLaunch
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .zIndex(3000)
+                }
             }
-        }
-        .onChange(of: window) { oldWindow, newWindow in
-            guard oldWindow != newWindow else { return }
-            withAnimation(.snappy){
-                showCalendarGrid = false;
+            .padding(.top)
+            .padding(.horizontal)
+            .background(TertiaryColor.ignoresSafeArea())
+            .animation(.easeInOut(duration: 0.1), value: dayCode)
+            .onAppear {
+                loadData()
+                setScroll()
+                
+                if lastSeenVersion != version {
+                    whatsNewPopup = true
+                }
+                
+                if isFirstLaunch {
+                    UserDefaults.standard.set(true, forKey: "HasLaunchedBefore")
+                }
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    self.saveDataForWidget()
+                }
             }
-            saveClassesToCloud()
-            saveEventsToCloud()
-        }
-        .onChange(of: PrimaryColor) { _, _ in
-            saveTheme()
-        }
-        .onChange(of: SecondaryColor) { _, _ in
-            saveTheme()
-        }
-        .onChange(of: TertiaryColor) { _, _ in
-            saveTheme()
-        }
-        .onChange(of: NotificationSettings.isEnabled) { _, _ in
-            updateNightlyNotification()
-        }
-        .onChange(of: NotificationSettings.time) { _, _ in
-            updateNightlyNotification()
-        }
-        .onReceive(ticker) { _ in
-            renderWithEvents()
-            saveScheduleLinesWithEvents()
-            saveDataForWidget()
-            setIsPortrait()
-            
-            let now = Date()
-            let lastWidgetCheck = SharedGroup.defaults.object(forKey: "LastWidgetCheck") as? Date ?? Date.distantPast
-            
-            if now.timeIntervalSince(lastWidgetCheck) > 30 {
-                SharedGroup.defaults.set(now, forKey: "LastWidgetCheck")
-                handleWidgetRefreshRequest()
+            .onChange(of: eventsManager.events) { _, _ in
+                renderWithEvents()
+                saveScheduleLinesWithEvents()
+                saveEventsToCloud()
+                saveDataForWidget()
+            }
+            .onChange(of: dayCode) { oldDay, newDay in
+                guard oldDay != newDay else { return }
+                setScroll()
+                saveEventsToCloud()
+            }
+            .onChange(of: scenePhase) { oldPhase, newPhase in
+                switch newPhase {
+                case .active:
+                    saveDataForWidget()
+                    WidgetCenter.shared.reloadAllTimelines()
+                    updateNightlyNotification()
+                    
+                case .background:
+                    saveDataForWidget()
+                    updateNightlyNotification()
+                    
+                default:
+                    break
+                }
+            }
+            .onChange(of: window) { oldWindow, newWindow in
+                guard oldWindow != newWindow else { return }
+                withAnimation(.snappy){
+                    showCalendarGrid = false;
+                }
+                saveClassesToCloud()
+                saveEventsToCloud()
+            }
+            .onChange(of: PrimaryColor) { _, _ in
+                saveTheme()
+            }
+            .onChange(of: SecondaryColor) { _, _ in
+                saveTheme()
+            }
+            .onChange(of: TertiaryColor) { _, _ in
+                saveTheme()
+            }
+            .onChange(of: NotificationSettings.isEnabled) { _, _ in
+                updateNightlyNotification()
+            }
+            .onChange(of: NotificationSettings.time) { _, _ in
+                updateNightlyNotification()
+            }
+            .onReceive(ticker) { _ in
+                renderWithEvents()
+                saveScheduleLinesWithEvents()
+                saveDataForWidget()
+                setIsPortrait()
+                
+                let now = Date()
+                let lastWidgetCheck = SharedGroup.defaults.object(forKey: "LastWidgetCheck") as? Date ?? Date.distantPast
+                
+                if now.timeIntervalSince(lastWidgetCheck) > 30 {
+                    SharedGroup.defaults.set(now, forKey: "LastWidgetCheck")
+                    handleWidgetRefreshRequest()
+                }
             }
         }
     }
@@ -229,8 +230,6 @@ struct ContentView: View {
                 UserDefaults.standard.set(version, forKey: "LastSeenVersion")
             }
         })
-
-
     }
     
     @ViewBuilder
@@ -252,7 +251,6 @@ struct ContentView: View {
                 TertiaryColor: TertiaryColor,
                 isPortrait: isPortrait,
                 onDatePick: applySelectedDate(_:))
-            .environmentObject(analyticsManager)
             .onTapGesture(perform: {
                 withAnimation(.snappy){
                     showCalendarGrid = false
@@ -269,7 +267,6 @@ struct ContentView: View {
                 SecondaryColor: SecondaryColor,
                 TertiaryColor: TertiaryColor
             )
-            .environmentObject(analyticsManager)
             .padding(.bottom, iPad ? 90 : 80)
             
         case .ClassEditor:
@@ -286,7 +283,6 @@ struct ContentView: View {
                 TertiaryColor: TertiaryColor,
                 isPortrait: isPortrait
             )
-            .environmentObject(analyticsManager)
             .padding(.bottom, iPad ? 90 : 80)
             
         case .Settings:
@@ -296,7 +292,6 @@ struct ContentView: View {
                 TertiaryColor: $TertiaryColor,
                 isPortrait: isPortrait
             )
-            .environmentObject(analyticsManager)
             .padding(.bottom, iPad ? 90 : 80)
             
         case .Profile:
@@ -308,7 +303,6 @@ struct ContentView: View {
                 TertiaryColor: $TertiaryColor,
                 iPad: iPad
             )
-            .environmentObject(analyticsManager)
             .padding(.bottom, iPad ? 90 : 80)
         }
     }

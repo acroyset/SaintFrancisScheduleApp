@@ -11,7 +11,6 @@ import GoogleSignIn
 @main
 struct ScheduleApp: App {
     let notificationDelegate = NotificationDelegate()
-    @StateObject private var analyticsManager = AnalyticsManager()
     
     init() {
         let center = UNUserNotificationCenter.current()
@@ -39,7 +38,6 @@ struct ScheduleApp: App {
     var body: some Scene {
         WindowGroup {
             AuthenticationView()
-                .environmentObject(analyticsManager)
         }
     }
 }

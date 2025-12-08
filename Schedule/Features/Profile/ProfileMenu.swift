@@ -2,7 +2,6 @@ import SwiftUI
 import Foundation
 
 struct ProfileMenu: View {
-    @EnvironmentObject var analyticsManager: AnalyticsManager
     @EnvironmentObject var authManager: AuthenticationManager
     @StateObject private var dataManager = DataManager()
     @Binding var data: ScheduleData?
@@ -154,7 +153,7 @@ struct ProfileMenu: View {
                 
                 Button {
                     authManager.signOut()
-                    copyText(from: "DefaultClasses.txt", to: "Classes.txt")
+                    copyText(from: "Resources/DefaultClasses.txt", to: "Resources/Classes.txt")
                 } label: {
                     Text("Sign Out")
                         .frame(maxWidth: .infinity, minHeight: iPad ? 44 : 30)
@@ -163,37 +162,14 @@ struct ProfileMenu: View {
                         .foregroundColor(PrimaryColor)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
-                
-                if authManager.user?.email == "acroyset@gmail.com" {
-                    Divider()
-                    
-                    NavigationLink(destination: AnalyticsDashboard(
-                        PrimaryColor: PrimaryColor,
-                        SecondaryColor: SecondaryColor,
-                        TertiaryColor: TertiaryColor
-                    ).environmentObject(analyticsManager)) {
-                        HStack {
-                            Image(systemName: "chart.bar.fill")
-                            Text("Analytics Dashboard")
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(SecondaryColor)
-                        .foregroundColor(PrimaryColor)
-                        .cornerRadius(8)
-                    }
-                }
             }
-        }
-        .onAppear {
-            analyticsManager.trackScreenView("ProfileMenu")
         }
         .alert("Delete Account", isPresented: $showingDeleteAlert) {
             Button("Cancel", role: .cancel) { }
             Button("Delete", role: .destructive) {
                 Task {
                     deleteAccount()
-                    copyText(from: "DefaultClasses.txt", to: "Classes.txt")
+                    copyText(from: "Resources/DefaultClasses.txt", to: "Resources/Classes.txt")
                 }
             }
         } message: {
