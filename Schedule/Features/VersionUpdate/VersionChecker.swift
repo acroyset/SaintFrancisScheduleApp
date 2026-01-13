@@ -41,5 +41,5 @@ struct AppStoreResult: Codable {
 }
 
 func isUpdateAvailable(current: String, latest: String) -> Bool {
-    return latest.compare(current, options: .numeric) == .orderedDescending
+    return latest > current;
 }

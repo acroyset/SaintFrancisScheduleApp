@@ -16,12 +16,12 @@ func fancyDayName(_ code: String) -> String {
         "G2": "Gold 2",
         "B1": "Brown 1",
         "B2": "Brown 2",
-        "A1": "Anchor 1",
-        "A2": "Anchor 2",
-        "A3": "Anchor 3",
-        "A4": "Anchor 4",
-        "L1": "Late Start 1",
-        "L2": "Late Start 2",
+        "A1": "Activity 1",
+        "A2": "Activity 2",
+        "A3": "Activity 3",
+        "A4": "Activity 4",
+        "L1": "Liturgy 1",
+        "L2": "Liturgy 2",
         "S1": "Special Schedule"
     ]
 
@@ -40,7 +40,7 @@ class NotificationManager {
         
         let content = UNMutableNotificationContent()
         content.title = "Daily Update"
-        content.body = "Tomorrow is a \(fancy) Day."
+        content.body = "Tomorrow is \(fancy)"
         content.sound = .default
         
         // Unique ID per day

@@ -21,9 +21,8 @@ struct UpdatePromptView: View {
 
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                     if let latest = checker.latestVersion {
-                        let current = Bundle.main.appVersion
                         
-                        if isUpdateAvailable(current: current, latest: latest) {
+                        if isUpdateAvailable(current: version, latest: latest) {
                             showUpdate = true
                         }
                     }
