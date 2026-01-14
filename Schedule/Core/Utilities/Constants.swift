@@ -17,7 +17,7 @@ func progressValue(start: Int, end: Int, now: Int) -> Double {
 enum Window: Int {
     case Home = 0
     case News = 1
-    case ClassEditor = 2
+    case ClassesView = 2
     case Settings = 3
     case Profile = 4
 }

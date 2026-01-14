@@ -10,8 +10,8 @@ import Foundation
 import WidgetKit
 import UserNotifications
 
-let version = "Beta 1.11"
-let whatsNew = "\n- Liquid Glass on iOS 26 <----- !!!\n- Bug Fixes"
+let version = "Beta 1.12"
+let whatsNew = "\n- Notifications\n- GPA Calculator\n- Bug Fixes"
 
 struct ContentView: View {
     @EnvironmentObject var authManager: AuthenticationManager
@@ -269,8 +269,8 @@ struct ContentView: View {
             )
             .padding(.bottom, iPad ? 90 : 80)
             
-        case .ClassEditor:
-            ClassEditor(
+        case .ClassesView:
+            ClassesView(
                 data: Binding(
                     get: { data ?? ScheduleData(classes: [], days: []) },
                     set: { newValue in

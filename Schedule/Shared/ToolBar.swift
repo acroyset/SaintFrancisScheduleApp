@@ -6,6 +6,39 @@
 //
 
 import SwiftUI
+import Foundation
+
+struct NewBadge: ViewModifier {
+    let isShown: Bool
+    private let overhang: CGFloat = 4
+
+    func body(content: Content) -> some View {
+        ZStack(alignment: .topTrailing) {
+            content
+                .padding(.top, overhang)
+                .padding(.trailing, overhang)
+
+            if isShown {
+                Text("NEW")
+                    .font(.caption2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 4)
+                    .background(Color.red)
+                    .clipShape(Capsule())
+                    .offset(x: overhang, y: -overhang)
+            }
+        }
+    }
+}
+
+
+extension View {
+    func newBadge(_ isShown: Bool = true) -> some View {
+        modifier(NewBadge(isShown: isShown))
+    }
+}
 
 struct ToolBar: View {
     @Binding var window: Window
@@ -16,7 +49,7 @@ struct ToolBar: View {
     let tools: [(name: String, icon: String)] = [
         ("Home", "house.fill"),
         ("News", "newspaper.fill"),
-        ("Edit Classes", "pencil.and.list.clipboard"),
+        ("Classes", "pencil.and.list.clipboard"),
         ("Settings", "gearshape.fill"),
         ("Profile", "person.crop.circle.fill")
     ]
@@ -32,8 +65,8 @@ struct ToolBar: View {
                     PrimaryColor: PrimaryColor,
                     SecondaryColor: SecondaryColor,
                     TertiaryColor: TertiaryColor
-                    
                 )
+                .newBadge(tool.name == "Classes")
             }
         }
         .padding(8)
