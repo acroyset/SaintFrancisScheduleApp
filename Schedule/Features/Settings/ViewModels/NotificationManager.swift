@@ -1,12 +1,11 @@
 //
-//  File.swift
+//  NotificationManager.swift
 //  Schedule
 //
 //  Created by Andreas Royset on 12/2/25.
 //
 
 import Foundation
-
 import UserNotifications
 import SwiftUI
 
@@ -30,9 +29,16 @@ func fancyDayName(_ code: String) -> String {
 
 class NotificationManager {
     static let shared = NotificationManager()
+    private let notificationIDPrefix = "nightly"
     
     func scheduleNightly(dayCode: String) {
         guard NotificationSettings.isEnabled else {
+            cancelNightlyNotifications()
+            return
+        }
+        
+        guard !dayCode.isEmpty && dayCode != "Unknown" else {
+            print("⚠️ Notification: Invalid day code provided")
             return
         }
         
@@ -43,24 +49,82 @@ class NotificationManager {
         content.body = "Tomorrow is \(fancy)"
         content.sound = .default
         
-        // Unique ID per day
+        // Generate unique ID based on date to prevent duplicates
         let formatter = DateFormatter()
         formatter.dateFormat = "MM-dd-yy"
-        let id = "nightly-\(formatter.string(from: Date()))"
+        let today = formatter.string(from: Date())
+        let id = "\(notificationIDPrefix)-\(today)"
         
-        // Use user-selected time
+        // Calculate tomorrow's date for the notification
+        guard let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) else {
+            print("❌ Notification: Failed to calculate tomorrow")
+            return
+        }
+        
+        // Get user-selected time
         let selectedTime = NotificationSettings.time
-        var comps = Calendar.current.dateComponents([.year, .month, .day], from: Date())
-        comps.hour = Calendar.current.component(.hour, from: selectedTime)
-        comps.minute = Calendar.current.component(.minute, from: selectedTime)
+        let timeComponents = Calendar.current.dateComponents([.hour, .minute], from: selectedTime)
         
-        let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
+        // Create date components for tomorrow at the selected time
+        var tomorrowComponents = Calendar.current.dateComponents([.year, .month, .day], from: tomorrow)
+        tomorrowComponents.hour = timeComponents.hour
+        tomorrowComponents.minute = timeComponents.minute
+        tomorrowComponents.second = 0
         
+        // Verify the trigger time is in the future
+        guard let triggerDate = Calendar.current.date(from: tomorrowComponents),
+              triggerDate > Date() else {
+            print("⚠️ Notification: Trigger time is in the past, skipping")
+            return
+        }
+        
+        let trigger = UNCalendarNotificationTrigger(dateMatching: tomorrowComponents, repeats: false)
         let request = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
+        
+        // Remove any existing nightly notifications before adding new one
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [id])
         
         UNUserNotificationCenter.current().add(request) { err in
             if let err = err {
-                print("❌ Failed:", err)
+                print("❌ Notification scheduling failed: \(err)")
+            } else {
+                print("✅ Notification scheduled for tomorrow at \(tomorrowComponents.hour ?? 0):\(String(format: "%02d", tomorrowComponents.minute ?? 0))")
+            }
+        }
+    }
+    
+    /// Cancel all nightly notifications
+    func cancelNightlyNotifications() {
+        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
+            let nightlyIDs = requests
+                .filter { $0.identifier.hasPrefix(self.notificationIDPrefix) }
+                .map { $0.identifier }
+            
+            if !nightlyIDs.isEmpty {
+                UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: nightlyIDs)
+                print("✅ Cancelled \(nightlyIDs.count) nightly notification(s)")
+            }
+        }
+    }
+    
+    /// Remove old notifications from past dates (cleanup)
+    func cleanupExpiredNotifications() {
+        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
+            let now = Date()
+            var expiredIDs: [String] = []
+            
+            for request in requests {
+                if request.identifier.hasPrefix(self.notificationIDPrefix),
+                   let trigger = request.trigger as? UNCalendarNotificationTrigger,
+                   let nextTrigger = trigger.nextTriggerDate(),
+                   nextTrigger < now {
+                    expiredIDs.append(request.identifier)
+                }
+            }
+            
+            if !expiredIDs.isEmpty {
+                UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: expiredIDs)
+                print("🧹 Cleaned up \(expiredIDs.count) expired notification(s)")
             }
         }
     }
@@ -73,7 +137,21 @@ class NotificationSettings {
     
     static var isEnabled: Bool {
         get { UserDefaults.standard.bool(forKey: enabledKey) }
-        set { UserDefaults.standard.set(newValue, forKey: enabledKey) }
+        set {
+            UserDefaults.standard.set(newValue, forKey: enabledKey)
+            if newValue {
+                // Re-request notification permissions if user re-enables
+                UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+                    if !granted {
+                        print("⚠️ Notification permissions not granted")
+                        UserDefaults.standard.set(false, forKey: enabledKey)
+                    }
+                }
+            } else {
+                // Cancel all notifications if disabled
+                NotificationManager.shared.cancelNightlyNotifications()
+            }
+        }
     }
     
     static var time: Date {

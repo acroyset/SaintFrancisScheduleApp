@@ -80,6 +80,7 @@
 				Core/Models/ScheduleLine.swift,
 				Core/Models/Time.swift,
 				Core/Utilities/Constants.swift,
+				Core/Utilities/CSVParser.swift,
 				Core/Utilities/SharedGroup.swift,
 				Core/Utilities/ThemeColors.swift,
 				Shared/Background.swift,

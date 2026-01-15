@@ -2,10 +2,8 @@
 //  ThemeColors.swift
 //  Schedule
 //
-//  Created by Andreas Royset on 9/4/25.
+//  Created by Andreas Royset on 1/14/26.
 //
-
-import Foundation
 
 struct ThemeColors: Codable {
     var primary: String

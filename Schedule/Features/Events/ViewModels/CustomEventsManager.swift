@@ -14,6 +14,7 @@ class CustomEventsManager: ObservableObject {
     
     private let userDefaults = UserDefaults.standard
     private let eventsKey = "CustomEvents"
+    private let syncQueue = DispatchQueue(label: "com.schedule.events.sync", attributes: .concurrent)
     private var authManager: AuthenticationManager?
     
     init() {
@@ -21,20 +22,22 @@ class CustomEventsManager: ObservableObject {
     }
     
     func setAuthManager(_ manager: AuthenticationManager) {
-            self.authManager = manager
-        }
+        self.authManager = manager
+    }
     
     // MARK: - Persistence
     
     @MainActor func saveEvents() {
+        let hasUser = authManager?.user != nil
+        
         do {
-            let data = try JSONEncoder().encode(events)
-            userDefaults.set(data, forKey: eventsKey)
+            let data = try JSONEncoder().encode(self.events)
+            self.userDefaults.set(data, forKey: self.eventsKey)
             SharedGroup.defaults.set(data, forKey: "CustomEvents")
             
-            if authManager?.user != nil {
+            if hasUser {
                 Task {
-                    await saveToCloudAsync()
+                    await self.saveToCloudAsync()
                 }
             }
         } catch {
@@ -43,11 +46,17 @@ class CustomEventsManager: ObservableObject {
     }
     
     func loadEvents() {
-        guard let data = userDefaults.data(forKey: eventsKey) else { return }
-        do {
-            events = try JSONDecoder().decode([CustomEvent].self, from: data)
-        } catch {
-            print("❌ Failed to load custom events: \(error)")
+        syncQueue.async { [weak self] in
+            guard let self = self else { return }
+            guard let data = self.userDefaults.data(forKey: self.eventsKey) else { return }
+            do {
+                let loadedEvents = try JSONDecoder().decode([CustomEvent].self, from: data)
+                DispatchQueue.main.async {
+                    self.events = loadedEvents
+                }
+            } catch {
+                print("❌ Failed to load custom events: \(error)")
+            }
         }
     }
     
@@ -101,27 +110,42 @@ class CustomEventsManager: ObservableObject {
     
     // MARK: - Event Management
     
-    @MainActor func addEvent(_ event: CustomEvent) {
-        events.append(event)
-        saveEvents()
-    }
-    
-    @MainActor func updateEvent(_ event: CustomEvent) {
-        if let index = events.firstIndex(where: { $0.id == event.id }) {
-            events[index] = event
-            saveEvents()
+    func addEvent(_ event: CustomEvent) {
+        syncQueue.async(flags: .barrier) { [weak self] in
+            self?.events.append(event)
+            DispatchQueue.main.async {
+                self?.saveEvents()
+            }
         }
     }
-    
-    @MainActor func deleteEvent(_ event: CustomEvent) {
-        events.removeAll { $0.id == event.id }
-        saveEvents()
+
+    func updateEvent(_ event: CustomEvent) {
+        syncQueue.async(flags: .barrier) { [weak self] in
+            guard let self = self else { return }
+            if let index = self.events.firstIndex(where: { $0.id == event.id }) {
+                self.events[index] = event
+                DispatchQueue.main.async {
+                    self.saveEvents()
+                }
+            }
+        }
+    }
+
+    func deleteEvent(_ event: CustomEvent) {
+        syncQueue.async(flags: .barrier) { [weak self] in
+            self?.events.removeAll { $0.id == event.id }
+            DispatchQueue.main.async {
+                self?.saveEvents()
+            }
+        }
     }
     
     // MARK: - Event Filtering
     
     func eventsFor(dayCode: String, date: Date) -> [CustomEvent] {
-        return events.filter { $0.appliesTo(dayCode: dayCode, date: date) }
+        return syncQueue.sync {
+            return events.filter { $0.appliesTo(dayCode: dayCode, date: date) }
+        }
     }
     
     // MARK: - Conflict Detection

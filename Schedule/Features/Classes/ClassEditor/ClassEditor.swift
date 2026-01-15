@@ -123,6 +123,7 @@ struct VphoneClassEditor: View {
                 }
                 .padding(12)
             }
+            .scrollDismissesKeyboard(.interactively)
         }
     }
 }

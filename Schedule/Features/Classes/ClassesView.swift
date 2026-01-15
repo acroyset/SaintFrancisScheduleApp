@@ -12,7 +12,8 @@ enum classWindow: Int{
     case None = 0
     case GPACalculator = 1
     case CoursesList = 2
-    case ClassEditor = 3
+    case FinalGradeCalculator = 3
+    case ClassEditor = 4
 }
 
 func inferClassLevel(from className: String) -> String {
@@ -83,6 +84,20 @@ struct ClassesView: View {
                     }
                     .newBadge()
                     
+                    Button(action: { window = .FinalGradeCalculator }) {
+                        HStack {
+                            Image(systemName: "percent")
+                            Text("Final Grade Calculator")
+                        }
+                        .font(.system(size: 14, weight: .bold, design: .monospaced))
+                        .foregroundStyle(TertiaryColor)
+                        .frame(maxWidth: .infinity)
+                        .padding(12)
+                        .background(PrimaryColor)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                    .newBadge()
+                    
                     Button(action: { window = .ClassEditor }) {
                         HStack {
                             Image(systemName: "pencil")
@@ -110,6 +125,15 @@ struct ClassesView: View {
                 case .CoursesList:
                     CourseSchedulingView(
                         courseViewModel: courseViewModel,
+                        PrimaryColor: PrimaryColor,
+                        SecondaryColor: SecondaryColor,
+                        TertiaryColor: TertiaryColor,
+                        window: $window
+                    )
+                    
+                case .FinalGradeCalculator:
+                    FinalGradeCalculatorModal(
+                        data: $data,
                         PrimaryColor: PrimaryColor,
                         SecondaryColor: SecondaryColor,
                         TertiaryColor: TertiaryColor,

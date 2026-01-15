@@ -751,27 +751,24 @@ struct ContentView: View {
     }
     
     private func parseCSV(_ csvString: String) {
-        var tempDict: [String: [String]] = [:]
-        let lines = csvString.components(separatedBy: .newlines)
-        for line in lines.dropFirst() {
-            let columns = line.components(separatedBy: ",")
-            if columns.count >= 3 {
-                let date = columns[0].trimmingCharacters(in: .whitespaces)
-                let dayType = columns[1].trimmingCharacters(in: .whitespaces)
-                let note = columns[2].trimmingCharacters(in: .whitespaces)
-                tempDict[date] = [dayType, note]
+        guard let tempDict = CSVParser.parseScheduleCSV(csvString) else {
+            print("❌ Failed to parse CSV schedule")
+            DispatchQueue.main.async {
+                self.output = "Failed to load schedule. Please check the schedule source."
             }
+            return
         }
+        
         DispatchQueue.main.async {
             self.scheduleDict = tempDict
             self.applySelectedDate(self.selectedDate)
             
+            // Save to shared defaults for widget access
             if let dictData = try? JSONEncoder().encode(tempDict) {
                 SharedGroup.defaults.set(dictData, forKey: "ScheduleDict")
             }
             
-            updateNightlyNotification()
-            
+            self.updateNightlyNotification()
             self.saveDataForWidget()
         }
     }

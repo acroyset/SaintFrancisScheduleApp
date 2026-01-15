@@ -165,6 +165,7 @@ struct GPACalculatorModal: View {
                 }
                 .padding(16)
             }
+            .scrollDismissesKeyboard(.interactively)
         }
     }
 }
