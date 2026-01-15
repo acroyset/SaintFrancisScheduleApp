@@ -118,13 +118,6 @@ class CustomEventsManager: ObservableObject {
         saveEvents()
     }
     
-    @MainActor func toggleEvent(_ event: CustomEvent) {
-        if let index = events.firstIndex(where: { $0.id == event.id }) {
-            events[index].isEnabled.toggle()
-            saveEvents()
-        }
-    }
-    
     // MARK: - Event Filtering
     
     func eventsFor(dayCode: String, date: Date) -> [CustomEvent] {
@@ -189,7 +182,6 @@ class CloudEventsDataManager {
                 "note": event.note,
                 "color": event.color,
                 "repeatPattern": event.repeatPattern.rawValue,
-                "isEnabled": event.isEnabled,
                 "applicableDays": Array(event.applicableDays)
             ] as [String : Any]
         }
@@ -218,7 +210,6 @@ class CloudEventsDataManager {
                   let color = eventDict["color"] as? String,
                   let repeatPatternRaw = eventDict["repeatPattern"] as? String,
                   let repeatPattern = RepeatPattern(rawValue: repeatPatternRaw),
-                  let isEnabled = eventDict["isEnabled"] as? Bool,
                   let applicableDaysArray = eventDict["applicableDays"] as? [String] else {
                 return nil
             }
@@ -245,7 +236,6 @@ class CloudEventsDataManager {
                 color: color,
                 repeatPattern: repeatPattern,
                 applicableDays: Set(applicableDaysArray),
-                isEnabled: isEnabled
             )
         }
     }

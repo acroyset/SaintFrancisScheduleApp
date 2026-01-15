@@ -27,7 +27,7 @@ enum TutorialState: Int {
     case Intro = 1
     case DateNavigator = 2
     case News = 3
-    case ClassEditor = 4
+    case ClassesView = 4
     case Settings = 5
     case Profile = 6
     case Outro = 7

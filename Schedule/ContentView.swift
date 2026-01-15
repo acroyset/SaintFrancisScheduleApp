@@ -1,5 +1,5 @@
 //
-//  ContentView.swift (MINIMAL FIX)
+//  ContentView.swift
 //  Schedule
 //
 //  Only extract UI components, keep all logic intact
@@ -11,7 +11,7 @@ import WidgetKit
 import UserNotifications
 
 let version = "Beta 1.12"
-let whatsNew = "\n- Notifications\n- GPA Calculator\n- Bug Fixes"
+let whatsNew = "\n- Course Scheduler\n- Notifications\n- GPA Calculator\n- Bug Fixes"
 
 struct ContentView: View {
     @EnvironmentObject var authManager: AuthenticationManager
@@ -900,7 +900,7 @@ struct ContentView: View {
         var allItems: [ScheduleLine] = scheduleLines
         
         let todaysEvents = eventsManager.eventsFor(dayCode: dayCode, date: selectedDate)
-        for event in todaysEvents where event.isEnabled {
+        for event in todaysEvents {
             let eventLine = ScheduleLine(
                 content: "",
                 base: "",
@@ -951,12 +951,5 @@ struct ContentView: View {
         } else {
             NotificationManager.shared.scheduleNightly(dayCode: "")
         }
-    }
-}
-
-struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView()
-            .environmentObject(AuthenticationManager())
     }
 }

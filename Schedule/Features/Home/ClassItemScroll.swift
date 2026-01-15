@@ -137,7 +137,7 @@ struct ClassItemScroll: View {
         
         // Add custom events for this day
         let todaysEvents = eventsManager.eventsFor(dayCode: dayCode, date: currentDate)
-        for event in todaysEvents where event.isEnabled {
+        for event in todaysEvents {
             items.append(ScheduleDisplayItem.customEvent(event))
         }
         
@@ -323,13 +323,6 @@ struct ClassItemScroll: View {
                     Label("Edit", systemImage: "pencil")
                 }
                 
-                Button(action: {
-                    eventsManager.toggleEvent(event)
-                }) {
-                    Label(event.isEnabled ? "Disable" : "Enable",
-                          systemImage: event.isEnabled ? "pause.circle" : "play.circle")
-                }
-                
                 Button(role: .destructive, action: {
                     eventsManager.deleteEvent(event)
                 }) {
@@ -349,7 +342,6 @@ struct ClassItemScroll: View {
                         .stroke(eventColor, lineWidth: iPad ? 6 : 4)
                 )
         )
-        .opacity(event.isEnabled ? 1.0 : 0.6)
     }
     
     private func getEventConflicts(for event: CustomEvent) -> [EventConflict] {
@@ -362,7 +354,7 @@ struct ClassItemScroll: View {
         // Check conflicts with other events
         let todaysEvents = eventsManager.eventsFor(dayCode: dayCode, date: currentDate)
         for otherEvent in todaysEvents {
-            if otherEvent.id != event.id && otherEvent.isEnabled && event.conflictsWith(otherEvent) {
+            if otherEvent.id != event.id && event.conflictsWith(otherEvent) {
                 // Create a temporary ScheduleLine to represent the other event for conflict detection
                 let tempLine = ScheduleLine(
                     content: "",

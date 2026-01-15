@@ -25,7 +25,7 @@ struct TutorialView: View {
             
             Divider()
             
-            Text(info)
+            info
                 .font(.system(
                     size: iPad ? 24 : 15,
                     weight: .bold,
@@ -87,31 +87,39 @@ struct TutorialView: View {
         case .Intro: return "Welcome to Schedule!"
         case .DateNavigator: return "Date Navigator"
         case .News: return "News"
-        case .ClassEditor: return "Class Editor"
+        case .ClassesView: return "Classes View"
         case .Settings: return "Settings"
         case .Profile: return "Profile"
         case .Outro: return "Thanks!"
         }
     }
     
-    private var info: String {
+    private var info: Text {
         switch tutorial {
         case .Hidden:
-            return "Error"
+            return Text("Error")
+
         case .Intro:
-            return "This is a schedule app for Saint Francis High School. It allows you to view your schedule, add new classes, and edit your existing ones!"
+            return Text("This is a schedule app for Saint Francis High School. It allows you to view your schedule, add new classes, and edit your existing ones!")
+
         case .DateNavigator:
-            return "Access the date navigator by clicking on the date in the home screen.\n\nThis is how you can choose your dates for the whole year!"
+            return Text("Access the date navigator by clicking on the date in the home screen.\n\nThis is how you can choose your dates for the whole year!")
+
         case .News:
-            return "Access the news tab by clicking on the news icon in the toolbar.\n\nThis is where you can see current events like clubs football games and everything inbetween!"
-        case .ClassEditor:
-            return "Access the class editor by clicking on the edit class icon in the toolbar.\n\nThis is how you can edit your classes. You can also select if you are second lunch or not."
+            return Text("Access the news tab by clicking on \(Image(systemName: "newspaper.fill")) in the toolbar.\n\nThis is where you can see current events like clubs football games and everything inbetween!")
+
+        case .ClassesView:
+            return Text("Access the classes view by clicking on \(Image(systemName: "pencil.and.list.clipboard")) in the toolbar.\n\nThis is how you can edit your classes. You can also select if you are second lunch or not.")
+
         case .Settings:
-            return "Access the settings tab by clicking on the settings icon in the toolbar.\n\nThis is where you can change preferances like the color scheme!"
+            return Text("Access the settings tab by clicking on \(Image(systemName: "gearshape.fill")) in the toolbar.\n\nThis is where you can change preferances like the color scheme!")
+
         case .Profile:
-            return "Access the profile tab by clicking on the profile icon in the toolbar.\n\nThis is how you can sign out or sync your devices."
+            return Text("Access the profile tab by clicking on \(Image(systemName: "person.crop.circle.fill")) in the toolbar.\n\nThis is how you can sign out or sync your devices.")
+
         case .Outro:
-            return "Thanks for downloading Saint Francis Schedule! \n\nYou can find this tutorial in the Profile Menu."
+            return Text("Thanks for downloading Saint Francis Schedule! \n\nYou can find this tutorial in the Profile Menu.")
         }
     }
+
 }

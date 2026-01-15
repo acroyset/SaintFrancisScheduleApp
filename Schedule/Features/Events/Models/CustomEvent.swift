@@ -19,7 +19,6 @@ struct CustomEvent: Identifiable, Codable, Equatable {
     var note: String
     var color: String // Hex color
     var repeatPattern: RepeatPattern
-    var isEnabled: Bool
     
     // Days this event applies to (for non-repeating events, this is a single day)
     var applicableDays: Set<String> // ["G1", "B1", etc.] or specific dates ["01-15-25"]
@@ -34,11 +33,10 @@ struct CustomEvent: Identifiable, Codable, Equatable {
         self.color = color
         self.repeatPattern = repeatPattern
         self.applicableDays = applicableDays
-        self.isEnabled = true
     }
     
     // Custom initializer for editing with preserved ID
-    init(id: UUID, title: String, startTime: Time, endTime: Time, location: String = "", note: String = "", color: String = "#FF6B6B", repeatPattern: RepeatPattern = .none, applicableDays: Set<String> = [], isEnabled: Bool = true) {
+    init(id: UUID, title: String, startTime: Time, endTime: Time, location: String = "", note: String = "", color: String = "#FF6B6B", repeatPattern: RepeatPattern = .none, applicableDays: Set<String> = []) {
         self.id = id
         self.title = title
         self.startTime = startTime
@@ -48,12 +46,10 @@ struct CustomEvent: Identifiable, Codable, Equatable {
         self.color = color
         self.repeatPattern = repeatPattern
         self.applicableDays = applicableDays
-        self.isEnabled = isEnabled
     }
     
     // Check if this event applies to a specific day code
     func appliesTo(dayCode: String, date: Date) -> Bool {
-        guard isEnabled else { return false }
         
         switch repeatPattern {
         case .none:

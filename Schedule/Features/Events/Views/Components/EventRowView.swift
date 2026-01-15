@@ -55,11 +55,6 @@ struct EventRowView: View {
             Spacer()
             
             VStack(spacing: 8) {
-                Toggle("", isOn: Binding(
-                    get: { event.isEnabled },
-                    set: { _ in onToggle() }
-                ))
-                .toggleStyle(SwitchToggleStyle(tint: Color(hex: event.color)))
                 
                 Menu {
                     Button(action: onEdit) {
@@ -76,6 +71,5 @@ struct EventRowView: View {
             }
         }
         .padding(.vertical, 4)
-        .opacity(event.isEnabled ? 1.0 : 0.6)
     }
 }

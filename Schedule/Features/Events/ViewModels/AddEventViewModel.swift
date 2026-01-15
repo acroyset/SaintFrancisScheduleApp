@@ -91,7 +91,6 @@ class AddEventViewModel: ObservableObject {
                 color: selectedColor.toHex() ?? "#FF6B6B",
                 repeatPattern: repeatPattern,
                 applicableDays: getApplicableDays(),
-                isEnabled: editingEvent.isEnabled
             )
             eventsManager.updateEvent(updatedEvent)
         } else {
@@ -159,7 +158,7 @@ class AddEventViewModel: ObservableObject {
                 continue
             }
             
-            if otherEvent.isEnabled && tempEvent.conflictsWith(otherEvent) {
+            if tempEvent.conflictsWith(otherEvent) {
                 let tempLine = ScheduleLine(
                     content: "",
                     base: "",
