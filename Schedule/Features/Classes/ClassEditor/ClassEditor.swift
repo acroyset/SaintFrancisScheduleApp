@@ -69,7 +69,7 @@ struct VphoneClassEditor: View {
             .padding(12)
             .frame(maxWidth: .infinity)
             .background(SecondaryColor)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
             
             ScrollView {
                 VStack(spacing: 12) {

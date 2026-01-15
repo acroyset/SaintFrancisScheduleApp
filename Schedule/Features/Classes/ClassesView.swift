@@ -15,6 +15,18 @@ enum classWindow: Int{
     case ClassEditor = 3
 }
 
+func inferClassLevel(from className: String) -> String {
+    let lowerName = className.lowercased()
+    
+    if lowerName.contains("ap") {
+        return "AP"
+    } else if lowerName.contains("honors") || lowerName.contains("honors") {
+        return "Honors"
+    } else {
+        return "Normal"
+    }
+}
+
 struct ClassesView: View {
     @Binding var data: ScheduleData
     var PrimaryColor: Color
@@ -130,6 +142,7 @@ struct ClassesView: View {
         }
         .onAppear(perform: {
             courseViewModel.allCourses = loadSFHSCourses()
+            gpaTypes = data.classes.prefix(7).map { inferClassLevel(from: $0.name) }
         })
     }
 }
