@@ -120,7 +120,8 @@ struct ContentView: View {
                         PrimaryColor: PrimaryColor,
                         SecondaryColor: SecondaryColor,
                         TertiaryColor: TertiaryColor,
-                        isFirstLaunch: isFirstLaunch
+                        isFirstLaunch: isFirstLaunch,
+                        whatsNew: whatsNew
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                     .zIndex(3000)

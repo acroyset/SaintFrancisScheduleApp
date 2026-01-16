@@ -15,7 +15,7 @@ struct WhatsNewView: View {
     let TertiaryColor: Color
     let isFirstLaunch: Bool
     
-    private let whatsNew = "\n- Second Lunch! <----- !!!\n- Personal Events\n- Bug Fixes"
+    private let whatsNew: String
     
     var body: some View {
         VStack {

@@ -222,17 +222,17 @@ struct FinalGradeCalculatorModal: View {
     
     private func gradeToPercentage(_ grade: String) -> Double {
         let map: [String: Double] = [
-            "A": 93.0,
-            "A-": 90.0,
-            "B+": 87.0,
-            "B": 83.0,
-            "B-": 80.0,
-            "C+": 77.0,
-            "C": 73.0,
-            "C-": 70.0,
-            "D+": 67.0,
-            "D": 63.0,
-            "D-": 60.0,
+            "A": 92.5,
+            "A-": 89.5,
+            "B+": 86.6,
+            "B": 82.5,
+            "B-": 79.5,
+            "C+": 76.5,
+            "C": 72.5,
+            "C-": 69.5,
+            "D+": 66.5,
+            "D": 62.5,
+            "D-": 59.5,
             "F": 0.0
         ]
         return map[grade] ?? 90.0
