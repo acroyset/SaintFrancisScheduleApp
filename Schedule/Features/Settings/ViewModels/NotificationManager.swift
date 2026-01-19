@@ -93,7 +93,6 @@ class NotificationManager {
         }
     }
     
-    /// Cancel all nightly notifications
     func cancelNightlyNotifications() {
         UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
             let nightlyIDs = requests
@@ -107,7 +106,6 @@ class NotificationManager {
         }
     }
     
-    /// Remove old notifications from past dates (cleanup)
     func cleanupExpiredNotifications() {
         UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
             let now = Date()
@@ -141,12 +139,14 @@ class NotificationSettings {
             UserDefaults.standard.set(newValue, forKey: enabledKey)
             if newValue {
                 // Re-request notification permissions if user re-enables
-                UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-                    if !granted {
-                        print("⚠️ Notification permissions not granted")
-                        UserDefaults.standard.set(false, forKey: enabledKey)
-                    }
-                }
+                let center = UNUserNotificationCenter.current()
+                let notificationDelegate = NotificationDelegate()
+                center.delegate = notificationDelegate
+                center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+                    if !granted {print("❌ Notification Permission Denied")}
+                } 
+                
+                ScheduleBackgroundManager.shared.scheduleNextNightlyRefresh()
             } else {
                 // Cancel all notifications if disabled
                 NotificationManager.shared.cancelNightlyNotifications()

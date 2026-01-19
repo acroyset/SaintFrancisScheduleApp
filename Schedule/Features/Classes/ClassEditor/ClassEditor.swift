@@ -17,62 +17,67 @@ struct VphoneClassEditor: View {
     var isPortrait: Bool
     
     @Binding var window: classWindow
+    @State private var showSchoologyConnect = false
     
     var body: some View {
-        VStack{
-            
-            HStack {
-                Text("Class Editor")
-                    .font(.system(size: 24, weight: .bold, design: .monospaced))
-                    .foregroundStyle(PrimaryColor)
-                
-                Spacer()
-                
-                Button(action: { window = .None }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 24))
-                        .foregroundStyle(PrimaryColor)
-                }
-            }
-            .padding(20)
-            .background(SecondaryColor)
-            .cornerRadius(16)
-            
-            // Second Lunch Toggle
-            HStack(spacing: 40) {
-                Text("Second Lunch")
-                    .font(.system(size: iPad ? 20 : 16, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(PrimaryColor)
-                
-                VStack {
-                    HStack(spacing: 8) {
-                        Text("Gold Day")
-                            .font(.system(size: iPad ? 18 : 14, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(PrimaryColor)
-                        
-                        Toggle("", isOn: $data.isSecondLunch[0])
-                            .toggleStyle(SwitchToggleStyle(tint: PrimaryColor))
-                    }
-                    .fixedSize()
-                    
-                    HStack(spacing: 8) {
-                        Text("Brown Day")
-                            .font(.system(size: iPad ? 18 : 14, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(PrimaryColor)
-                        
-                        Toggle("", isOn: $data.isSecondLunch[1])
-                            .toggleStyle(SwitchToggleStyle(tint: PrimaryColor))
-                    }
-                    .fixedSize()
-                }
-            }
-            .padding(12)
-            .frame(maxWidth: .infinity)
-            .background(SecondaryColor)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+        ZStack{
             
             ScrollView {
-                VStack(spacing: 12) {
+                VStack() {
+                    
+                    Color.clear.frame(height: iPad ? 60 : 50)
+                    
+                    Button(action: { showSchoologyConnect = true }) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "book.circle")
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Import from Schoology")
+                                    .font(.system(size: iPad ? 18 : 14, weight: .semibold, design: .monospaced))
+                                Text("Auto-fill your classes")
+                                    .font(.system(size: iPad ? 14 : 11, weight: .regular, design: .monospaced))
+                                    .opacity(0.7)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(12)
+                        .foregroundStyle(PrimaryColor)
+                        .background(SecondaryColor)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                    
+                    HStack(spacing: 40) {
+                        Text("Second Lunch")
+                            .font(.system(size: iPad ? 20 : 16, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(PrimaryColor)
+                        
+                        VStack {
+                            HStack(spacing: 8) {
+                                Text("Gold Day")
+                                    .font(.system(size: iPad ? 18 : 14, weight: .semibold, design: .monospaced))
+                                    .foregroundStyle(PrimaryColor)
+                                
+                                Toggle("", isOn: $data.isSecondLunch[0])
+                                    .toggleStyle(SwitchToggleStyle(tint: PrimaryColor))
+                            }
+                            .fixedSize()
+                            
+                            HStack(spacing: 8) {
+                                Text("Brown Day")
+                                    .font(.system(size: iPad ? 18 : 14, weight: .semibold, design: .monospaced))
+                                    .foregroundStyle(PrimaryColor)
+                                
+                                Toggle("", isOn: $data.isSecondLunch[1])
+                                    .toggleStyle(SwitchToggleStyle(tint: PrimaryColor))
+                            }
+                            .fixedSize()
+                        }
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity)
+                    .background(SecondaryColor)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
                     
                     let indices: [Int] = [0, 1, 2, 3, 4, 5, 6, 9, 12]
                     
@@ -115,15 +120,85 @@ struct VphoneClassEditor: View {
                                 SecondaryColor: SecondaryColor,
                                 TertiaryColor: TertiaryColor
                             )
+                            
                             .frame(maxWidth: iPad ? .infinity : 60)
                         }
                     }
                     
-                    Spacer(minLength: 200)
+                    Color.clear.frame(height: iPad ? 60 : 50)
                 }
                 .padding(12)
             }
-            .scrollDismissesKeyboard(.interactively)
+            .mask{
+                LinearGradient(
+                    gradient: Gradient(stops: [
+                        .init(color: .clear, location: 0),
+                        .init(color: .black, location: 0.05),
+                        .init(color: .black, location: 0.9),
+                        .init(color: .clear, location: 1.0)
+                    ]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+            
+            VStack{
+                
+                if #available(iOS 26.0, *) {
+                    HStack {
+                        Text("Class Editor")
+                            .font(.system(
+                                size: iPad ? 34 : 22,
+                                weight: .bold,
+                                design: .monospaced
+                            ))
+                            .padding(iPad ? 16 : 12)
+                            .padding(.horizontal, iPad ? 20 : 16)
+                        
+                        Spacer()
+                        
+                        Button(action: { window = .None }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: iPad ? 30 : 26))
+                                .foregroundStyle(PrimaryColor)
+                        }
+                        .padding(iPad ? 16 : 12)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .foregroundStyle(PrimaryColor)
+                    .glassEffect()
+                } else {
+                    HStack {
+                        Text("Class Editor")
+                            .font(.system(size: 24, weight: .bold, design: .monospaced))
+                            .foregroundStyle(PrimaryColor)
+                        
+                        Spacer()
+                        
+                        Button(action: { window = .None }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 24))
+                                .foregroundStyle(PrimaryColor)
+                        }
+                    }
+                    .padding(20)
+                    .background(SecondaryColor)
+                    .cornerRadius(16)
+                }
+                
+                
+                Spacer()
+            }
+            
+            // Schoology Connect Sheet
+            .sheet(isPresented: $showSchoologyConnect) {
+                SchoologyConnectSheet(
+                    isPresented: $showSchoologyConnect,
+                    data: $data,
+                    PrimaryColor: PrimaryColor,
+                    SecondaryColor: SecondaryColor
+                )
+            }
         }
     }
 }

@@ -24,27 +24,13 @@ struct FinalGradeCalculatorModal: View {
     let grades = ["A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D+", "D", "D-", "F"]
     
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text("Final Grade Calculator")
-                    .font(.system(size: 24, weight: .bold, design: .monospaced))
-                    .foregroundStyle(PrimaryColor)
-                
-                Spacer()
-                
-                Button(action: { window = .None }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 24))
-                        .foregroundStyle(PrimaryColor)
-                }
-            }
-            .padding(20)
-            .background(SecondaryColor)
-            .cornerRadius(16)
+        ZStack {
             
             ScrollView {
                 VStack(spacing: 12) {
-                    // Current Grade Input
+                    
+                    Color.clear.frame(height: iPad ? 60 : 50)
+
                     VStack(spacing: 8) {
                         Text("Current Grade")
                             .font(.system(size: 14, weight: .semibold, design: .monospaced))
@@ -164,9 +150,71 @@ struct FinalGradeCalculatorModal: View {
                     }
                 }
                 .padding(16)
+                
+                Color.clear.frame(height: iPad ? 60 : 50)
             }
             .onTapGesture {
                 hideKeyboard()
+            }
+            .mask{
+                LinearGradient(
+                    gradient: Gradient(stops: [
+                        .init(color: .clear, location: 0),
+                        .init(color: .black, location: 0.05),
+                        .init(color: .black, location: 0.9),
+                        .init(color: .clear, location: 1.0)
+                    ]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+            
+            VStack{
+                
+                if #available(iOS 26.0, *) {
+                    HStack {
+                        Text("Final Grade Calculator")
+                            .font(.system(
+                                size: iPad ? 34 : 18,
+                                weight: .bold,
+                                design: .monospaced
+                            ))
+                            .padding(iPad ? 16 : 12)
+                            .padding(.horizontal, iPad ? 20 : 16)
+                        
+                        Spacer()
+                        
+                        Button(action: { window = .None }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: iPad ? 30 : 22))
+                                .foregroundStyle(PrimaryColor)
+                        }
+                        .padding(iPad ? 16 : 12)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .foregroundStyle(PrimaryColor)
+                    .glassEffect()
+                } else {
+                    HStack {
+                        Text("Final Grade Calculator")
+                            .font(.system(size: 24, weight: .bold, design: .monospaced))
+                            .foregroundStyle(PrimaryColor)
+                        
+                        Spacer()
+                        
+                        Button(action: { window = .None }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 24))
+                                .foregroundStyle(PrimaryColor)
+                        }
+                    }
+                    .padding(20)
+                    .background(SecondaryColor)
+                    .cornerRadius(16)
+                }
+                
+                
+                Spacer()
             }
         }
     }

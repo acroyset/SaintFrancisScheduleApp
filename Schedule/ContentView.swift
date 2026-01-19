@@ -10,7 +10,7 @@ import Foundation
 import WidgetKit
 import UserNotifications
 
-let version = "Beta 1.12"
+let version = "Beta 1.13"
 let whatsNew = "\n- Course Scheduler\n- Notifications\n- GPA Calculator\n- Bug Fixes"
 
 struct ContentView: View {
@@ -84,48 +84,7 @@ struct ContentView: View {
                 )
                 .zIndex(1000)
                 
-                if tutorial != TutorialState.Hidden {
-                    Color.black.opacity(0.0001)
-                        .ignoresSafeArea()
-                        .zIndex(2500)
-                        .onTapGesture {
-                            withAnimation(.snappy) {
-                                tutorial = .Hidden
-                            }
-                        }
-                    
-                    TutorialView(
-                        tutorial: $tutorial,
-                        PrimaryColor: PrimaryColor,
-                        TertiaryColor: TertiaryColor
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                    .zIndex(3000)
-                }
-                
-                if whatsNewPopup {
-                    Color.black.opacity(0.0001)
-                        .ignoresSafeArea()
-                        .zIndex(2500)
-                        .onTapGesture {
-                            withAnimation(.snappy) {
-                                whatsNewPopup = false
-                                UserDefaults.standard.set(version, forKey: "LastSeenVersion")
-                            }
-                        }
-                    
-                    WhatsNewView(
-                        whatsNewPopup: $whatsNewPopup,
-                        tutorial: $tutorial,
-                        PrimaryColor: PrimaryColor,
-                        SecondaryColor: SecondaryColor,
-                        TertiaryColor: TertiaryColor,
-                        isFirstLaunch: isFirstLaunch,
-                        whatsNew: whatsNew
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                    .zIndex(3000)
-                }
+                overlays
             }
             .padding(.top)
             .padding(.horizontal)
@@ -234,6 +193,52 @@ struct ContentView: View {
     }
     
     @ViewBuilder
+    private var overlays: some View{
+        if tutorial != TutorialState.Hidden {
+            Color.black.opacity(0.0001)
+                .ignoresSafeArea()
+                .zIndex(2500)
+                .onTapGesture {
+                    withAnimation(.snappy) {
+                        tutorial = .Hidden
+                    }
+                }
+            
+            TutorialView(
+                tutorial: $tutorial,
+                PrimaryColor: PrimaryColor,
+                TertiaryColor: TertiaryColor
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .zIndex(3000)
+        }
+        
+        if whatsNewPopup {
+            Color.black.opacity(0.0001)
+                .ignoresSafeArea()
+                .zIndex(2500)
+                .onTapGesture {
+                    withAnimation(.snappy) {
+                        whatsNewPopup = false
+                        UserDefaults.standard.set(version, forKey: "LastSeenVersion")
+                    }
+                }
+            
+            WhatsNewView(
+                whatsNewPopup: $whatsNewPopup,
+                tutorial: $tutorial,
+                PrimaryColor: PrimaryColor,
+                SecondaryColor: SecondaryColor,
+                TertiaryColor: TertiaryColor,
+                isFirstLaunch: isFirstLaunch,
+                whatsNew: whatsNew
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .zIndex(3000)
+        }
+    }
+    
+    @ViewBuilder
     private var mainContentView: some View {
         switch window {
         case .Home:
@@ -268,7 +273,6 @@ struct ContentView: View {
                 SecondaryColor: SecondaryColor,
                 TertiaryColor: TertiaryColor
             )
-            .padding(.bottom, iPad ? 90 : 80)
             
         case .ClassesView:
             ClassesView(
@@ -284,7 +288,6 @@ struct ContentView: View {
                 TertiaryColor: TertiaryColor,
                 isPortrait: isPortrait
             )
-            .padding(.bottom, iPad ? 90 : 80)
             
         case .Settings:
             Settings(
@@ -293,7 +296,6 @@ struct ContentView: View {
                 TertiaryColor: $TertiaryColor,
                 isPortrait: isPortrait
             )
-            .padding(.bottom, iPad ? 90 : 80)
             
         case .Profile:
             ProfileMenu(
@@ -304,7 +306,6 @@ struct ContentView: View {
                 TertiaryColor: $TertiaryColor,
                 iPad: iPad
             )
-            .padding(.bottom, iPad ? 90 : 80)
         }
     }
     

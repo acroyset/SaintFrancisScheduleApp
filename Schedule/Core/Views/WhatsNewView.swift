@@ -15,7 +15,7 @@ struct WhatsNewView: View {
     let TertiaryColor: Color
     let isFirstLaunch: Bool
     
-    private let whatsNew: String
+    let whatsNew: String
     
     var body: some View {
         VStack {

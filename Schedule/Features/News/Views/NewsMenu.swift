@@ -16,39 +16,71 @@ struct NewsMenu: View {
     @StateObject var store = SheetStore()
     
     var body: some View {
-        VStack {
-            Text("Saint Francis News")
-                .font(.system(
-                    size: iPad ? 34 : 22,
-                    weight: .bold,
-                    design: .monospaced
-                ))
-                .padding(12)
-                .foregroundStyle(PrimaryColor.opacity(1))
-            
-            Divider()
+        ZStack{
             
             ScrollView {
-                // A1 value (plain text)
+                
+                Color.clear.frame(height: iPad ? 60 : 50)
+                
                 Text(store.a1Text.isEmpty ? "—" : store.a1Text)
-                    .font(.system(size: iPad ? 20 : 12, weight: .semibold))
+                    .font(.system(size: iPad ? 22 : 18, weight: .semibold))
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(SecondaryColor)
                     .foregroundStyle(PrimaryColor)
                     .cornerRadius(8)
-
+                
+                Text("Email acroyset@gmail.com if you want to put your announcement on here. \n\nLast updated: \(store.lastUpdatedString)")
+                    .font(.footnote)
+                    .foregroundStyle(TertiaryColor.highContrastTextColor())
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                
+                    .padding()
+                
+                Color.clear.frame(height: iPad ? 60 : 50)
+                
                 
             }
+            .mask{
+                LinearGradient(
+                    gradient: Gradient(stops: [
+                        .init(color: .clear, location: 0),
+                        .init(color: .black, location: 0.05),
+                        .init(color: .black, location: 0.9),
+                        .init(color: .clear, location: 1.0)
+                    ]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
             
-            Divider()
+            }
             
-            Text("Email acroyset@gmail.com if you want to put your announcement on here. \n\nLast updated: \(store.lastUpdatedString)")
-                .font(.footnote)
-                .foregroundStyle(TertiaryColor.highContrastTextColor())
-                .frame(maxWidth: .infinity, alignment: .leading)
-            
-            .padding()
+            VStack {
+                if #available(iOS 26.0, *) {
+                    Text("Saint Francis News")
+                        .font(.system(
+                            size: iPad ? 34 : 22,
+                            weight: .bold,
+                            design: .monospaced
+                        ))
+                        .padding(iPad ? 16 : 12)
+                        .frame(maxWidth: .infinity)
+                        .foregroundStyle(PrimaryColor)
+                        .glassEffect()
+                } else {
+                    Text("Saint Francis News")
+                        .font(.system(
+                            size: iPad ? 34 : 22,
+                            weight: .bold,
+                            design: .monospaced
+                        ))
+                        .padding(12)
+                        .foregroundStyle(PrimaryColor)
+                }
+                
+                Spacer()
+                
+            }
         }
         .task { await store.startPolling() }   // begin 10s polling
         .onDisappear { store.stopPolling() }   // stop when view goes away

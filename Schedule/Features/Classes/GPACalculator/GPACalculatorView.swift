@@ -51,121 +51,170 @@ struct GPACalculatorModal: View {
     }
     
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text("GPA Calculator")
-                    .font(.system(size: 24, weight: .bold, design: .monospaced))
-                    .foregroundStyle(PrimaryColor)
+        ZStack {
+            VStack(spacing: 0) {
                 
-                Spacer()
-                
-                Button(action: { window = .None }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 24))
-                        .foregroundStyle(PrimaryColor)
-                }
-            }
-            .padding(20)
-            .background(SecondaryColor)
-            .cornerRadius(16)
-            
-            ScrollView {
-                VStack(spacing: 12) {
-                    // GPA Display
-                    HStack{
-                        VStack(spacing: 8) {
-                            Text("Weighted")
-                                .font(.system(size: 14, weight: .semibold, design: .monospaced))
-                                .foregroundStyle(PrimaryColor)
-                            
-                            Text(String(format: "%.2f", calculateGPA(isWeighted: true)))
-                                .font(.system(size: 48, weight: .bold, design: .default))
-                                .foregroundStyle(PrimaryColor)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(16)
-                        
-                        VStack(spacing: 8) {
-                            Text("Unweighted")
-                                .font(.system(size: 14, weight: .semibold, design: .monospaced))
-                                .foregroundStyle(PrimaryColor)
-                            
-                            Text(String(format: "%.2f", calculateGPA(isWeighted: false)))
-                                .font(.system(size: 48, weight: .bold, design: .default))
-                                .foregroundStyle(PrimaryColor)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(16)
-                    }
-                    
-                    Divider()
-                        .padding(.vertical, 8)
-                    
-                    // Classes with grade selection
+                ScrollView {
                     VStack(spacing: 12) {
-                        ForEach(0..<7, id: \.self) { index in
+                        
+                        Color.clear.frame(height: iPad ? 60 : 50)
+                        
+                        HStack{
                             VStack(spacing: 8) {
-                                Text(data.classes[index].name.isEmpty ? "Class Name" : data.classes[index].name)
-                                    .font(.system(size: 14, weight: .bold, design: .monospaced))
+                                Text("Weighted")
+                                    .font(.system(size: 14, weight: .semibold, design: .monospaced))
                                     .foregroundStyle(PrimaryColor)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
                                 
-                                HStack(spacing: 8) {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text("Grade")
-                                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                                            .foregroundStyle(PrimaryColor.opacity(0.7))
-                                        
-                                        Picker("Grade", selection: $gpaGrades[index]) {
-                                            ForEach(grades, id: \.self) { grade in
-                                                Text(grade).tag(grade)
-                                            }
-                                        }
-                                        .pickerStyle(.menu)
-                                        .tint(PrimaryColor)
+                                Text(String(format: "%.2f", calculateGPA(isWeighted: true)))
+                                    .font(.system(size: 48, weight: .bold, design: .default))
+                                    .foregroundStyle(PrimaryColor)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(16)
+                            
+                            VStack(spacing: 8) {
+                                Text("Unweighted")
+                                    .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                                    .foregroundStyle(PrimaryColor)
+                                
+                                Text(String(format: "%.2f", calculateGPA(isWeighted: false)))
+                                    .font(.system(size: 48, weight: .bold, design: .default))
+                                    .foregroundStyle(PrimaryColor)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(16)
+                        }
+                        
+                        Divider()
+                            .padding(.vertical, 8)
+                        
+                        // Classes with grade selection
+                        VStack(spacing: 12) {
+                            ForEach(0..<7, id: \.self) { index in
+                                VStack(spacing: 8) {
+                                    Text(data.classes[index].name.isEmpty ? "Class Name" : data.classes[index].name)
+                                        .font(.system(size: 14, weight: .bold, design: .monospaced))
+                                        .foregroundStyle(PrimaryColor)
                                         .frame(maxWidth: .infinity, alignment: .leading)
-                                    }
                                     
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text("Type")
-                                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                                            .foregroundStyle(PrimaryColor.opacity(0.7))
-                                        
-                                        Picker("Type", selection: $gpaTypes[index]) {
-                                            ForEach(classTypes, id: \.self) { type in
-                                                Text(type).tag(type)
+                                    HStack(spacing: 8) {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("Grade")
+                                                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                                .foregroundStyle(PrimaryColor.opacity(0.7))
+                                            
+                                            Picker("Grade", selection: $gpaGrades[index]) {
+                                                ForEach(grades, id: \.self) { grade in
+                                                    Text(grade).tag(grade)
+                                                }
                                             }
+                                            .pickerStyle(.menu)
+                                            .tint(PrimaryColor)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
                                         }
-                                        .tint(PrimaryColor)
-                                        .frame(maxWidth: .infinity)
-                                    }
-                                    
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text("GPA")
-                                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                                            .foregroundStyle(PrimaryColor.opacity(0.7))
                                         
-                                        Text(String(format: "%.2f", gradeToGPA(gpaGrades[index], isHonors: gpaTypes[index] == "Honors", isAP: gpaTypes[index] == "AP")))
-                                            .font(.system(size: 14, weight: .bold, design: .monospaced))
-                                            .foregroundStyle(PrimaryColor)
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("Type")
+                                                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                                .foregroundStyle(PrimaryColor.opacity(0.7))
+                                            
+                                            Picker("Type", selection: $gpaTypes[index]) {
+                                                ForEach(classTypes, id: \.self) { type in
+                                                    Text(type).tag(type)
+                                                }
+                                            }
+                                            .tint(PrimaryColor)
+                                            .frame(maxWidth: .infinity)
+                                        }
+                                        
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("GPA")
+                                                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                                .foregroundStyle(PrimaryColor.opacity(0.7))
+                                            
+                                            Text(String(format: "%.2f", gradeToGPA(gpaGrades[index], isHonors: gpaTypes[index] == "Honors", isAP: gpaTypes[index] == "AP")))
+                                                .font(.system(size: 14, weight: .bold, design: .monospaced))
+                                                .foregroundStyle(PrimaryColor)
+                                        }
                                     }
                                 }
+                                .padding(12)
+                                .background(SecondaryColor)
+                                .cornerRadius(16)
+                                .shadow(radius: 20)
                             }
-                            .padding(12)
-                            .background(SecondaryColor)
-                            .cornerRadius(16)
-                            .shadow(radius: 20)
+                        }
+                        
+                        Text("For your privacy we do not save your grades and therefor will reset opon closing the gpa calculator.")
+                            .font(.footnote)
+                            .foregroundStyle(TertiaryColor.highContrastTextColor())
+                        
+                    }
+                    .padding(16)
+                    
+                    Color.clear.frame(height: iPad ? 60 : 50)
+                }
+                .mask{
+                    LinearGradient(
+                        gradient: Gradient(stops: [
+                            .init(color: .clear, location: 0),
+                            .init(color: .black, location: 0.05),
+                            .init(color: .black, location: 0.9),
+                            .init(color: .clear, location: 1.0)
+                        ]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                }
+            }
+            
+            VStack{
+                
+                if #available(iOS 26.0, *) {
+                    HStack {
+                        Text("GPA Calculator")
+                            .font(.system(
+                                size: iPad ? 34 : 22,
+                                weight: .bold,
+                                design: .monospaced
+                            ))
+                            .padding(iPad ? 16 : 12)
+                            .padding(.horizontal, iPad ? 20 : 16)
+                        
+                        Spacer()
+                        
+                        Button(action: { window = .None }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: iPad ? 30 : 26))
+                                .foregroundStyle(PrimaryColor)
+                        }
+                        .padding(iPad ? 16 : 12)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .foregroundStyle(PrimaryColor)
+                    .glassEffect()
+                } else {
+                    HStack {
+                        Text("GPA Calculator")
+                            .font(.system(size: 24, weight: .bold, design: .monospaced))
+                            .foregroundStyle(PrimaryColor)
+                        
+                        Spacer()
+                        
+                        Button(action: { window = .None }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 24))
+                                .foregroundStyle(PrimaryColor)
                         }
                     }
-                    
-                    Text("For your privacy we do not save your grades and therefor will reset opon closing the gpa calculator.")
-                        .font(.footnote)
-                        .foregroundStyle(TertiaryColor.highContrastTextColor())
-                    
+                    .padding(20)
+                    .background(SecondaryColor)
+                    .cornerRadius(16)
                 }
-                .padding(16)
+                
+                
+                Spacer()
             }
-            .scrollDismissesKeyboard(.interactively)
         }
     }
 }

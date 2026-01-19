@@ -191,9 +191,14 @@ struct ClassItemScroll: View {
                     
                     if let end = line.endSec, isToday && line.isCurrentClass {
                         let now = Time.now().seconds
-                        let remainingMinutes = max(0, (end - now) / 60)
-                        if remainingMinutes > 0 {
-                            Text("• \(remainingMinutes)m left")
+                        let remainingSeconds = max(0, (end - now))
+                        if remainingSeconds > 60 {
+                            let remainingMinutes = floor(Double(remainingSeconds)/60.0)
+                            Text("• \(Int(remainingMinutes))m left")
+                                .font(.system(size: iPad ? 16 : 14, weight: .medium))
+                                .foregroundColor(TertiaryColor.opacity(0.8))
+                        } else if (remainingSeconds > 0){
+                            Text("• \(Int(remainingSeconds))s left")
                                 .font(.system(size: iPad ? 16 : 14, weight: .medium))
                                 .foregroundColor(TertiaryColor.opacity(0.8))
                         }
@@ -265,9 +270,14 @@ struct ClassItemScroll: View {
                         .foregroundColor(isCurrentEvent ? TertiaryColor : eventColor)
                     
                     if isCurrentEvent {
-                        let remainingMinutes = max(0, (event.endTime.seconds - now) / 60)
-                        if remainingMinutes > 0 {
-                            Text("• \(remainingMinutes)m left")
+                        let remainingSeconds = max(0, (event.endTime.seconds - now))
+                        if remainingSeconds > 60 {
+                            let remainingMinutes = floor(Double(remainingSeconds)/60.0)
+                            Text("• \(Int(remainingMinutes))m left")
+                                .font(.system(size: iPad ? 16 : 14, weight: .medium))
+                                .foregroundColor(TertiaryColor.opacity(0.8))
+                        } else if (remainingSeconds > 0){
+                            Text("• \(Int(remainingSeconds))s left")
                                 .font(.system(size: iPad ? 16 : 14, weight: .medium))
                                 .foregroundColor(TertiaryColor.opacity(0.8))
                         }

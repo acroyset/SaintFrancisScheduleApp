@@ -249,62 +249,97 @@ struct CourseSchedulingView: View {
     @Binding var window: classWindow
     
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text("Course Guide")
-                    .font(.system(size: 24, weight: .bold, design: .monospaced))
-                    .foregroundStyle(PrimaryColor)
+        ZStack{
+            VStack(spacing: 0) {
                 
-                Spacer()
-                
-                Button(action: { window = .None }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 24))
-                        .foregroundStyle(PrimaryColor)
+                if let selected = courseViewModel.selectedCourse {
+                    CourseDetailView(
+                        course: selected,
+                        viewModel:courseViewModel,
+                        onCourseSelected: { course in
+                            courseViewModel.selectedCourse = course
+                        },
+                        onBack: {
+                            courseViewModel.selectedCourse = nil
+                        },
+                        PrimaryColor: PrimaryColor,
+                        SecondaryColor: SecondaryColor,
+                        TertiaryColor: TertiaryColor
+                    )
+                } else {
+                    SearchBar(
+                        text: $courseViewModel.searchText,
+                        PrimaryColor: PrimaryColor,
+                        SecondaryColor: SecondaryColor,
+                        TertiaryColor: TertiaryColor
+                    )
+                    
+                    FilterBar(
+                        vm: courseViewModel,
+                        PrimaryColor: PrimaryColor,
+                        SecondaryColor: SecondaryColor,
+                        TertiaryColor: TertiaryColor
+                    )
+                    
+                    CourseListView(
+                        courses: courseViewModel.filteredResults,
+                        onCourseSelected: { course in
+                            courseViewModel.selectedCourse = course
+                        },
+                        PrimaryColor: PrimaryColor,
+                        SecondaryColor: SecondaryColor,
+                        TertiaryColor: TertiaryColor
+                    )
                 }
             }
-            .padding(20)
-            .background(SecondaryColor)
-            .cornerRadius(16)
+            .padding(.top, iPad ? 60 : 50)
             
-            if let selected = courseViewModel.selectedCourse {
-                CourseDetailView(
-                    course: selected,
-                    viewModel:courseViewModel,
-                    onCourseSelected: { course in
-                        courseViewModel.selectedCourse = course
-                    },
-                    onBack: {
-                        courseViewModel.selectedCourse = nil
-                    },
-                    PrimaryColor: PrimaryColor,
-                    SecondaryColor: SecondaryColor,
-                    TertiaryColor: TertiaryColor
-                )
-            } else {
-                SearchBar(
-                    text: $courseViewModel.searchText,
-                    PrimaryColor: PrimaryColor,
-                    SecondaryColor: SecondaryColor,
-                    TertiaryColor: TertiaryColor
-                )
-
-                FilterBar(
-                    vm: courseViewModel,
-                    PrimaryColor: PrimaryColor,
-                    SecondaryColor: SecondaryColor,
-                    TertiaryColor: TertiaryColor
-                )
-
-                CourseListView(
-                    courses: courseViewModel.filteredResults,
-                    onCourseSelected: { course in
-                        courseViewModel.selectedCourse = course
-                    },
-                    PrimaryColor: PrimaryColor,
-                    SecondaryColor: SecondaryColor,
-                    TertiaryColor: TertiaryColor
-                )
+            VStack{
+                
+                if #available(iOS 26.0, *) {
+                    HStack {
+                        Text("Course Scheduler")
+                            .font(.system(
+                                size: iPad ? 34 : 22,
+                                weight: .bold,
+                                design: .monospaced
+                            ))
+                            .padding(iPad ? 16 : 12)
+                            .padding(.horizontal, iPad ? 20 : 16)
+                        
+                        Spacer()
+                        
+                        Button(action: { window = .None }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: iPad ? 30 : 26))
+                                .foregroundStyle(PrimaryColor)
+                        }
+                        .padding(iPad ? 16 : 12)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .foregroundStyle(PrimaryColor)
+                    .glassEffect()
+                } else {
+                    HStack {
+                        Text("Course Scheduler")
+                            .font(.system(size: 24, weight: .bold, design: .monospaced))
+                            .foregroundStyle(PrimaryColor)
+                        
+                        Spacer()
+                        
+                        Button(action: { window = .None }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 24))
+                                .foregroundStyle(PrimaryColor)
+                        }
+                    }
+                    .padding(20)
+                    .background(SecondaryColor)
+                    .cornerRadius(16)
+                }
+                
+                
+                Spacer()
             }
         }
     }
@@ -333,7 +368,7 @@ struct SearchBar: View {
         }
         .padding(12)
         .background(SecondaryColor)
-        .cornerRadius(8)
+        .cornerRadius(12)
         .padding(12)
     }
 }
@@ -381,19 +416,28 @@ struct CourseListView: View {
                         }
                     }
                     .padding(16)
-                    .background(TertiaryColor)
+                    .background(SecondaryColor)
                     .cornerRadius(10)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(PrimaryColor, lineWidth: 1)
-                    )
                 }
                 .buttonStyle(.plain)
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
             }
+            .padding(.bottom, 16)
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
+            .mask{
+                LinearGradient(
+                    gradient: Gradient(stops: [
+                        .init(color: .clear, location: 0),
+                        .init(color: .black, location: 0.05),
+                        .init(color: .black, location: 0.9),
+                        .init(color: .clear, location: 1.0)
+                    ]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
         }
     }
 }

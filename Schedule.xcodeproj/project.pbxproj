@@ -15,7 +15,8 @@
 		E4728DFB2F186C7F003EF36E /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = E4728DFA2F186C7F003EF36E /* FirebaseFirestore */; };
 		E4728DFE2F186C94003EF36E /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = E4728DFD2F186C94003EF36E /* GoogleSignIn */; };
 		E4728E002F186C94003EF36E /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = E4728DFF2F186C94003EF36E /* GoogleSignInSwift */; };
-		E47294D72F19C513003EF36E /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = E47294D62F19C50C003EF36E /* .gitignore */; };
+		E47294D72F19C513003EF36E /* (null) in Resources */ = {isa = PBXBuildFile; };
+		E47295B22F19CAA7003EF36E /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = E47295B12F19CAA2003EF36E /* .gitignore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -64,10 +65,33 @@
 		E45D488B2E6A54D700D88084 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		E45D488D2E6A54D800D88084 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		E45D48AF2E6A626500D88084 /* ScheduleWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ScheduleWidgetExtension.entitlements; sourceTree = "<group>"; };
-		E47294D62F19C50C003EF36E /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
+		E47295B12F19CAA2003EF36E /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		E4257E5C2E54022700948AE0 /* Exceptions for "Schedule" folder in "Schedule" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = E4072D122E4D72DE004A81A7 /* Schedule */;
+		};
+		E439AB9D2ECD56B80078C9FA /* Exceptions for "Schedule" folder in "ScheduleWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Core/Extensions/DateFormatterExtensions.swift,
+				Core/Models/ScheduleLine.swift,
+				Core/Models/Time.swift,
+				Core/Utilities/Constants.swift,
+				Core/Utilities/CSVParser.swift,
+				Core/Utilities/SharedGroup.swift,
+				Core/Utilities/ThemeColors.swift,
+				Shared/Background.swift,
+				Shared/ClassProgressBar.swift,
+				Shared/ToolBar.swift,
+			);
+			target = E45D48882E6A54D700D88084 /* ScheduleWidgetExtension */;
+		};
 		E439AC1C2ECD5B9D0078C9FA /* Exceptions for "ScheduleWidget" folder in "Schedule" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -92,6 +116,10 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		E4072D152E4D72DE004A81A7 /* Schedule */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				E4257E5C2E54022700948AE0 /* Exceptions for "Schedule" folder in "Schedule" target */,
+				E439AB9D2ECD56B80078C9FA /* Exceptions for "Schedule" folder in "ScheduleWidgetExtension" target */,
+			);
 			path = Schedule;
 			sourceTree = "<group>";
 		};
@@ -158,7 +186,7 @@
 		E4072D0A2E4D72DE004A81A7 = {
 			isa = PBXGroup;
 			children = (
-				E47294D62F19C50C003EF36E /* .gitignore */,
+				E47295B12F19CAA2003EF36E /* .gitignore */,
 				E45D48AF2E6A626500D88084 /* ScheduleWidgetExtension.entitlements */,
 				E4072D152E4D72DE004A81A7 /* Schedule */,
 				E4072D232E4D72E0004A81A7 /* ScheduleTests */,
@@ -340,7 +368,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E47294D72F19C513003EF36E /* .gitignore in Resources */,
+				E47295B22F19CAA7003EF36E /* .gitignore in Resources */,
+				E47294D72F19C513003EF36E /* (null) in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -560,7 +589,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.12;
+				MARKETING_VERSION = 1.13;
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_BUNDLE_IDENTIFIER = Xcode.ScheduleApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -592,7 +621,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.12;
+				MARKETING_VERSION = 1.13;
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_BUNDLE_IDENTIFIER = Xcode.ScheduleApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -688,7 +717,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.12;
+				MARKETING_VERSION = 1.13;
 				PRODUCT_BUNDLE_IDENTIFIER = Xcode.ScheduleApp.ScheduleWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -716,7 +745,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.12;
+				MARKETING_VERSION = 1.13;
 				PRODUCT_BUNDLE_IDENTIFIER = Xcode.ScheduleApp.ScheduleWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;

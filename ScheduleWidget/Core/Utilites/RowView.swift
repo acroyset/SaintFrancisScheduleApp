@@ -54,16 +54,19 @@ func rowView(
                     
                     if let end = line.endSec, let start = line.startSec {
                         let now = secondsSinceMidnight(date)
-                        let remainMin = max(0, (end - now) / 60)
                         let isCurrentlyActive = (now >= start && now < end)
-                        if isCurrentlyActive && remainMin > 0 {
-                            Text("• \(remainMin)m left")
-                                .font(.system(
-                                    size: 15,
-                                    weight: line.isCurrentClass ? .bold : .regular,
-                                    design: .monospaced
-                                ))
-                                .foregroundStyle(TertiaryColor.opacity(0.9))
+                        if isCurrentlyActive {
+                            let remainingSeconds = max(0, (end - now))
+                            if remainingSeconds > 60 {
+                                let remainingMinutes = floor(Double(remainingSeconds)/60.0)
+                                Text("• \(Int(remainingMinutes))m left")
+                                    .font(.system(size: iPad ? 16 : 14, weight: .medium))
+                                    .foregroundColor(TertiaryColor.opacity(0.8))
+                            } else if (remainingSeconds > 0){
+                                Text("• \(Int(remainingSeconds))s left")
+                                    .font(.system(size: iPad ? 16 : 14, weight: .medium))
+                                    .foregroundColor(TertiaryColor.opacity(0.8))
+                            }
                         }
                     }
                 }
