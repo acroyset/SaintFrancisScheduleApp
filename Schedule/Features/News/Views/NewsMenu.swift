@@ -15,33 +15,33 @@ struct NewsMenu: View {
     
     @StateObject var store = SheetStore()
     
+    @State private var webHeight: CGFloat = 1
+    
     var body: some View {
-        ZStack{
-            
+        ZStack {
             ScrollView {
-                
                 Color.clear.frame(height: iPad ? 60 : 50)
                 
-                Text(store.a1Text.isEmpty ? "—" : store.a1Text)
-                    .font(.system(size: iPad ? 22 : 18, weight: .semibold))
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(SecondaryColor)
-                    .foregroundStyle(PrimaryColor)
-                    .cornerRadius(8)
-                
-                Text("Email acroyset@gmail.com if you want to put your announcement on here. \n\nLast updated: \(store.lastUpdatedString)")
-                    .font(.footnote)
-                    .foregroundStyle(TertiaryColor.highContrastTextColor())
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                
-                    .padding()
+                VStack(alignment: .leading, spacing: 12) {
+                    ThemedAutoHeightWebView(
+                        html: store.htmlContent,
+                        isDarkTheme: TertiaryColor.luminance() < 0.5,
+                        height: $webHeight,
+                    )
+                    .frame(height: webHeight)
+                    .background(Color.clear) // SwiftUI side
+                    
+                    Text("Last updated: \(store.lastUpdatedString)")
+                        .font(.footnote)
+                        .foregroundStyle(TertiaryColor.highContrastTextColor())
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                }
+                .padding()
                 
                 Color.clear.frame(height: iPad ? 60 : 50)
-                
-                
             }
-            .mask{
+            .mask {
                 LinearGradient(
                     gradient: Gradient(stops: [
                         .init(color: .clear, location: 0),
@@ -52,7 +52,6 @@ struct NewsMenu: View {
                     startPoint: .top,
                     endPoint: .bottom
                 )
-            
             }
             
             VStack {
@@ -79,10 +78,9 @@ struct NewsMenu: View {
                 }
                 
                 Spacer()
-                
             }
         }
-        .task { await store.startPolling() }   // begin 10s polling
-        .onDisappear { store.stopPolling() }   // stop when view goes away
+        .task { await store.startPolling() }
+        .onDisappear { store.stopPolling() }
     }
 }

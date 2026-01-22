@@ -82,7 +82,7 @@ struct Settings: View {
                     }
                     
                     HStack{
-                        Text("Tertiary Color")
+                        Text("Dark Mode")
                             .font(.system(
                                 size: iPad ? 28 : 18,
                                 weight: .bold,
@@ -93,27 +93,15 @@ struct Settings: View {
                         
                         Spacer()
                         
-                        CompactColorPicker(
-                            selectedColor: $TertiaryColor,
-                            isExpanded: Binding(
-                                get: { selectedOption == .t },
-                                set: { newValue in
-                                    if newValue {
-                                        selectedOption = .t
-                                    } else if selectedOption == .t {
-                                        selectedOption = .none
-                                    }
-                                }
-                            ),
-                            isPortrait: isPortrait)
+                        DarkModeToggle(tertiaryColor: $TertiaryColor)
+                            .tint(PrimaryColor)
+                            .padding()
                     }
                     
                     Divider()
                     
-                    Toggle(isOn: Binding(
-                        get: { NotificationSettings.isEnabled },
-                        set: { NotificationSettings.isEnabled = $0 }
-                    )) {
+                    HStack{
+                        
                         Text("Enable Nightly Notifications")
                             .font(.system(
                                 size: iPad ? 28 : 18,
@@ -122,6 +110,13 @@ struct Settings: View {
                             ))
                             .padding(12)
                             .foregroundStyle(PrimaryColor)
+                        
+                        Toggle("", isOn: Binding(
+                            get: { NotificationSettings.isEnabled },
+                            set: { NotificationSettings.isEnabled = $0 }
+                        ))
+                        .tint(PrimaryColor)
+                        .padding()
                     }
                     
                     DatePicker(selection: Binding(
@@ -190,5 +185,20 @@ struct Settings: View {
         .onTapGesture {
             selectedOption = .none
         }
+    }
+}
+
+struct DarkModeToggle: View {
+    @Binding var tertiaryColor: Color
+
+    private var isDarkMode: Binding<Bool> {
+        Binding(
+            get: { tertiaryColor == .black },
+            set: { tertiaryColor = $0 ? .black : .white }
+        )
+    }
+
+    var body: some View {
+        Toggle("", isOn: isDarkMode)
     }
 }
