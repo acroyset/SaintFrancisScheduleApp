@@ -1,10 +1,7 @@
-// Enhanced ScheduleWidget.swift with Auto-updating Schedule
+//  Enhanced ScheduleWidget.swift with Auto-updating Schedule
 import WidgetKit
 import SwiftUI
 
-
-
-@main
 struct ScheduleWidget: Widget {
     let kind: String = "ScheduleWidget"
 
@@ -14,11 +11,17 @@ struct ScheduleWidget: Widget {
         }
         .configurationDisplayName("Schedule Widget")
         .description("Shows your current and upcoming classes.")
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }
 
 // MARK: - Preview
+#Preview(as: .systemSmall) {
+    ScheduleWidget()
+} timeline: {
+    SimpleEntry(date: .now, lines: [], dayCode: "G1")
+}
+
 #Preview(as: .systemMedium) {
     ScheduleWidget()
 } timeline: {

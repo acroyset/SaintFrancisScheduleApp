@@ -45,3 +45,31 @@ extension Array where Element == ScheduleLine {
         return Array(updatedLines.suffix(2))
     }
 }
+
+extension Array where Element == ScheduleLine {
+    func currentOrPrev(nowSec: Int) -> ScheduleLine? {
+        // Update progress values in real-time for current classes
+        let updatedLines = self.map { line -> ScheduleLine in
+            var updatedLine = line
+            if let start = line.startSec, let end = line.endSec {
+                let progress = progressValue(start: start, end: end, now: nowSec)
+                updatedLine.progress = progress
+                updatedLine.isCurrentClass = nowSec >= start && nowSec < end
+            }
+            return updatedLine
+        }
+        
+        // 1. Try to find current class based on time
+        if let currentIdx = updatedLines.firstIndex(where: { $0.isCurrentClass }) {
+            return updatedLines[currentIdx]
+        }
+
+        // 2. No current class — find the first upcoming
+        if let upcomingIdx = updatedLines.firstIndex(where: { ($0.startSec ?? .max) > nowSec }) {
+            return updatedLines[upcomingIdx]
+        }
+
+        // 3. Fallback — return last two or less
+        return updatedLines.last ?? nil
+    }
+}

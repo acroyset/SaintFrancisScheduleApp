@@ -27,24 +27,26 @@ struct VphoneClassEditor: View {
                     
                     Color.clear.frame(height: iPad ? 60 : 50)
                     
-                    Button(action: { showSchoologyConnect = true }) {
-                        HStack(spacing: 12) {
-                            Image(systemName: "book.circle")
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Import from Schoology")
-                                    .font(.system(size: iPad ? 18 : 14, weight: .semibold, design: .monospaced))
-                                Text("Auto-fill your classes")
-                                    .font(.system(size: iPad ? 14 : 11, weight: .regular, design: .monospaced))
-                                    .opacity(0.7)
+                    if (false){
+                        Button(action: { showSchoologyConnect = true }) {
+                            HStack(spacing: 12) {
+                                Image(systemName: "book.circle")
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Import from Schoology")
+                                        .font(.system(size: iPad ? 18 : 14, weight: .semibold, design: .monospaced))
+                                    Text("Auto-fill your classes")
+                                        .font(.system(size: iPad ? 14 : 11, weight: .regular, design: .monospaced))
+                                        .opacity(0.7)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
                             }
-                            Spacer()
-                            Image(systemName: "chevron.right")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(12)
+                            .foregroundStyle(PrimaryColor)
+                            .background(SecondaryColor)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(12)
-                        .foregroundStyle(PrimaryColor)
-                        .background(SecondaryColor)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
                     
                     HStack(spacing: 40) {

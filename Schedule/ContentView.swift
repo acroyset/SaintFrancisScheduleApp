@@ -11,7 +11,7 @@ import WidgetKit
 import UserNotifications
 
 let version = "Beta 1.13"
-let whatsNew = "\n- Course Scheduler\n- Notifications\n- GPA Calculator\n- Bug Fixes"
+let whatsNew = "- Better News\n- Course Scheduler\n- Notifications\n- GPA Calculator\n- Bug Fixes"
 
 struct ContentView: View {
     @EnvironmentObject var authManager: AuthenticationManager
