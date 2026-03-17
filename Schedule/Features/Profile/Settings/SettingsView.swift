@@ -95,6 +95,7 @@ struct Settings: View {
                         
                         DarkModeToggle(tertiaryColor: $TertiaryColor)
                             .tint(PrimaryColor)
+                            .shadow(radius: 8)
                             .padding()
                     }
                     
@@ -116,6 +117,7 @@ struct Settings: View {
                             set: { NotificationSettings.isEnabled = $0 }
                         ))
                         .tint(PrimaryColor)
+                        .shadow(radius: 8)
                         .padding()
                     }
                     

@@ -50,7 +50,6 @@ struct ToolBar: View {
         ("Home", "house.fill"),
         ("News", "newspaper.fill"),
         ("Classes", "pencil.and.list.clipboard"),
-        ("Settings", "gearshape.fill"),
         ("Profile", "person.crop.circle.fill")
     ]
     

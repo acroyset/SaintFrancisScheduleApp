@@ -10,8 +10,8 @@ import Foundation
 import WidgetKit
 import UserNotifications
 
-let version = "Beta 1.13"
-let whatsNew = "- Better News\n- Course Scheduler\n- Notifications\n- GPA Calculator\n- Bug Fixes"
+let version = "Beta 1.14"
+let whatsNew = "- More Widgets!!!\n- Settings now in profile tab\n- Better News\n- Bug Fixes"
 
 struct ContentView: View {
     @EnvironmentObject var authManager: AuthenticationManager
@@ -105,6 +105,7 @@ struct ContentView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                     self.saveDataForWidget()
                 }
+                updateNightlyNotification()
             }
             .onChange(of: eventsManager.events) { _, _ in
                 renderWithEvents()
@@ -289,14 +290,6 @@ struct ContentView: View {
                 isPortrait: isPortrait
             )
             
-        case .Settings:
-            Settings(
-                PrimaryColor: $PrimaryColor,
-                SecondaryColor: $SecondaryColor,
-                TertiaryColor: $TertiaryColor,
-                isPortrait: isPortrait
-            )
-            
         case .Profile:
             ProfileMenu(
                 data: $data,
@@ -304,7 +297,8 @@ struct ContentView: View {
                 PrimaryColor: $PrimaryColor,
                 SecondaryColor: $SecondaryColor,
                 TertiaryColor: $TertiaryColor,
-                iPad: iPad
+                iPad: iPad,
+                isPortrait: isPortrait
             )
         }
     }

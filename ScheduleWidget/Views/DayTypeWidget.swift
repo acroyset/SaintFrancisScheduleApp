@@ -13,23 +13,24 @@ struct DayTypeEntry: TimelineEntry {
     let dayCode: String
     let dayName: String
     let schoolStartTime: String
+    let isTomorrow: Bool
 }
 
 struct DayTypeProvider: TimelineProvider {
     func placeholder(in context: Context) -> DayTypeEntry {
-        DayTypeEntry(date: Date(), dayCode: "G1", dayName: "Gold 1", schoolStartTime: "8:45 AM")
+        DayTypeEntry(date: Date(), dayCode: "G1", dayName: "Gold 1", schoolStartTime: "9:00 AM", isTomorrow: false)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (DayTypeEntry) -> Void) {
-        let (dayCode, dayName, startTime) = getTodaysDayInfo()
-        completion(DayTypeEntry(date: Date(), dayCode: dayCode, dayName: dayName, schoolStartTime: startTime))
+        let (dayCode, dayName, startTime, isTomorrow) = getDayInfo()
+        completion(DayTypeEntry(date: Date(), dayCode: dayCode, dayName: dayName, schoolStartTime: startTime, isTomorrow: isTomorrow))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<DayTypeEntry>) -> Void) {
         let now = Date()
-        let (dayCode, dayName, startTime) = getTodaysDayInfo()
+        let (dayCode, dayName, startTime, isTomorrow) = getDayInfo()
         
-        let entry = DayTypeEntry(date: now, dayCode: dayCode, dayName: dayName, schoolStartTime: startTime)
+        let entry = DayTypeEntry(date: now, dayCode: dayCode, dayName: dayName, schoolStartTime: startTime, isTomorrow: isTomorrow)
         
         // Refresh at midnight
         var nextMidnight = Calendar.current.startOfDay(for: now)
@@ -39,26 +40,60 @@ struct DayTypeProvider: TimelineProvider {
         completion(timeline)
     }
     
-    private func getTodaysDayInfo() -> (String, String, String) {
+    private func getDayInfo() -> (String, String, String, Bool) {
         let now = Date()
+        let nowSec = secondsSinceMidnight(now)
         
         guard let scheduleDict = loadScheduleDict(),
               let data = loadScheduleData() else {
-            return ("", "No Schedule", "--:--")
+            return ("", "No Schedule", "--:--", false)
         }
         
-        let dateKey = getKeyForDate(now)
+        // Check if there are any classes left today
+        let todayDateKey = getKeyForDate(now)
+        let hasClassesLeft = hasRemainingClasses(dateKey: todayDateKey, scheduleDict: scheduleDict, data: data, nowSec: nowSec)
+        
+        // Determine which day to display
+        let isTomorrow = !hasClassesLeft
+        let targetDate = hasClassesLeft ? now : Calendar.current.date(byAdding: .day, value: 1, to: now) ?? now
+        let dateKey = getKeyForDate(targetDate)
         
         guard let dayInfo = scheduleDict[dateKey],
               dayInfo.count >= 1 else {
-            return ("", "No Classes", "--:--")
+            return ("", "No Classes", "--:--", isTomorrow)
         }
         
         let dayCode = dayInfo[0]
         let dayName = getDayName(dayCode)
         let startTime = getSchoolStartTime(dayCode: dayCode, data: data)
         
-        return (dayCode, dayName, startTime)
+        return (dayCode, dayName, startTime, isTomorrow)
+    }
+    
+    private func hasRemainingClasses(dateKey: String, scheduleDict: [String: [String]], data: ScheduleData, nowSec: Int) -> Bool {
+        guard let dayInfo = scheduleDict[dateKey],
+              dayInfo.count >= 1 else {
+            return false
+        }
+        
+        let dayCode = dayInfo[0]
+        let map = ["g1":0,"b1":1,"g2":2,"b2":3,"a1":4,"a2":5,"a3":6,"a4":7,"l1":8,"l2":9,"s1":10]
+        
+        guard let di = map[dayCode.lowercased()], data.days.indices.contains(di) else {
+            return false
+        }
+        
+        let day = data.days[di]
+        
+        // Check if any class starts after current time
+        for i in day.names.indices {
+            let start = day.startTimes[i]
+            if start.seconds > nowSec {
+                return true
+            }
+        }
+        
+        return false
     }
     
     private func getSchoolStartTime(dayCode: String, data: ScheduleData) -> String {
@@ -116,7 +151,7 @@ struct DayTypeEntryView: View {
         let TertiaryColor = Color(hex: theme?.tertiary ?? "#FFFFFFFF")
         
         VStack(spacing: 8) {
-            Text("Today is a")
+            Text(entry.isTomorrow ? "Tomorrow is" : "Today is")
                 .font(.system(size: 14, weight: .regular))
                 .foregroundColor(TertiaryColor.opacity(0.8))
             
@@ -166,5 +201,5 @@ struct DayTypeWidget: Widget {
 #Preview(as: .systemSmall) {
     DayTypeWidget()
 } timeline: {
-    DayTypeEntry(date: .now, dayCode: "G2", dayName: "Gold 2", schoolStartTime: "8:45 AM")
+    DayTypeEntry(date: .now, dayCode: "G2", dayName: "Gold 2", schoolStartTime: "9:20 AM", isTomorrow: false)
 }

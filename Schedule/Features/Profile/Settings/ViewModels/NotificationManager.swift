@@ -88,7 +88,7 @@ class NotificationManager {
             if let err = err {
                 print("❌ Notification scheduling failed: \(err)")
             } else {
-                print("✅ Notification scheduled for tomorrow at \(tomorrowComponents.hour ?? 0):\(String(format: "%02d", tomorrowComponents.minute ?? 0))")
+                print("✅ Notification scheduled for tomorrow at \(tomorrowComponents.hour ?? 0):\(String(format: "%02d", tomorrowComponents.minute ?? 0)) for \(dayCode)")
             }
         }
     }

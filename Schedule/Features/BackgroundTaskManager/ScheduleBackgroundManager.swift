@@ -34,6 +34,7 @@ class ScheduleBackgroundManager {
         
         let op = BlockOperation {
             let tomorrowCode = ContentView().getTomorrowsDayCode()
+            print(tomorrowCode)
             NotificationManager.shared.scheduleNightly(dayCode: tomorrowCode)
         }
         

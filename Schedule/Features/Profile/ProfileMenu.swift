@@ -11,12 +11,14 @@ struct ProfileMenu: View {
     @Binding var SecondaryColor: Color
     @Binding var TertiaryColor: Color
     var iPad: Bool
+    var isPortrait: Bool
     
     @State private var showingDeleteAlert = false
     @State private var isLoadingSync = false
     @State private var isLoadingLoad = false
     @State private var syncMessage = ""
     @State private var showSyncMessage = false
+    @State private var showSettings = false
     
     var body: some View {
         ZStack {
@@ -26,18 +28,34 @@ struct ProfileMenu: View {
                     Color.clear.frame(height: iPad ? 60 : 50)
                     
                     if let user = authManager.user {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Signed in as:")
-                                .font(.caption)
-                                .foregroundStyle(TertiaryColor.highContrastTextColor())
+                        HStack{
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Signed in as:")
+                                    .font(.caption)
+                                    .foregroundStyle(TertiaryColor.highContrastTextColor())
+                                
+                                Text(user.displayName ?? "User")
+                                    .font(.headline)
+                                    .foregroundColor(PrimaryColor)
+                                
+                                Text(user.email)
+                                    .font(.caption)
+                                    .foregroundStyle(TertiaryColor.highContrastTextColor())
+                            }
                             
-                            Text(user.displayName ?? "User")
-                                .font(.headline)
-                                .foregroundColor(PrimaryColor)
+                            Spacer()
                             
-                            Text(user.email)
-                                .font(.caption)
-                                .foregroundStyle(TertiaryColor.highContrastTextColor())
+                            VStack{
+                                Button {
+                                    showSettings.toggle()
+                                } label: {
+                                    Label(iPad ? "Settings" : "", systemImage: "gearshape.fill")
+                                        .font(.title)
+                                        .foregroundStyle(PrimaryColor)
+                                }
+                            }
+                            .padding()
+                            
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding()
@@ -198,6 +216,17 @@ struct ProfileMenu: View {
                 Spacer()
             }
         }
+        .sheet(
+            isPresented: $showSettings,
+            onDismiss: {showSettings = false},
+            content: {Settings(
+                PrimaryColor: $PrimaryColor,
+                SecondaryColor: $SecondaryColor,
+                TertiaryColor: $TertiaryColor,
+                isPortrait: isPortrait)
+                    .padding(.top, 32)
+                    .background(TertiaryColor)
+            })
         .alert("Delete Account", isPresented: $showingDeleteAlert) {
             Button("Cancel", role: .cancel) { }
             Button("Delete", role: .destructive) {
