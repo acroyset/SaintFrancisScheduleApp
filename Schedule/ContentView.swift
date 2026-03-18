@@ -34,6 +34,7 @@ struct ContentView: View {
     @State private var whatsNewPopup = false
     @State private var lastSeenVersion: String = UserDefaults.standard.string(forKey: "LastSeenVersion") ?? ""
     @State private var isFirstLaunch: Bool = !UserDefaults.standard.bool(forKey: "HasLaunchedBefore")
+    @State private var scheduleLoadError: String? = nil
     
     @State private var addEvent = false
     
@@ -236,6 +237,20 @@ struct ContentView: View {
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .zIndex(3000)
+        }
+        
+        if let error = scheduleLoadError {
+            VStack(spacing: 8) {
+                Image(systemName: "wifi.exclamationmark")
+                    .font(.system(size: 32))
+                    .foregroundStyle(PrimaryColor.opacity(0.6))
+                Text(error)
+                    .font(.system(size: 14, weight: .medium, design: .monospaced))
+                    .foregroundStyle(PrimaryColor.opacity(0.8))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
     
@@ -797,20 +812,6 @@ struct ContentView: View {
         return scheduleDict[formatter.string(from: Date())] ?? ["",""]
     }
     
-    private func fetchScheduleFromGoogleSheets() {
-        let csvURL = "https://docs.google.com/spreadsheets/d/1vrodfGZP7wNooj8VYgpNejPaLvOl8PUyg82hwWz_uU4/export?format=csv&gid=0"
-        guard let url = URL(string: csvURL) else { return }
-        URLSession.shared.dataTask(with: url) { data, _, error in
-            guard error == nil, let data = data, let csv = String(data: data, encoding: .utf8) else { return }
-            self.parseCSV(csv)
-            applySelectedDate(selectedDate)
-            
-            DispatchQueue.main.async {
-                self.saveDataForWidget()
-            }
-        }.resume()
-    }
-    
     private func setScroll() -> Void {
         renderWithEvents()
         DispatchQueue.main.async {
@@ -864,21 +865,54 @@ struct ContentView: View {
         }
     }
 
-    private func fetchScheduleFromGoogleSheetsAsync() async {
+    private func fetchScheduleFromGoogleSheets() {
+        Task {
+            await fetchWithRetry(attempt: 1)
+        }
+    }
+     
+    private func fetchWithRetry(attempt: Int, maxAttempts: Int = 5) async {
         let csvURL = "https://docs.google.com/spreadsheets/d/1vrodfGZP7wNooj8VYgpNejPaLvOl8PUyg82hwWz_uU4/export?format=csv&gid=0"
         guard let url = URL(string: csvURL) else { return }
-        
+     
         do {
-            let (data, _) = try await URLSession.shared.data(from: url)
-            if let csv = String(data: data, encoding: .utf8) {
-                DispatchQueue.main.async {
-                    self.parseCSV(csv)
-                    self.applySelectedDate(self.selectedDate)
-                }
+            let (data, response) = try await URLSession.shared.data(from: url)
+     
+            // Treat non-200 HTTP responses as failures worth retrying
+            if let http = response as? HTTPURLResponse, http.statusCode != 200 {
+                throw URLError(.badServerResponse)
             }
+     
+            guard let csv = String(data: data, encoding: .utf8) else {
+                throw URLError(.cannotDecodeContentData)
+            }
+     
+            // Success — parse and apply
+            DispatchQueue.main.async {
+                self.scheduleLoadError = nil
+                self.parseCSV(csv)
+                self.applySelectedDate(self.selectedDate)
+                self.saveDataForWidget()
+            }
+     
         } catch {
-            print("❌ Failed to fetch schedule: \(error)")
+            if attempt < maxAttempts {
+                let delay = UInt64(1 * 1_000_000_000)
+                try? await Task.sleep(nanoseconds: delay)
+                await fetchWithRetry(attempt: attempt + 1, maxAttempts: maxAttempts)
+            } else {
+                // All attempts exhausted — show error in UI
+                DispatchQueue.main.async {
+                    self.scheduleLoadError = "Could not load schedule. Close and reopen the app to try again."
+                }
+                print("❌ Schedule fetch failed after \(maxAttempts) attempts: \(error)")
+            }
         }
+    }
+     
+    // Async version used by refreshAllData() — same retry logic
+    private func fetchScheduleFromGoogleSheetsAsync() async {
+        await fetchWithRetry(attempt: 1)
     }
     
     private func saveEventsToCloud() {
