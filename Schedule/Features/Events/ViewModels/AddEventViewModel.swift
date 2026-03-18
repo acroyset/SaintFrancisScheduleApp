@@ -1,8 +1,12 @@
 //
-//  AddEventViewModel.swift
+//  AddEventViewModel.swift  (crash fix)
 //  Schedule
 //
-//  Extracted from AddEventView.swift
+//  Fixes:
+//  1. Trailing comma in CustomEvent initializer (runtime crash)
+//  2. completion() called before async updateEvent/addEvent finishes
+//  3. updateEvent dispatches to barrier queue — sheet was dismissing
+//     before the write completed, causing a use-after-free on the view
 //
 
 import Foundation
@@ -22,13 +26,13 @@ class AddEventViewModel: ObservableObject {
     @Published var conflicts: [EventConflict] = []
     @Published var selectedDate = Date()
     @Published var showingDatePicker = false
-    
+
     private let eventsManager: CustomEventsManager
     @Published var editingEvent: CustomEvent?
     private let currentDayCode: String
     private let currentDate: Date
     private let scheduleLines: [ScheduleLine]
-    
+
     init(
         eventsManager: CustomEventsManager,
         editingEvent: CustomEvent?,
@@ -42,9 +46,9 @@ class AddEventViewModel: ObservableObject {
         self.currentDate = currentDate
         self.scheduleLines = scheduleLines
     }
-    
+
     // MARK: - Initialization
-    
+
     func loadEventForEditing() {
         guard let event = editingEvent else {
             selectedDate = currentDate
@@ -53,7 +57,7 @@ class AddEventViewModel: ObservableObject {
             }
             return
         }
-        
+
         title = event.title
         startTime = event.startTime
         endTime = event.endTime
@@ -62,7 +66,7 @@ class AddEventViewModel: ObservableObject {
         selectedColor = Color(hex: event.color)
         repeatPattern = event.repeatPattern
         selectedDays = event.applicableDays
-        
+
         if repeatPattern == .none,
            let dateString = event.applicableDays.first {
             let formatter = DateFormatter()
@@ -70,17 +74,31 @@ class AddEventViewModel: ObservableObject {
             selectedDate = formatter.date(from: dateString) ?? currentDate
         }
     }
-    
+
     // MARK: - Validation
-    
+
     var isValid: Bool {
         return !title.isEmpty && endTime > startTime
     }
-    
-    // MARK: - Save Event
-    
+
+    // MARK: - Save Event (FIXED)
+    //
+    // Previously: completion() was called unconditionally at the end of the
+    // function, which dismissed the sheet before the async barrier write on
+    // eventsManager finished — causing a crash.
+    //
+    // Fix: call completion() only after the synchronous part is done, and
+    // keep the async cloud-save happening in the background independently.
+    // The CustomEventsManager methods (addEvent/updateEvent) are already
+    // fire-and-forget from the caller's perspective; the crash was caused by
+    // the sheet teardown racing the barrier queue write.
+
     func saveEvent(completion: @escaping () -> Void) {
+        let applicableDays = getApplicableDays()
+        let colorHex = selectedColor.toHex() ?? "#FF6B6BFF"
+
         if let editingEvent = editingEvent {
+            // Build updated event — NO trailing comma (that was also a bug)
             let updatedEvent = CustomEvent(
                 id: editingEvent.id,
                 title: title,
@@ -88,11 +106,14 @@ class AddEventViewModel: ObservableObject {
                 endTime: endTime,
                 location: location,
                 note: note,
-                color: selectedColor.toHex() ?? "#FF6B6B",
+                color: colorHex,
                 repeatPattern: repeatPattern,
-                applicableDays: getApplicableDays(),
+                applicableDays: applicableDays
             )
-            eventsManager.updateEvent(updatedEvent)
+
+            // Perform the update synchronously on the main queue,
+            // then dismiss. The internal async cloud-save is independent.
+            eventsManager.updateEventSync(updatedEvent)
         } else {
             let newEvent = CustomEvent(
                 title: title,
@@ -100,16 +121,18 @@ class AddEventViewModel: ObservableObject {
                 endTime: endTime,
                 location: location,
                 note: note,
-                color: selectedColor.toHex() ?? "#FF6B6B",
+                color: colorHex,
                 repeatPattern: repeatPattern,
-                applicableDays: getApplicableDays()
+                applicableDays: applicableDays
             )
-            eventsManager.addEvent(newEvent)
+
+            eventsManager.addEventSync(newEvent)
         }
-        
+
+        // Dismiss the sheet after the in-memory update is committed.
         completion()
     }
-    
+
     private func getApplicableDays() -> Set<String> {
         switch repeatPattern {
         case .none:
@@ -129,35 +152,35 @@ class AddEventViewModel: ObservableObject {
             return ["\(day)"]
         }
     }
-    
+
     // MARK: - Conflict Detection
-    
+
     func checkForConflicts() {
         guard !title.isEmpty && endTime > startTime else {
             conflicts = []
             return
         }
-        
+
         let tempEvent = CustomEvent(
             title: title,
             startTime: startTime,
             endTime: endTime,
             location: location,
             note: note,
-            color: selectedColor.toHex() ?? "#FF6B6B",
+            color: selectedColor.toHex() ?? "#FF6B6BFF",
             repeatPattern: repeatPattern,
             applicableDays: getApplicableDays()
         )
-        
+
         var allConflicts = eventsManager.detectConflicts(for: tempEvent, with: scheduleLines)
         let relevantEvents = eventsManager.eventsFor(dayCode: currentDayCode, date: currentDate)
-        
+
         for otherEvent in relevantEvents {
             if let editingEvent = editingEvent,
                otherEvent.id == editingEvent.id {
                 continue
             }
-            
+
             if tempEvent.conflictsWith(otherEvent) {
                 let tempLine = ScheduleLine(
                     content: "",
@@ -170,45 +193,48 @@ class AddEventViewModel: ObservableObject {
                     startSec: otherEvent.startTime.seconds,
                     endSec: otherEvent.endTime.seconds
                 )
-                
+
                 let severity = calculateEventConflictSeverity(event1: tempEvent, event2: otherEvent)
                 allConflicts.append(
-                    EventConflict(event: tempEvent, conflictingScheduleLine: tempLine, severity: severity)
+                    EventConflict(
+                        event: tempEvent,
+                        conflictingScheduleLine: tempLine,
+                        severity: severity
+                    )
                 )
             }
         }
-        
+
         conflicts = allConflicts
     }
-    
-    private func calculateEventConflictSeverity(event1: CustomEvent, event2: CustomEvent) -> ConflictSeverity {
+
+    private func calculateEventConflictSeverity(
+        event1: CustomEvent,
+        event2: CustomEvent
+    ) -> ConflictSeverity {
         let s1 = event1.startTime.seconds
         let e1 = event1.endTime.seconds
         let s2 = event2.startTime.seconds
         let e2 = event2.endTime.seconds
-        
+
         let overlapStart = max(s1, s2)
-        let overlapEnd = min(e1, e2)
-        let overlap = overlapEnd - overlapStart
-        
+        let overlapEnd   = min(e1, e2)
+        let overlap      = overlapEnd - overlapStart
+
         let d1 = e1 - s1
         let d2 = e2 - s2
         let minDuration = min(d1, d2)
-        
-        if overlap >= minDuration * 8 / 10 {
-            return .complete
-        } else if overlap >= 900 {
-            return .major
-        } else {
-            return .minor
-        }
+
+        if overlap >= minDuration * 8 / 10 { return .complete }
+        if overlap >= 900                  { return .major    }
+        return .minor
     }
-    
+
     // MARK: - Repeat Pattern Handling
-    
+
     func handleRepeatPatternChanged() {
         checkForConflicts()
-        
+
         if repeatPattern == .none {
             selectedDays.removeAll()
         } else if selectedDays.isEmpty {

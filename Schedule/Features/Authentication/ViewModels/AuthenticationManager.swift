@@ -16,7 +16,7 @@ class AuthenticationManager: ObservableObject {
     @Published var needsPolicyAcceptance = false
     
     private var pendingPolicyUserId: String? = nil
-    private let policyVersion = "2025-09-03"
+    private let policyVersion = "2026-03-17"
     private let dataManager = DataManager()
     private var authStateHandle: AuthStateDidChangeListenerHandle?
 
