@@ -1247,7 +1247,7 @@ func loadSFHSCourses() -> [Course] {
     
     let end = DispatchTime.now()
     let ms = Double(end.uptimeNanoseconds - start.uptimeNanoseconds) / 1_000_000.0
-    print("Loaded Courses in \(String(format: "%.3f", ms)) ms")
+    //print("Loaded Courses in \(String(format: "%.3f", ms)) ms")
     
     return allCourses
 }

@@ -68,7 +68,6 @@ struct ClassesView: View {
                         .background(PrimaryColor)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
-                    .newBadge()
                     
                     Button(action: { window = .CoursesList }) {
                         HStack {
@@ -82,7 +81,6 @@ struct ClassesView: View {
                         .background(PrimaryColor)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
-                    .newBadge()
                     
                     Button(action: { window = .FinalGradeCalculator }) {
                         HStack {
@@ -96,7 +94,6 @@ struct ClassesView: View {
                         .background(PrimaryColor)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
-                    .newBadge()
                     
                     Button(action: { window = .ClassEditor }) {
                         HStack {

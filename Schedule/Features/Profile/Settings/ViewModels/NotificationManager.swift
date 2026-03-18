@@ -49,46 +49,39 @@ class NotificationManager {
         content.body = "Tomorrow is \(fancy)"
         content.sound = .default
         
-        // Generate unique ID based on date to prevent duplicates
         let formatter = DateFormatter()
         formatter.dateFormat = "MM-dd-yy"
         let today = formatter.string(from: Date())
         let id = "\(notificationIDPrefix)-\(today)"
         
-        // Calculate tomorrow's date for the notification
-        guard let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) else {
-            print("❌ Notification: Failed to calculate tomorrow")
-            return
-        }
-        
-        // Get user-selected time
         let selectedTime = NotificationSettings.time
         let timeComponents = Calendar.current.dateComponents([.hour, .minute], from: selectedTime)
         
-        // Create date components for tomorrow at the selected time
-        var tomorrowComponents = Calendar.current.dateComponents([.year, .month, .day], from: tomorrow)
-        tomorrowComponents.hour = timeComponents.hour
-        tomorrowComponents.minute = timeComponents.minute
-        tomorrowComponents.second = 0
+        // Start with today
+        var triggerComponents = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+        triggerComponents.hour = timeComponents.hour
+        triggerComponents.minute = timeComponents.minute
+        triggerComponents.second = 0
         
-        // Verify the trigger time is in the future
-        guard let triggerDate = Calendar.current.date(from: tomorrowComponents),
-              triggerDate > Date() else {
-            print("⚠️ Notification: Trigger time is in the past, skipping")
-            return
+        // If that time has already passed today, push to tomorrow
+        if let triggerDate = Calendar.current.date(from: triggerComponents), triggerDate <= Date() {
+            let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date())!
+            triggerComponents = Calendar.current.dateComponents([.year, .month, .day], from: tomorrow)
+            triggerComponents.hour = timeComponents.hour
+            triggerComponents.minute = timeComponents.minute
+            triggerComponents.second = 0
         }
         
-        let trigger = UNCalendarNotificationTrigger(dateMatching: tomorrowComponents, repeats: false)
+        let trigger = UNCalendarNotificationTrigger(dateMatching: triggerComponents, repeats: false)
         let request = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
         
-        // Remove any existing nightly notifications before adding new one
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [id])
         
         UNUserNotificationCenter.current().add(request) { err in
             if let err = err {
                 print("❌ Notification scheduling failed: \(err)")
             } else {
-                print("✅ Notification scheduled for tomorrow at \(tomorrowComponents.hour ?? 0):\(String(format: "%02d", tomorrowComponents.minute ?? 0)) for \(dayCode)")
+                //print("✅ Notification scheduled for \(triggerComponents.month!)/\(triggerComponents.day!) at \(triggerComponents.hour ?? 0):\(String(format: "%02d", triggerComponents.minute ?? 0)) for \(dayCode)")
             }
         }
     }
@@ -101,7 +94,7 @@ class NotificationManager {
             
             if !nightlyIDs.isEmpty {
                 UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: nightlyIDs)
-                print("✅ Cancelled \(nightlyIDs.count) nightly notification(s)")
+                //print("✅ Cancelled \(nightlyIDs.count) nightly notification(s)")
             }
         }
     }
@@ -122,7 +115,7 @@ class NotificationManager {
             
             if !expiredIDs.isEmpty {
                 UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: expiredIDs)
-                print("🧹 Cleaned up \(expiredIDs.count) expired notification(s)")
+                //print("🧹 Cleaned up \(expiredIDs.count) expired notification(s)")
             }
         }
     }

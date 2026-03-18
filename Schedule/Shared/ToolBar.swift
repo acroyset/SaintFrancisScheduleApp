@@ -65,7 +65,6 @@ struct ToolBar: View {
                     SecondaryColor: SecondaryColor,
                     TertiaryColor: TertiaryColor
                 )
-                .newBadge(tool.name == "Classes")
             }
         }
         .padding(8)

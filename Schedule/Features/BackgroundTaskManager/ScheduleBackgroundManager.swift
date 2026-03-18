@@ -29,23 +29,29 @@ class ScheduleBackgroundManager {
     }
     
     func handleNightlyTask(task: BGAppRefreshTask) {
-        
         scheduleNextNightlyRefresh()
         
         let op = BlockOperation {
-            let tomorrowCode = ContentView().getTomorrowsDayCode()
-            print(tomorrowCode)
+            // Load scheduleDict directly from shared storage — no ContentView needed
+            guard let data = SharedGroup.defaults.data(forKey: "ScheduleDict"),
+                  let scheduleDict = try? JSONDecoder().decode([String: [String]].self, from: data) else {
+                NotificationManager.shared.scheduleNightly(dayCode: "")
+                task.setTaskCompleted(success: false)
+                return
+            }
+            
+            let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date())!
+            let formatter = DateFormatter()
+            formatter.timeZone = .current
+            formatter.dateFormat = "MM-dd-yy"
+            let key = formatter.string(from: tomorrow)
+            
+            let tomorrowCode = scheduleDict[key]?[0] ?? ""
             NotificationManager.shared.scheduleNightly(dayCode: tomorrowCode)
         }
         
-        task.expirationHandler = {
-            op.cancel()
-        }
-        
-        op.completionBlock = {
-            task.setTaskCompleted(success: !op.isCancelled)
-        }
-        
+        task.expirationHandler = { op.cancel() }
+        op.completionBlock = { task.setTaskCompleted(success: !op.isCancelled) }
         OperationQueue().addOperation(op)
     }
 }
