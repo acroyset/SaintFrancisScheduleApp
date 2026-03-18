@@ -10,8 +10,8 @@ import Foundation
 import WidgetKit
 import UserNotifications
 
-let version = "Beta 1.14"
-let whatsNew = "- More Widgets!!!\n- Settings now in profile tab\n- Better News\n- Bug Fixes"
+let version = "1.14"
+let whatsNew = "- More Widgets!!!\n- Settings now in profile tab\n- Encrypted data storage for privacy\n- Bug Fixes"
 
 struct ContentView: View {
     @EnvironmentObject var authManager: AuthenticationManager

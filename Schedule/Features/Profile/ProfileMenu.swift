@@ -330,12 +330,7 @@ struct ProfileMenu: View {
         guard let user = authManager.user else { return }
         
         Task {
-            do {
-                try await dataManager.deleteUserData(for: user.id)
-                authManager.signOut()
-            } catch {
-                print("❌ Failed to delete account: \(error)")
-            }
+            await authManager.deleteAccount()
         }
     }
     

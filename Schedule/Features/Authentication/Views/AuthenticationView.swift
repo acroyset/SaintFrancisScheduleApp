@@ -24,7 +24,10 @@ struct AuthenticationView: View {
             }
         }
         .sheet(isPresented: $authManager.needsPolicyAcceptance) {
-            PolicyConsentSheet(authManager: authManager)
+            PolicyConsentSheet(
+                authManager: authManager,
+                isRenewal: authManager.user != nil  // existing user = renewal
+            )
         }
     }
 }

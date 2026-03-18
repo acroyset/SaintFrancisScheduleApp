@@ -24,18 +24,16 @@ class DataManager: ObservableObject {
         isSecondLunch: [Bool],
         for userId: String
     ) async throws {
-
-        // --- Encrypt each sensitive payload ---
-        let encryptedClasses = try encryption.encrypt(classes,      userId: userId)
-        let encryptedTheme   = try encryption.encrypt(theme,        userId: userId)
-        let encryptedLunch   = try encryption.encrypt(isSecondLunch, userId: userId)
+        let encryptedClasses  = try encryption.encrypt(classes,       userId: userId)
+        let encryptedTheme    = try encryption.encrypt(theme,         userId: userId)
+        let encryptedLunch    = try encryption.encrypt(isSecondLunch, userId: userId)
 
         try await db.collection("users").document(userId).setData([
-            "encrypted":        true,           // ← migration flag
-            "classes":          encryptedClasses,
-            "theme":            encryptedTheme,
-            "isSecondLunch":    encryptedLunch,
-            "lastUpdated":      Timestamp()
+            "encrypted":     true,
+            "classes":       encryptedClasses,
+            "theme":         encryptedTheme,
+            "isSecondLunch": encryptedLunch,
+            "lastUpdated":   Timestamp()
         ], merge: true)
     }
 
@@ -49,23 +47,16 @@ class DataManager: ObservableObject {
             return ([], defaultTheme, [false, false])
         }
 
-        // ── Encrypted path (new format) ──────────────────────────────────────
         if data["encrypted"] as? Bool == true {
             return try loadEncrypted(data, userId: userId)
         }
 
-        // ── Legacy plaintext path (old format) ──────────────────────────────
-        // Still works; will be upgraded automatically on next save.
         return loadPlaintext(data)
     }
 
     // -------------------------------------------------------------------------
-    // MARK: Other operations (unchanged)
+    // MARK: Policy
     // -------------------------------------------------------------------------
-
-    func deleteUserData(for userId: String) async throws {
-        try await db.collection("users").document(userId).delete()
-    }
 
     func recordPolicyAcceptance(for userId: String, version: String) async throws {
         try await db.collection("users").document(userId).setData([
@@ -75,6 +66,37 @@ class DataManager: ObservableObject {
                 "timestamp": FieldValue.serverTimestamp()
             ]
         ], merge: true)
+    }
+
+    /// Returns `true` if the user has never accepted the policy
+    /// OR if their stored version is older than `currentVersion`.
+    func checkPolicyNeedsRenewal(for userId: String, currentVersion: String) async throws -> Bool {
+        let doc = try await db.collection("users").document(userId).getDocument()
+
+        guard let data = doc.data() else {
+            // No document at all — treat as needing acceptance
+            return true
+        }
+
+        guard
+            let policyDict = data["privacyPolicy"] as? [String: Any],
+            let accepted   = policyDict["accepted"] as? Bool, accepted,
+            let stored     = policyDict["version"]  as? String
+        else {
+            // Missing or malformed policy record
+            return true
+        }
+
+        // Simple string comparison works because versions are ISO dates (YYYY-MM-DD)
+        return stored < currentVersion
+    }
+
+    // -------------------------------------------------------------------------
+    // MARK: Other operations
+    // -------------------------------------------------------------------------
+
+    func deleteUserData(for userId: String) async throws {
+        try await db.collection("users").document(userId).delete()
     }
 
     // -------------------------------------------------------------------------
@@ -90,19 +112,16 @@ class DataManager: ObservableObject {
         userId: String
     ) throws -> ([ClassItem], ThemeColors, [Bool]) {
 
-        // classes
         var classes: [ClassItem] = []
         if let blob = data["classes"] as? String {
             classes = (try? encryption.decrypt(blob, as: [ClassItem].self, userId: userId)) ?? []
         }
 
-        // theme
         var theme = defaultTheme
         if let blob = data["theme"] as? String {
             theme = (try? encryption.decrypt(blob, as: ThemeColors.self, userId: userId)) ?? defaultTheme
         }
 
-        // isSecondLunch
         var isSecondLunch = [false, false]
         if let blob = data["isSecondLunch"] as? String {
             isSecondLunch = (try? encryption.decrypt(blob, as: [Bool].self, userId: userId)) ?? [false, false]
@@ -111,7 +130,6 @@ class DataManager: ObservableObject {
         return (classes, theme, isSecondLunch)
     }
 
-    /// Reads the old un-encrypted Firestore structure (pre-encryption).
     private func loadPlaintext(_ data: [String: Any]) -> ([ClassItem], ThemeColors, [Bool]) {
         let classesArray = (data["classes"] as? [[String: String]]) ?? []
         let classes = classesArray.map { dict in
@@ -130,7 +148,6 @@ class DataManager: ObservableObject {
         )
 
         let isSecondLunch = (data["isSecondLunch"] as? [Bool]) ?? [false, false]
-
         return (classes, theme, isSecondLunch)
     }
 }
