@@ -145,7 +145,7 @@ struct GPACalculatorModal: View {
                             }
                         }
                         
-                        Text("For your privacy we do not save your grades and therefore will reset opon closing the gpa calculator.")
+                        Text("For your privacy we do not save your grades and therefore will reset upon closing the gpa calculator.")
                             .font(.footnote)
                             .foregroundStyle(TertiaryColor.highContrastTextColor())
                         

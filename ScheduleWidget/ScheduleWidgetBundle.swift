@@ -13,7 +13,6 @@ struct ScheduleWidgetBundle: WidgetBundle {
     var body: some Widget {
         ScheduleWidget()
         DayTypeWidget()
-        ScheduleWidgetControl()
         ScheduleWidgetLiveActivity()
     }
 }
