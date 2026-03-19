@@ -31,6 +31,7 @@ struct ContentView: View {
     @State private var hasTriedFetchingSchedule = false
     @State private var scheduleLines: [ScheduleLine] = []
     @State private var data: ScheduleData? = nil
+    var onboardingClassNames: [String] = []
     @State private var selectedDate = Date()
     @State private var scrollTarget: Int? = nil
     @State private var showCalendarGrid = false
@@ -387,6 +388,7 @@ struct ContentView: View {
         let daysContents = (try? String(contentsOf: daysURL, encoding: .utf8)) ?? ""
         let days = parseDays(daysContents)
         data = ScheduleData(classes: classes, days: days)
+        applyOnboardingNamesIfNeeded()
 
         if !hasTriedFetchingSchedule {
             hasTriedFetchingSchedule = true
@@ -808,4 +810,20 @@ struct ContentView: View {
             NotificationManager.shared.scheduleNightly(dayCode: "")
         }
     }
+    
+    private func applyOnboardingNamesIfNeeded() {
+        guard !onboardingClassNames.isEmpty else { return }
+        guard var currentData = data else { return }
+
+        for (i, name) in onboardingClassNames.enumerated() {
+            guard i < currentData.classes.count else { break }
+            let trimmed = name.trimmingCharacters(in: .whitespaces)
+            if !trimmed.isEmpty {
+                currentData.classes[i].name = trimmed
+            }
+        }
+
+        data = currentData
+        overwriteClassesFile(with: currentData.classes)
+        }
 }

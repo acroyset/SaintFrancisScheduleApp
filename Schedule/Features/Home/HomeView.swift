@@ -2,7 +2,8 @@
 //  HomeView.swift
 //  Schedule
 //
-//  Updated: Jump-to-Today button + Share schedule button in header.
+//  Shows skeleton cards while schedule is loading, jump-to-today pill,
+//  and share via long-press context menu on day name.
 //
 
 import SwiftUI
@@ -16,14 +17,13 @@ struct HomeView: View {
     let dayCode: String
     let note: String
     let scheduleLines: [ScheduleLine]
-    let scheduleDict: [String: [String]]?
+    let scheduleDict: [String: [String]]?   // nil while still loading
     let data: ScheduleData?
     let PrimaryColor: Color
     let SecondaryColor: Color
     let TertiaryColor: Color
 
     var isPortrait: Bool
-
     var onDatePick: (Date) -> Void
 
     // MARK: - Helpers
@@ -36,6 +36,10 @@ struct HomeView: View {
         iPad ? isPortrait ? 185 : 130 : isPortrait ? 135 : 100
     }
 
+    private var isLoading: Bool {
+        scheduleDict == nil
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -46,20 +50,29 @@ struct HomeView: View {
                 VStack(spacing: 0) {
                     Color.clear.frame(height: headerHeight)
 
-                    ClassItemScroll(
-                        scheduleLines: scheduleLines,
-                        PrimaryColor: PrimaryColor,
-                        SecondaryColor: SecondaryColor,
-                        TertiaryColor: TertiaryColor,
-                        note: note,
-                        dayCode: dayCode,
-                        output: "",
-                        isToday: isToday,
-                        iPad: iPad,
-                        scrollTarget: $scrollTarget,
-                        addEvent: $addEvent,
-                        currentDate: selectedDate
-                    )
+                    if isLoading {
+                        // Show skeleton while CSV is fetching
+                        SkeletonScheduleView(
+                            PrimaryColor: PrimaryColor,
+                            SecondaryColor: SecondaryColor
+                        )
+                        .padding(.top, 8)
+                    } else {
+                        ClassItemScroll(
+                            scheduleLines: scheduleLines,
+                            PrimaryColor: PrimaryColor,
+                            SecondaryColor: SecondaryColor,
+                            TertiaryColor: TertiaryColor,
+                            note: note,
+                            dayCode: dayCode,
+                            output: "",
+                            isToday: isToday,
+                            iPad: iPad,
+                            scrollTarget: $scrollTarget,
+                            addEvent: $addEvent,
+                            currentDate: selectedDate
+                        )
+                    }
 
                     Color.clear.frame(height: iPad ? 160 : 130)
                 }
@@ -73,15 +86,15 @@ struct HomeView: View {
             }
             .zIndex(10)
 
-            // ── Add Event button (portrait only) ────────────────────────
-            if isPortrait {
+            // ── Add Event FAB (portrait, only when loaded) ──────────────
+            if isPortrait && !isLoading {
                 addEventButton
             }
         }
         .gesture(daySwipeGesture)
     }
 
-    // MARK: - Day swipe gesture
+    // MARK: - Swipe
 
     private var daySwipeGesture: some Gesture {
         DragGesture()
@@ -90,7 +103,6 @@ struct HomeView: View {
                 let delta = value.translation.width > 0 ? -1 : 1
                 withAnimation(.snappy) {
                     let new = Calendar.current.date(byAdding: .day, value: delta, to: selectedDate) ?? selectedDate
-                    selectedDate = new
                     onDatePick(new)
                 }
             }
@@ -101,26 +113,20 @@ struct HomeView: View {
     @ViewBuilder
     private var scrollMask: some View {
         if #available(iOS 26.0, *) {
-            LinearGradient(
-                gradient: Gradient(stops: [
-                    .init(color: .clear, location: 0),
-                    .init(color: .black, location: 0.1),
-                    .init(color: .black, location: 0.875),
-                    .init(color: .clear, location: 1.0)
-                ]),
-                startPoint: .top, endPoint: .bottom
-            )
+            LinearGradient(gradient: Gradient(stops: [
+                .init(color: .clear, location: 0),
+                .init(color: .black, location: 0.1),
+                .init(color: .black, location: 0.875),
+                .init(color: .clear, location: 1.0)
+            ]), startPoint: .top, endPoint: .bottom)
         } else {
-            LinearGradient(
-                gradient: Gradient(stops: [
-                    .init(color: .clear, location: 0),
-                    .init(color: .clear, location: 0.15),
-                    .init(color: .black, location: 0.2),
-                    .init(color: .black, location: 0.875),
-                    .init(color: .clear, location: 1.0)
-                ]),
-                startPoint: .top, endPoint: .bottom
-            )
+            LinearGradient(gradient: Gradient(stops: [
+                .init(color: .clear, location: 0),
+                .init(color: .clear, location: 0.15),
+                .init(color: .black, location: 0.2),
+                .init(color: .black, location: 0.875),
+                .init(color: .clear, location: 1.0)
+            ]), startPoint: .top, endPoint: .bottom)
         }
     }
 
@@ -135,83 +141,50 @@ struct HomeView: View {
         }
     }
 
-    // iOS 26+ glass header
     @available(iOS 26.0, *)
     @ViewBuilder
     private var floatingHeaderiOS26: some View {
         if !isPortrait {
-            // Landscape
             HStack {
-                VStack {
-                    dayHeaderWithTodayButton
-                        .glassEffect(.regular.tint(PrimaryColor.opacity(0.9)))
-                    Spacer()
-                }
-                VStack {
-                    dateNavigatorBlock
-                    Spacer()
-                }
-                VStack {
-                    addEventInlineButton
-                    Spacer()
-                }
+                VStack { dayHeaderRow.glassEffect(.regular.tint(PrimaryColor.opacity(0.9))); Spacer() }
+                VStack { dateNavigatorBlock; Spacer() }
+                VStack { addEventInlineButton; Spacer() }
             }
         } else {
-            // Portrait
             VStack(spacing: 0) {
-                dayHeaderWithTodayButton
+                dayHeaderRow
                     .frame(maxWidth: .infinity)
                     .glassEffect(.regular.tint(PrimaryColor.opacity(0.9)))
                     .padding(8)
-
-                dateNavigatorBlock
-                    .padding(.horizontal, 8)
+                dateNavigatorBlock.padding(.horizontal, 8)
             }
         }
     }
 
-    // Legacy header (iOS < 26)
     @ViewBuilder
     private var floatingHeaderLegacy: some View {
         if !isPortrait {
             HStack {
-                VStack {
-                    dayHeaderWithTodayButton
-                        .padding(8)
-                        .background(SecondaryColor)
-                        .cornerRadius(16)
-                    Spacer()
-                }
-                VStack {
-                    dateNavigatorBlock
-                    Spacer()
-                }
-                VStack {
-                    addEventInlineButton
-                    Spacer()
-                }
+                VStack { dayHeaderRow.padding(8).background(SecondaryColor).cornerRadius(16); Spacer() }
+                VStack { dateNavigatorBlock; Spacer() }
+                VStack { addEventInlineButton; Spacer() }
             }
         } else {
             VStack(spacing: 0) {
-                dayHeaderWithTodayButton
+                dayHeaderRow
                     .background(SecondaryColor)
                     .cornerRadius(16)
                     .frame(maxWidth: .infinity)
                     .padding(8)
-
-                dateNavigatorBlock
-                    .padding(.horizontal, 8)
+                dateNavigatorBlock.padding(.horizontal, 8)
             }
         }
     }
 
-    // MARK: - Day header  +  Jump-to-Today  +  Share
+    // MARK: - Day header row
 
-    /// The day name row that also carries the "Today" jump button and share icon.
-    private var dayHeaderWithTodayButton: some View {
+    private var dayHeaderRow: some View {
         HStack(spacing: 8) {
-            // Day type label
-            
             DayHeaderView(
                 dayInfo: getDayInfo(for: dayCode),
                 PrimaryColor: PrimaryColor,
@@ -221,164 +194,93 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - Date navigator block (calendar popup)
+    // MARK: - Date navigator
 
     @ViewBuilder
     private var dateNavigatorBlock: some View {
         if #available(iOS 26.0, *) {
             if showCalendarGrid {
-                DateNavigator(
-                    showCalendar: $showCalendarGrid,
-                    date: $selectedDate,
-                    onPick: onDatePick,
-                    PrimaryColor: PrimaryColor,
-                    SecondaryColor: SecondaryColor,
-                    TertiaryColor: TertiaryColor,
-                    scheduleDict: scheduleDict
-                )
-                .background(TertiaryColor.opacity(0.95))
-                .cornerRadius(32)
-                .padding(.horizontal, isPortrait ? 0 : 8)
-                .animation(.snappy, value: showCalendarGrid)
-                .shadow(radius: 16)
+                DateNavigator(showCalendar: $showCalendarGrid, date: $selectedDate, onPick: onDatePick,
+                              PrimaryColor: PrimaryColor, SecondaryColor: SecondaryColor,
+                              TertiaryColor: TertiaryColor, scheduleDict: scheduleDict)
+                    .background(TertiaryColor.opacity(0.95)).cornerRadius(32)
+                    .padding(.horizontal, isPortrait ? 0 : 8)
+                    .animation(.snappy, value: showCalendarGrid).shadow(radius: 16)
             } else {
-                DateNavigator(
-                    showCalendar: $showCalendarGrid,
-                    date: $selectedDate,
-                    onPick: onDatePick,
-                    PrimaryColor: PrimaryColor,
-                    SecondaryColor: SecondaryColor,
-                    TertiaryColor: TertiaryColor,
-                    scheduleDict: scheduleDict
-                )
-                .glassEffect()
-                .padding(.horizontal, isPortrait ? 0 : 8)
-                .animation(.snappy, value: showCalendarGrid)
+                DateNavigator(showCalendar: $showCalendarGrid, date: $selectedDate, onPick: onDatePick,
+                              PrimaryColor: PrimaryColor, SecondaryColor: SecondaryColor,
+                              TertiaryColor: TertiaryColor, scheduleDict: scheduleDict)
+                    .glassEffect()
+                    .padding(.horizontal, isPortrait ? 0 : 8)
+                    .animation(.snappy, value: showCalendarGrid)
             }
         } else {
-            DateNavigator(
-                showCalendar: $showCalendarGrid,
-                date: $selectedDate,
-                onPick: onDatePick,
-                PrimaryColor: PrimaryColor,
-                SecondaryColor: SecondaryColor,
-                TertiaryColor: TertiaryColor,
-                scheduleDict: scheduleDict
-            )
-            .padding(8)
-            .background(TertiaryColor)
-            .cornerRadius(16)
-            .padding(.horizontal, isPortrait ? 0 : 8)
-            .animation(.snappy, value: showCalendarGrid)
-            .shadow(radius: 16)
+            DateNavigator(showCalendar: $showCalendarGrid, date: $selectedDate, onPick: onDatePick,
+                          PrimaryColor: PrimaryColor, SecondaryColor: SecondaryColor,
+                          TertiaryColor: TertiaryColor, scheduleDict: scheduleDict)
+                .padding(8).background(TertiaryColor).cornerRadius(16)
+                .padding(.horizontal, isPortrait ? 0 : 8)
+                .animation(.snappy, value: showCalendarGrid).shadow(radius: 16)
         }
     }
 
-    // MARK: - Inline add-event button (landscape)
+    // MARK: - Add event (landscape inline)
 
+    @ViewBuilder
     private var addEventInlineButton: some View {
-        Group {
-            if #available(iOS 26.0, *) {
-                Button {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        addEvent = true
-                    }
-                } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: iPad ? 24 : 20, weight: .semibold))
-                        if iPad {
-                            Text("Add Personal Event")
-                                .font(.system(size: iPad ? 20 : 16, weight: .semibold))
-                        }
-                    }
-                    .foregroundColor(TertiaryColor)
-                    .padding(12)
+        if #available(iOS 26.0, *) {
+            Button { withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { addEvent = true } } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "plus.circle.fill").font(.system(size: iPad ? 24 : 20, weight: .semibold))
+                    if iPad { Text("Add Personal Event").font(.system(size: iPad ? 20 : 16, weight: .semibold)) }
                 }
-                .padding(iPad ? 16 : 8)
-                .glassEffect(.regular.tint(PrimaryColor.opacity(0.9)))
-                .padding(.horizontal, iPad ? 40 : 24)
-                .zIndex(5)
-            } else {
-                Button {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        addEvent = true
-                    }
-                } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: iPad ? 24 : 20, weight: .semibold))
-                        if iPad {
-                            Text("Add Personal Event")
-                                .font(.system(size: iPad ? 20 : 16, weight: .semibold))
-                        }
-                    }
-                    .padding(8)
-                    .foregroundColor(TertiaryColor)
-                    .frame(maxWidth: .infinity)
-                    .padding(16)
-                    .background(PrimaryColor)
-                    .cornerRadius(16)
-                    .shadow(radius: 8)
-                }
-                .padding(.horizontal, iPad ? 40 : 24)
-                .padding(.bottom, 80)
-                .zIndex(5)
+                .foregroundColor(TertiaryColor).padding(12)
             }
+            .padding(iPad ? 16 : 8)
+            .glassEffect(.regular.tint(PrimaryColor.opacity(0.9)))
+            .padding(.horizontal, iPad ? 40 : 24)
+        } else {
+            Button { withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { addEvent = true } } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "plus.circle.fill").font(.system(size: iPad ? 24 : 20, weight: .semibold))
+                    if iPad { Text("Add Personal Event").font(.system(size: iPad ? 20 : 16, weight: .semibold)) }
+                }
+                .padding(8).foregroundColor(TertiaryColor).frame(maxWidth: .infinity)
+                .padding(16).background(PrimaryColor).cornerRadius(16).shadow(radius: 8)
+            }
+            .padding(.horizontal, iPad ? 40 : 24).padding(.bottom, 80)
         }
     }
 
-    // MARK: - Portrait Add-Event FAB
+    // MARK: - Add event FAB (portrait)
 
     @ViewBuilder
     private var addEventButton: some View {
         if #available(iOS 26.0, *) {
-            Button {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    addEvent = true
-                }
-            } label: {
+            Button { withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { addEvent = true } } label: {
                 HStack(spacing: 12) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: iPad ? 24 : 20, weight: .semibold))
-                    Text("Add Personal Event")
-                        .font(.system(size: iPad ? 20 : 16, weight: .semibold))
+                    Image(systemName: "plus.circle.fill").font(.system(size: iPad ? 24 : 20, weight: .semibold))
+                    Text("Add Personal Event").font(.system(size: iPad ? 20 : 16, weight: .semibold))
                 }
-                .foregroundColor(TertiaryColor)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, iPad ? 18 : 14)
-                .padding(.horizontal, iPad ? 28 : 20)
+                .foregroundColor(TertiaryColor).frame(maxWidth: .infinity)
+                .padding(.vertical, iPad ? 18 : 14).padding(.horizontal, iPad ? 28 : 20)
             }
             .glassEffect(.regular.tint(PrimaryColor.opacity(0.9)))
-            .padding(.horizontal, iPad ? 40 : 24)
-            .padding(.bottom, iPad ? 80 : 70)
-            .zIndex(5)
+            .padding(.horizontal, iPad ? 40 : 24).padding(.bottom, iPad ? 80 : 70).zIndex(5)
         } else {
-            Button {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    addEvent = true
-                }
-            } label: {
+            Button { withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { addEvent = true } } label: {
                 HStack(spacing: 12) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: iPad ? 24 : 20, weight: .semibold))
-                    Text("Add Personal Event")
-                        .font(.system(size: iPad ? 20 : 16, weight: .semibold))
+                    Image(systemName: "plus.circle.fill").font(.system(size: iPad ? 24 : 20, weight: .semibold))
+                    Text("Add Personal Event").font(.system(size: iPad ? 20 : 16, weight: .semibold))
                 }
-                .foregroundColor(TertiaryColor)
-                .frame(maxWidth: .infinity)
-                .padding(16)
-                .background(PrimaryColor)
-                .cornerRadius(16)
-                .shadow(radius: 8)
+                .foregroundColor(TertiaryColor).frame(maxWidth: .infinity)
+                .padding(16).background(PrimaryColor).cornerRadius(16).shadow(radius: 8)
             }
-            .padding(.horizontal, iPad ? 40 : 24)
-            .padding(.bottom, 80)
-            .zIndex(5)
+            .padding(.horizontal, iPad ? 40 : 24).padding(.bottom, 80).zIndex(5)
         }
     }
 
-    // MARK: - Day info helpers
+    // MARK: - Helpers
 
     func getDayInfo(for currentDay: String) -> Day? {
         guard let di = getDayNumber(for: currentDay),
