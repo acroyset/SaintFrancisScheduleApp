@@ -25,7 +25,7 @@ struct VphoneClassEditor: View {
             ScrollView {
                 VStack() {
                     
-                    Color.clear.frame(height: iPad ? 60 : 50)
+                    Color.clear.frame(height: iPad ? 70 : 60)
                     
                     if (false){
                         Button(action: { showSchoologyConnect = true }) {
@@ -146,7 +146,7 @@ struct VphoneClassEditor: View {
             
             VStack{
                 
-                if #available(iOS 26.0, *) {
+                if #available(iOS 26.0, *), AppAvailability.liquidGlass {
                     HStack {
                         Text("Class Editor")
                             .font(.system(

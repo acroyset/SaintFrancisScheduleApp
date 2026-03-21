@@ -91,7 +91,7 @@ struct ToolButton: View {
                 }
             }
         } label: {
-            if #available(iOS 26.1, *) {
+            if #available(iOS 26.1, *), AppAvailability.liquidGlass {
                 HStack(spacing: 8) {
                     Image(systemName: icon)
                         .font(.system(size: iPad ? 24 : 18, weight: .semibold))
@@ -123,7 +123,7 @@ struct ToolButton: View {
 
         }
         
-        if #available(iOS 26.1, *) {
+        if #available(iOS 26.1, *), AppAvailability.liquidGlass {
             content.buttonStyle(GlassButtonStyle(.regular.tint(active ? PrimaryColor.opacity(0.9) : .clear)))
         } else {
             content.background(

@@ -112,7 +112,7 @@ struct HomeView: View {
 
     @ViewBuilder
     private var scrollMask: some View {
-        if #available(iOS 26.0, *) {
+        if #available(iOS 26.0, *), AppAvailability.liquidGlass {
             LinearGradient(gradient: Gradient(stops: [
                 .init(color: .clear, location: 0),
                 .init(color: .black, location: 0.1),
@@ -134,29 +134,30 @@ struct HomeView: View {
 
     @ViewBuilder
     private var floatingHeader: some View {
-        if #available(iOS 26.0, *) {
+        if #available(iOS 26.0, *), AppAvailability.liquidGlass {
             floatingHeaderiOS26
         } else {
             floatingHeaderLegacy
         }
     }
 
-    @available(iOS 26.0, *)
     @ViewBuilder
     private var floatingHeaderiOS26: some View {
-        if !isPortrait {
-            HStack {
-                VStack { dayHeaderRow.glassEffect(.regular.tint(PrimaryColor.opacity(0.9))); Spacer() }
-                VStack { dateNavigatorBlock; Spacer() }
-                VStack { addEventInlineButton; Spacer() }
-            }
-        } else {
-            VStack(spacing: 0) {
-                dayHeaderRow
-                    .frame(maxWidth: .infinity)
-                    .glassEffect(.regular.tint(PrimaryColor.opacity(0.9)))
-                    .padding(8)
-                dateNavigatorBlock.padding(.horizontal, 8)
+        if #available(iOS 26.0, *), AppAvailability.liquidGlass {
+            if !isPortrait {
+                HStack {
+                    VStack { dayHeaderRow.glassEffect(.regular.tint(PrimaryColor.opacity(0.9))); Spacer() }
+                    VStack { dateNavigatorBlock; Spacer() }
+                    VStack { addEventInlineButton; Spacer() }
+                }
+            } else {
+                VStack(spacing: 0) {
+                    dayHeaderRow
+                        .frame(maxWidth: .infinity)
+                        .glassEffect(.regular.tint(PrimaryColor.opacity(0.9)))
+                        .padding(8)
+                    dateNavigatorBlock.padding(.horizontal, 8)
+                }
             }
         }
     }
@@ -198,7 +199,7 @@ struct HomeView: View {
 
     @ViewBuilder
     private var dateNavigatorBlock: some View {
-        if #available(iOS 26.0, *) {
+        if #available(iOS 26.0, *), AppAvailability.liquidGlass {
             if showCalendarGrid {
                 DateNavigator(showCalendar: $showCalendarGrid, date: $selectedDate, onPick: onDatePick,
                               PrimaryColor: PrimaryColor, SecondaryColor: SecondaryColor,
@@ -228,7 +229,7 @@ struct HomeView: View {
 
     @ViewBuilder
     private var addEventInlineButton: some View {
-        if #available(iOS 26.0, *) {
+        if #available(iOS 26.0, *), AppAvailability.liquidGlass {
             Button { withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { addEvent = true } } label: {
                 HStack(spacing: 12) {
                     Image(systemName: "plus.circle.fill").font(.system(size: iPad ? 24 : 20, weight: .semibold))
@@ -256,7 +257,7 @@ struct HomeView: View {
 
     @ViewBuilder
     private var addEventButton: some View {
-        if #available(iOS 26.0, *) {
+        if #available(iOS 26.0, *), AppAvailability.liquidGlass {
             Button { withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { addEvent = true } } label: {
                 HStack(spacing: 12) {
                     Image(systemName: "plus.circle.fill").font(.system(size: iPad ? 24 : 20, weight: .semibold))

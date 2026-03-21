@@ -15,7 +15,7 @@ struct DayHeaderView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            if #available(iOS 26.0, *) {
+            if #available(iOS 26.0, *), AppAvailability.liquidGlass {
                 Text(dayInfo?.name ?? "No Classes")
                     .font(.system(
                         size: iPad ? 60 : 35,

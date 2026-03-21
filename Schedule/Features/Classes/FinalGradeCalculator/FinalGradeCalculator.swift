@@ -29,7 +29,7 @@ struct FinalGradeCalculatorModal: View {
             ScrollView {
                 VStack(spacing: 12) {
                     
-                    Color.clear.frame(height: iPad ? 60 : 50)
+                    Color.clear.frame(height: iPad ? 90 : 80)
 
                     VStack(spacing: 8) {
                         Text("Current Grade")
@@ -171,7 +171,7 @@ struct FinalGradeCalculatorModal: View {
             
             VStack{
                 
-                if #available(iOS 26.0, *) {
+                if #available(iOS 26.0, *), AppAvailability.liquidGlass {
                     HStack {
                         Text("Final Grade Calculator")
                             .font(.system(

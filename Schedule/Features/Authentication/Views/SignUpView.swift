@@ -111,7 +111,6 @@ struct SignUpView: View {
                         notChecked = true
                     }
                 }
-                copyText(from: "Resources/DefaultClasses.txt", to: "Resources/Classes.txt")
             } label: {
                 HStack {
                     if authManager.isLoading {

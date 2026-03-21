@@ -21,6 +21,7 @@ class AuthenticationManager: ObservableObject {
     let policyVersion = "2026-03-17"
     private let dataManager = DataManager()
     private var authStateHandle: AuthStateDidChangeListenerHandle?
+    private var isHandlingSignUp = false
 
     init() {
         setupAuthStateListener()
@@ -37,6 +38,9 @@ class AuthenticationManager: ObservableObject {
             guard let self else { return }
 
             if let firebaseUser = firebaseUser {
+                // Don't set user while a sign-up flow or policy acceptance is in progress
+                guard !self.isHandlingSignUp && !self.needsPolicyAcceptance else { return }
+
                 let appUser = User(from: firebaseUser)
                 self.user = appUser
 
@@ -77,6 +81,8 @@ class AuthenticationManager: ObservableObject {
     func signUp(email: String, password: String, displayName: String) async {
         isLoading = true
         errorMessage = ""
+        isHandlingSignUp = true
+        defer { isHandlingSignUp = false }
 
         do {
             let result = try await Auth.auth().createUser(withEmail: email, password: password)
@@ -85,13 +91,11 @@ class AuthenticationManager: ObservableObject {
             changeRequest.displayName = displayName
             try await changeRequest.commitChanges()
 
-            // Don't set user yet — wait for policy acceptance
-            pendingPolicyUserId = result.user.uid
-            pendingPolicyIsNewUser = true
-            needsPolicyAcceptance = true
-
-            copyText(from: "Resources/DefaultClasses.txt", to: "Resources/Classes.txt")
-
+            // The sign-up form has an explicit policy checkbox — record acceptance
+            // directly instead of showing the sheet a second time.
+            try await dataManager.recordPolicyAcceptance(for: result.user.uid, version: policyVersion)
+            UserDefaults.standard.set(false, forKey: "HasCompletedOnboarding")
+            user = User(from: result.user)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -104,11 +108,15 @@ class AuthenticationManager: ObservableObject {
     func signIn(email: String, password: String) async {
         isLoading = true
         errorMessage = ""
+        isHandlingSignUp = true
+        defer { isHandlingSignUp = false }
 
         do {
             let result = try await Auth.auth().signIn(withEmail: email, password: password)
+            UserDefaults.standard.set(true, forKey: "HasCompletedOnboarding")
             user = User(from: result.user)
-            // Policy check handled by auth state listener
+            // Still run the policy version check for returning users
+            await checkPolicyVersionForExistingUser(userId: result.user.uid)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -121,6 +129,8 @@ class AuthenticationManager: ObservableObject {
     func signInWithGoogle(presenting viewController: UIViewController) async {
         isLoading = true
         errorMessage = ""
+        isHandlingSignUp = true
+        defer { isHandlingSignUp = false }
 
         do {
             let g = try await GIDSignIn.sharedInstance.signIn(withPresenting: viewController)
@@ -143,8 +153,10 @@ class AuthenticationManager: ObservableObject {
                 needsPolicyAcceptance = true
                 // Don't set self.user yet
             } else {
-                // Existing Google user — auth state listener handles policy version check
+                UserDefaults.standard.set(true, forKey: "HasCompletedOnboarding")
                 user = User(from: authResult.user)
+                // Run policy version check manually since listener is bypassed
+                await checkPolicyVersionForExistingUser(userId: authResult.user.uid)
             }
 
         } catch {
@@ -216,13 +228,20 @@ class AuthenticationManager: ObservableObject {
     }
 
     // MARK: - Sign Out
-
+    
     func signOut() {
         do {
             try Auth.auth().signOut()
             GIDSignIn.sharedInstance.signOut()
             user = nil
             policyDenied = false
+            // Reset so a genuinely new account on this device sees onboarding
+            UserDefaults.standard.set(false, forKey: "HasCompletedOnboarding")
+            // Delete the writable classes file — ensureWritableClassesFile()
+            // will recreate it from the bundle default on next launch
+            if let url = try? classesDocumentsURL() {
+                try? FileManager.default.removeItem(at: url)
+            }
         } catch {
             errorMessage = error.localizedDescription
         }

@@ -9,7 +9,7 @@ struct AuthenticationView: View {
     @StateObject private var authManager = AuthenticationManager()
     @State private var isSignUp = false
     @State private var showOnboarding = false
-    @State private var classNamesFromOnboarding: [String] = []
+    @State private var classesFromOnboarding: [ClassItem] = []   // ← was [String]
 
     private var shouldShowOnboarding: Bool {
         !UserDefaults.standard.bool(forKey: "HasCompletedOnboarding")
@@ -18,7 +18,7 @@ struct AuthenticationView: View {
     var body: some View {
         Group {
             if authManager.user != nil {
-                ContentView(onboardingClassNames: classNamesFromOnboarding)
+                ContentView(onboardingClasses: classesFromOnboarding)
                     .overlay(UpdatePromptView())
                     .environmentObject(authManager)
             } else {
@@ -53,8 +53,8 @@ struct AuthenticationView: View {
                     .transition(.opacity)
                     .zIndex(100)
 
-                OnboardingView(isPresented: $showOnboarding) { names in
-                    classNamesFromOnboarding = names
+                OnboardingView(isPresented: $showOnboarding) { items in  // ← [ClassItem]
+                    classesFromOnboarding = items
                 }
                 .transition(.scale(scale: 0.92).combined(with: .opacity))
                 .zIndex(101)

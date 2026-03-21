@@ -31,7 +31,7 @@ struct ContentView: View {
     @State private var hasTriedFetchingSchedule = false
     @State private var scheduleLines: [ScheduleLine] = []
     @State private var data: ScheduleData? = nil
-    var onboardingClassNames: [String] = []
+    var onboardingClasses: [ClassItem] = []
     @State private var selectedDate = Date()
     @State private var scrollTarget: Int? = nil
     @State private var showCalendarGrid = false
@@ -39,6 +39,7 @@ struct ContentView: View {
     @State private var lastSeenVersion: String = UserDefaults.standard.string(forKey: "LastSeenVersion") ?? ""
     @State private var isFirstLaunch: Bool = !UserDefaults.standard.bool(forKey: "HasLaunchedBefore")
     @State private var scheduleLoadError: String? = nil
+    @State private var scheduleRetryAttempt: Int = 0
 
     @State private var addEvent = false
     @State private var window: Window = Window.Home
@@ -134,6 +135,11 @@ struct ContentView: View {
                 saveClassesToCloud()
                 saveEventsToCloud()
             }
+            .onChange(of: onboardingClasses) { _, newClasses in
+                guard !newClasses.isEmpty else { return }
+                applyOnboardingClassesIfNeeded()
+                saveClassesToCloud()
+            }
             .onChange(of: PrimaryColor)  { _, _ in saveTheme() }
             .onChange(of: SecondaryColor){ _, _ in saveTheme() }
             .onChange(of: TertiaryColor) { _, _ in saveTheme() }
@@ -212,7 +218,15 @@ struct ContentView: View {
             .zIndex(3000)
         }
 
-        if let error = scheduleLoadError {
+        if scheduleRetryAttempt > 0 {
+            VStack(spacing: 8) {
+                SpinningGear(color: PrimaryColor)
+                Text("Loading...")
+                    .font(.system(size: 13, weight: .medium, design: .monospaced))
+                    .foregroundStyle(PrimaryColor.opacity(0.8))
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if let error = scheduleLoadError {
             VStack(spacing: 8) {
                 Image(systemName: "wifi.exclamationmark")
                     .font(.system(size: 32))
@@ -388,7 +402,7 @@ struct ContentView: View {
         let daysContents = (try? String(contentsOf: daysURL, encoding: .utf8)) ?? ""
         let days = parseDays(daysContents)
         data = ScheduleData(classes: classes, days: days)
-        applyOnboardingNamesIfNeeded()
+        applyOnboardingClassesIfNeeded()
 
         if !hasTriedFetchingSchedule {
             hasTriedFetchingSchedule = true
@@ -737,7 +751,7 @@ struct ContentView: View {
         Task { await fetchWithRetry(attempt: 1) }
     }
 
-    private func fetchWithRetry(attempt: Int, maxAttempts: Int = 5) async {
+    private func fetchWithRetry(attempt: Int, maxAttempts: Int = 10) async {
         let csvURL = "https://docs.google.com/spreadsheets/d/1vrodfGZP7wNooj8VYgpNejPaLvOl8PUyg82hwWz_uU4/export?format=csv&gid=0"
         guard let url = URL(string: csvURL) else { return }
         do {
@@ -749,6 +763,7 @@ struct ContentView: View {
                 throw URLError(.cannotDecodeContentData)
             }
             DispatchQueue.main.async {
+                self.scheduleRetryAttempt = 0
                 self.scheduleLoadError = nil
                 self.parseCSV(csv)
                 self.applySelectedDate(self.selectedDate)
@@ -756,10 +771,14 @@ struct ContentView: View {
             }
         } catch {
             if attempt < maxAttempts {
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                DispatchQueue.main.async {
+                    self.scheduleRetryAttempt = attempt
+                }
+                try? await Task.sleep(nanoseconds: 2 * 1_000_000_000)
                 await fetchWithRetry(attempt: attempt + 1, maxAttempts: maxAttempts)
             } else {
                 DispatchQueue.main.async {
+                    self.scheduleRetryAttempt = 0
                     self.scheduleLoadError = "Could not load schedule. Close and reopen the app to try again."
                 }
             }
@@ -811,19 +830,42 @@ struct ContentView: View {
         }
     }
     
-    private func applyOnboardingNamesIfNeeded() {
-        guard !onboardingClassNames.isEmpty else { return }
+    private func applyOnboardingClassesIfNeeded() {
+        guard !onboardingClasses.isEmpty else { return }
         guard var currentData = data else { return }
-
-        for (i, name) in onboardingClassNames.enumerated() {
+        for (i, item) in onboardingClasses.enumerated() {
             guard i < currentData.classes.count else { break }
-            let trimmed = name.trimmingCharacters(in: .whitespaces)
-            if !trimmed.isEmpty {
-                currentData.classes[i].name = trimmed
-            }
+            // Only overwrite fields the user actually filled in
+            let name = item.name.trimmingCharacters(in: .whitespaces)
+            let teacher = item.teacher.trimmingCharacters(in: .whitespaces)
+            let room = item.room.trimmingCharacters(in: .whitespaces)
+            if !name.isEmpty    { currentData.classes[i].name    = name }
+            if !teacher.isEmpty { currentData.classes[i].teacher = teacher }
+            if !room.isEmpty    { currentData.classes[i].room    = room }
         }
 
         data = currentData
         overwriteClassesFile(with: currentData.classes)
+        saveDataForWidget()
+    }
+    
+    private struct SpinningGear: View {
+        let color: Color
+        @State private var rotation: Double = 0
+
+        var body: some View {
+            Image(systemName: "gearshape.fill")
+                .font(.system(size: 32))
+                .foregroundStyle(color.opacity(0.6))
+                .rotationEffect(.degrees(rotation))
+                .onAppear {
+                    withAnimation(
+                        .linear(duration: 1.5)
+                        .repeatForever(autoreverses: false)
+                    ) {
+                        rotation = 360
+                    }
+                }
         }
+    }
 }

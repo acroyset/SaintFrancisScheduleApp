@@ -55,7 +55,7 @@ struct NewsMenu: View {
             }
             
             VStack {
-                if #available(iOS 26.0, *) {
+                if #available(iOS 26.0, *), AppAvailability.liquidGlass {
                     Text("Saint Francis News")
                         .font(.system(
                             size: iPad ? 34 : 22,

@@ -252,6 +252,8 @@ struct CourseSchedulingView: View {
         ZStack{
             VStack(spacing: 0) {
                 
+                Color.clear.frame(height: iPad ? 40 : 30)
+                
                 if let selected = courseViewModel.selectedCourse {
                     CourseDetailView(
                         course: selected,
@@ -296,7 +298,7 @@ struct CourseSchedulingView: View {
             
             VStack{
                 
-                if #available(iOS 26.0, *) {
+                if #available(iOS 26.0, *), AppAvailability.liquidGlass {
                     HStack {
                         Text("Course Scheduler")
                             .font(.system(

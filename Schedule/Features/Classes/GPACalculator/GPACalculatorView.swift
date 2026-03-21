@@ -170,7 +170,7 @@ struct GPACalculatorModal: View {
             
             VStack{
                 
-                if #available(iOS 26.0, *) {
+                if #available(iOS 26.0, *), AppAvailability.liquidGlass {
                     HStack {
                         Text("GPA Calculator")
                             .font(.system(

@@ -163,7 +163,6 @@ struct ProfileMenu: View {
                     
                     Button {
                         authManager.signOut()
-                        copyText(from: "Resources/DefaultClasses.txt", to: "Resources/Classes.txt")
                     } label: {
                         Text("Sign Out")
                             .frame(maxWidth: .infinity, minHeight: iPad ? 44 : 30)
@@ -191,7 +190,7 @@ struct ProfileMenu: View {
             }
             
             VStack{
-                if #available(iOS 26.0, *) {
+                if #available(iOS 26.0, *), AppAvailability.liquidGlass {
                     Text("Profile")
                         .font(.system(
                             size: iPad ? 34 : 22,
@@ -232,7 +231,6 @@ struct ProfileMenu: View {
             Button("Delete", role: .destructive) {
                 Task {
                     deleteAccount()
-                    copyText(from: "Resources/DefaultClasses.txt", to: "Resources/Classes.txt")
                 }
             }
         } message: {

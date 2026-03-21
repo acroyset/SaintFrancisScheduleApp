@@ -2,6 +2,10 @@
 //  LiveActivityManager.swift
 //  Schedule
 //
+//  The widget now redraws itself at every class boundary via TimelineView,
+//  so this manager only needs to START the activity (with the full schedule
+//  baked in) and END it when school is over. No per-class updates required.
+//
 
 import ActivityKit
 import Foundation
@@ -14,120 +18,71 @@ final class LiveActivityManager {
 
     private var activity: Activity<ScheduleWidgetAttributes>?
 
-    /// Track the last class we showed so we detect transitions
-    private var lastClassName: String = ""
-
     // MARK: - Public API
 
     func update(scheduleLines: [ScheduleLine], dayCode: String, dayName: String) {
-
-        // ── 1. Permission check ───────────────────────────────────────────
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
 
-        // ── 2. Clear stale reference if dismissed/ended externally ────────
+        // Clean up any externally dismissed/ended reference
         if let existing = activity {
             switch existing.activityState {
-            case .dismissed, .ended:
-                activity = nil
-                lastClassName = ""
-            case .active, .stale:
-                break
-            @unknown default:
-                activity = nil
-                lastClassName = ""
+            case .dismissed, .ended: activity = nil
+            case .active, .stale:   break
+            @unknown default:       activity = nil
             }
         }
 
-        // ── 3. Find current or next class ─────────────────────────────────
-        // Include passing periods this time so we don't skip over them
-        // when searching, but only show real classes in the activity.
-        let now = Time.now().seconds
         let nowDate = Date()
+        let nowSec  = Time.now().seconds
 
-        // All lines with valid times, sorted
-        let timed = scheduleLines.filter { $0.startSec != nil && $0.endSec != nil }
+        let realClasses = scheduleLines
+            .filter { $0.startSec != nil && $0.endSec != nil && $0.className != "Passing Period" }
+            .sorted { ($0.startSec ?? 0) < ($1.startSec ?? 0) }
 
-        // Current class = a real class (not passing period) happening right now
-        let currentClass = timed.first(where: {
-            guard let s = $0.startSec, let e = $0.endSec else { return false }
-            return $0.className != "Passing Period" && s <= now && now < e
-        })
-
-        // Next class = next real class that hasn't started yet
-        let nextRealClass = timed.first(where: {
-            guard let s = $0.startSec else { return false }
-            return $0.className != "Passing Period" && s > now
-        })
-
-        // What to display — current if in class, otherwise next upcoming
-        guard let current = currentClass ?? nextRealClass else {
+        // Nothing left today → end
+        guard realClasses.contains(where: { ($0.endSec ?? 0) > nowSec }) else {
             endActivity()
             return
         }
 
-        let isCurrentClass = currentClass != nil
-        let endSec = current.endSec ?? (now + 3600)
-
-        // ── 4. Build end Date ─────────────────────────────────────────────
-        var components = Calendar.current.dateComponents([.year, .month, .day], from: nowDate)
-        components.hour   = endSec / 3600
-        components.minute = (endSec % 3600) / 60
-        components.second = endSec % 60
-        let endDate = Calendar.current.date(from: components) ?? nowDate.addingTimeInterval(3600)
-
-        // Allow a 5-second buffer at the boundary so the transition second
-        // doesn't accidentally call endActivity() before the next class loads
-        guard endDate > nowDate.addingTimeInterval(-5) else {
-            endActivity()
-            return
+        let scheduledClasses = realClasses.map {
+            ScheduleWidgetAttributes.ScheduledClass(
+                className: $0.className,
+                room:      $0.room,
+                teacher:   $0.teacher,
+                timeRange: $0.timeRange,
+                startSec:  $0.startSec ?? 0,
+                endSec:    $0.endSec   ?? 0
+            )
         }
 
-        // Clamp endDate so it's never in the past for the timer display
-        let displayEndDate = max(endDate, nowDate.addingTimeInterval(1))
+        let lastEndSec   = realClasses.compactMap(\.endSec).max() ?? (nowSec + 3600)
+        let schoolEndDate = wallDate(lastEndSec, reference: nowDate)
 
-        let nextAfterCurrent = timed.first(where: {
-            guard let s = $0.startSec else { return false }
-            return $0.className != "Passing Period" && s > (current.endSec ?? 0)
-        })
+        let state   = ScheduleWidgetAttributes.ContentState(updatedAt: nowDate)
+        // staleDate = school end so the system dismisses the activity automatically
+        let content = ActivityContent(state: state, staleDate: schoolEndDate)
 
-        // ── 5. Detect class change → end old, start fresh ─────────────────
-        if activity != nil && current.className != lastClassName && !lastClassName.isEmpty {
-            let old = activity
-            activity = nil
-            lastClassName = ""
-            Task {
-                await old?.end(using: nil, dismissalPolicy: .immediate)
-            }
-        }
-
-        let state = ScheduleWidgetAttributes.ContentState(
-            className: current.className,
-            room: current.room,
-            teacher: current.teacher,
-            timeRange: current.timeRange,
-            endTimestamp: displayEndDate,
-            isCurrentClass: isCurrentClass,
-            nextClassName: nextAfterCurrent?.className ?? ""
-        )
-
-        // ── 6. Update existing or start fresh ────────────────────────────
         if let existing = activity {
-            Task {
-                await existing.update(using: state)
-            }
+            // Already running — just heartbeat so the system knows we're alive.
+            // The TimelineView inside the widget handles all visual transitions.
+            Task { await existing.update(content) }
         } else {
-            let attributes = ScheduleWidgetAttributes(dayCode: dayCode, dayName: dayName)
-            let content = ActivityContent(state: state, staleDate: displayEndDate)
+            let attributes = ScheduleWidgetAttributes(
+                dayCode:          dayCode,
+                dayName:          dayName,
+                scheduledClasses: scheduledClasses,
+                schoolEndDate:    schoolEndDate
+            )
             do {
                 activity = try Activity<ScheduleWidgetAttributes>.request(
                     attributes: attributes,
-                    content: content,
-                    pushType: nil
+                    content:    content,
+                    pushType:   nil
                 )
-                lastClassName = current.className
-                print("✅ LiveActivity: started — \(current.className)")
+                print("✅ LiveActivity started")
             } catch {
-                print("❌ LiveActivity: failed to start — \(error.localizedDescription)")
+                print("❌ LiveActivity failed — \(error.localizedDescription)")
             }
         }
     }
@@ -135,9 +90,16 @@ final class LiveActivityManager {
     func endActivity() {
         guard let existing = activity else { return }
         activity = nil
-        lastClassName = ""
-        Task {
-            await existing.end(using: nil, dismissalPolicy: .immediate)
-        }
+        Task { await existing.end(using: nil, dismissalPolicy: .immediate) }
+    }
+
+    // MARK: - Private
+
+    private func wallDate(_ sec: Int, reference: Date) -> Date {
+        var comps = Calendar.current.dateComponents([.year, .month, .day], from: reference)
+        comps.hour   = sec / 3600
+        comps.minute = (sec % 3600) / 60
+        comps.second = sec % 60
+        return Calendar.current.date(from: comps) ?? reference.addingTimeInterval(TimeInterval(sec))
     }
 }
