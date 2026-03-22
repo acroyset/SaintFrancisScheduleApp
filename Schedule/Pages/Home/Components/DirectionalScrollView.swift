@@ -22,6 +22,8 @@ struct DirectionalScrollView<Content: View>: UIViewRepresentable {
         let inset = UIEdgeInsets(top: topInset, left: 0, bottom: bottomInset, right: 0)
         scrollView.contentInset = inset
         scrollView.scrollIndicatorInsets = inset
+        // Start at the correct "top" position so content appears below the floating header
+        scrollView.contentOffset = CGPoint(x: 0, y: -topInset)
 
         let host = UIHostingController(rootView: content())
         host.view.backgroundColor = .clear
@@ -82,7 +84,7 @@ struct DirectionalScrollView<Content: View>: UIViewRepresentable {
         
         if resetScroll {
             scrollView.setContentOffset(
-                CGPoint(x: 0, y: -scrollView.contentInset.top),
+                CGPoint(x: 0, y: -topInset),
                 animated: false
             )
         }

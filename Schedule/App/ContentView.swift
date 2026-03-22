@@ -34,7 +34,6 @@ struct ContentView: View {
     @State private var isFirstLaunch: Bool = !UserDefaults.standard.bool(forKey: "HasLaunchedBefore")
     @State private var scheduleLoadError: String? = nil
     @State private var scheduleRetryAttempt: Int = 0
-    @State private var resetHomeScroll = false
 
     @State private var addEvent = false
     @State private var window: Window = Window.Home
@@ -93,7 +92,6 @@ struct ContentView: View {
             .animation(.easeInOut(duration: 0.1), value: dayCode)
             .onAppear {
                 loadData()
-                resetHomeScroll = true
                 if lastSeenVersion != version || isFirstLaunch { whatsNewPopup = true }
                 if isFirstLaunch { UserDefaults.standard.set(true, forKey: "HasLaunchedBefore") }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { self.saveDataForWidget() }
@@ -107,7 +105,6 @@ struct ContentView: View {
             }
             .onChange(of: dayCode) { oldDay, newDay in
                 guard oldDay != newDay else { return }
-                resetHomeScroll = true
                 saveEventsToCloud()
                 updateLiveActivity()
             }
@@ -129,7 +126,6 @@ struct ContentView: View {
                 withAnimation(.snappy) { showCalendarGrid = false }
                 saveClassesToCloud()
                 saveEventsToCloud()
-                resetHomeScroll = true
             }
             .onChange(of: onboardingClasses) { _, newClasses in
                 guard !newClasses.isEmpty else { return }
@@ -258,7 +254,6 @@ struct ContentView: View {
                 SecondaryColor: SecondaryColor,
                 TertiaryColor: TertiaryColor,
                 isPortrait: isPortrait,
-                resetHomeScroll: $resetHomeScroll,
                 onDatePick: applySelectedDate(_:))
             .onTapGesture {
                 withAnimation(.snappy) {
@@ -477,6 +472,7 @@ struct ContentView: View {
             output = "No schedule found for \(key)"
             dayCode = "None"
             SharedGroup.defaults.set("", forKey: "CurrentDayCode")
+            render()
         }
     }
 

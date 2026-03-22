@@ -16,15 +16,15 @@ struct SkeletonScheduleView: View {
     let SecondaryColor: Color
 
     // Staggered vertical offsets, one per card
-    @State private var offsets: [CGFloat] = Array(repeating: 0, count: 6)
-    @State private var opacities: [Double] = Array(repeating: 0.5, count: 6)
+    @State private var offsets: [CGFloat] = Array(repeating: 0, count: 8)
+    @State private var opacities: [Double] = Array(repeating: 0.5, count: 8)
 
-    private let cardHeights: [CGFloat] = [56, 52, 64, 52, 56, 60]
-    private let widths: [CGFloat] = [0.75, 0.55, 0.65, 0.5, 0.7, 0.6]
+    private let cardHeights: [CGFloat] = [56, 52, 64, 52, 56, 60, 56, 54]
+    private let widths: [CGFloat] = [0.75, 0.55, 0.65, 0.5, 0.7, 0.6, 0.7, 0.55]
 
     var body: some View {
         VStack(spacing: 12) {
-            ForEach(0..<6, id: \.self) { i in
+            ForEach(0..<8, id: \.self) { i in
                 skeletonCard(index: i)
             }
         }

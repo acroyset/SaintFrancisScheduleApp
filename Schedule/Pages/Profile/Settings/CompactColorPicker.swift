@@ -9,9 +9,6 @@
 
 import SwiftUI
 
-var width  = CGFloat(iPad ? 500 : 200)
-var height = CGFloat(iPad ? 500 : 350)
-
 // MARK: - Reliable Track Slider
 
 /// A horizontal slider that responds to taps AND drags anywhere on the track.

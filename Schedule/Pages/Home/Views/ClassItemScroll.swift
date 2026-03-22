@@ -69,7 +69,9 @@ struct ClassItemScroll: View {
                 VStack {
                     Spacer()
                     if output.isEmpty {
-                        emptyStateView
+                        Text("")
+                            .font(.title2)
+                            .foregroundColor(PrimaryColor)
                     } else {
                         Text(output)
                             .font(.title2)
@@ -424,16 +426,5 @@ struct ClassItemScroll: View {
                 showingConflictAlert = true
             }
         }
-    }
-    
-    private var emptyStateView: some View {
-        VStack(spacing: 16) {
-            Spacer(minLength: 40)
-            Text("Enjoy the free time! 🎉")
-                .font(.title2)
-                .foregroundStyle(PrimaryColor)
-        }
-        .frame(maxWidth: .infinity)
-        .foregroundColor(TertiaryColor)
     }
 }

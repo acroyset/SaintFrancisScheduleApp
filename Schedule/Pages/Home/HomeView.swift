@@ -27,15 +27,19 @@ struct HomeView: View {
     let SecondaryColor: Color
     let TertiaryColor: Color
     var isPortrait: Bool
-    @Binding var resetHomeScroll: Bool
     var onDatePick: (Date) -> Void
     
+    @State private var headerPillHeight: CGFloat = 0
     @State private var dateNavHeight: CGFloat = 0
+    
+    private var headerHeight: CGFloat {
+        headerPillHeight + dateNavHeight + 16 + 8 // 16 for padding, 8 between
+    }
 
     // MARK: Swipe state
     @State private var dragX: CGFloat = 0
     @State private var pageID: Date   = Date()
-    @State var resetScroll = false
+    @State var resetScroll = true
 
     private var screenW: CGFloat { UIScreen.main.bounds.width }
     private var isToday: Bool    { Calendar.current.isDateInToday(selectedDate) }
@@ -57,14 +61,6 @@ struct HomeView: View {
             resetScroll = true
             DispatchQueue.main.async {
                 resetScroll = false
-            }
-        }
-        .onChange(of: resetHomeScroll) { _, shouldReset in
-            guard shouldReset else { return }
-            resetScroll = true
-            DispatchQueue.main.async {
-                resetScroll = false
-                resetHomeScroll = false
             }
         }
     }
@@ -163,10 +159,6 @@ struct HomeView: View {
 
     // MARK: Layout helpers
 
-    private var headerHeight: CGFloat {
-        iPad ? isPortrait ? 185 : 130 : isPortrait ? 135 : 100
-    }
-
     @ViewBuilder
     private var scrollMask: some View {
         if #available(iOS 26.0, *), AppAvailability.liquidGlass {
@@ -232,6 +224,10 @@ struct HomeView: View {
             SecondaryColor: SecondaryColor,
             TertiaryColor: TertiaryColor
         )
+        .background(GeometryReader { geo in
+            Color.clear.onAppear { headerPillHeight = geo.size.height }
+                .onChange(of: geo.size.height) { _, h in headerPillHeight = h }
+        })
     }
 
     @ViewBuilder
