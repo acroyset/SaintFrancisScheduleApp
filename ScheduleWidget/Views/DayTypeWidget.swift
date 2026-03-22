@@ -14,28 +14,33 @@ struct DayTypeEntry: TimelineEntry {
     let dayName: String
     let schoolStartTime: String
     let isTomorrow: Bool
+    let themeColors: ThemeColors?
 }
 
 struct DayTypeProvider: TimelineProvider {
     func placeholder(in context: Context) -> DayTypeEntry {
-        DayTypeEntry(date: Date(), dayCode: "G1", dayName: "Gold 1", schoolStartTime: "9:00 AM", isTomorrow: false)
+        DayTypeEntry(date: Date(), dayCode: "G1", dayName: "Gold 1", schoolStartTime: "9:00 AM", isTomorrow: false, themeColors: nil)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (DayTypeEntry) -> Void) {
         let (dayCode, dayName, startTime, isTomorrow) = getDayInfo()
-        completion(DayTypeEntry(date: Date(), dayCode: dayCode, dayName: dayName, schoolStartTime: startTime, isTomorrow: isTomorrow))
+        completion(DayTypeEntry(date: Date(), dayCode: dayCode, dayName: dayName,
+                                schoolStartTime: startTime, isTomorrow: isTomorrow,
+                                themeColors: loadThemeColors()))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<DayTypeEntry>) -> Void) {
         let now = Date()
         let (dayCode, dayName, startTime, isTomorrow) = getDayInfo()
-        
-        let entry = DayTypeEntry(date: now, dayCode: dayCode, dayName: dayName, schoolStartTime: startTime, isTomorrow: isTomorrow)
-        
-        // Refresh at midnight
+        let theme = loadThemeColors()   // ← capture once at generation time
+
+        let entry = DayTypeEntry(date: now, dayCode: dayCode, dayName: dayName,
+                                 schoolStartTime: startTime, isTomorrow: isTomorrow,
+                                 themeColors: theme)
+
         var nextMidnight = Calendar.current.startOfDay(for: now)
         nextMidnight = Calendar.current.date(byAdding: .day, value: 1, to: nextMidnight)!
-        
+
         let timeline = Timeline(entries: [entry], policy: .after(nextMidnight))
         completion(timeline)
     }
@@ -146,9 +151,8 @@ struct DayTypeEntryView: View {
     @Environment(\.widgetFamily) var family
     
     var body: some View {
-        let theme = loadThemeColors()
-        let PrimaryColor = Color(hex: theme?.primary ?? "#0A84FFFF")
-        let TertiaryColor = Color(hex: theme?.tertiary ?? "#FFFFFFFF")
+        let PrimaryColor  = Color(hex: entry.themeColors?.primary  ?? "#0A84FFFF")
+        let TertiaryColor = Color(hex: entry.themeColors?.tertiary ?? "#FFFFFFFF")
         
         VStack(spacing: 8) {
             Text(entry.isTomorrow ? "Tomorrow is" : "Today is")
@@ -196,10 +200,4 @@ struct DayTypeWidget: Widget {
         .description("Shows what type of day it is (Gold 1, Blue 2, etc.)")
         .supportedFamilies([.systemSmall])
     }
-}
-
-#Preview(as: .systemSmall) {
-    DayTypeWidget()
-} timeline: {
-    DayTypeEntry(date: .now, dayCode: "G2", dayName: "Gold 2", schoolStartTime: "9:20 AM", isTomorrow: false)
 }

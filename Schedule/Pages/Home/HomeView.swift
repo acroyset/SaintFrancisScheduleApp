@@ -27,12 +27,15 @@ struct HomeView: View {
     let SecondaryColor: Color
     let TertiaryColor: Color
     var isPortrait: Bool
+    @Binding var resetHomeScroll: Bool
     var onDatePick: (Date) -> Void
+    
+    @State private var dateNavHeight: CGFloat = 0
 
     // MARK: Swipe state
     @State private var dragX: CGFloat = 0
     @State private var pageID: Date   = Date()
-    @State private var resetScroll = false
+    @State var resetScroll = false
 
     private var screenW: CGFloat { UIScreen.main.bounds.width }
     private var isToday: Bool    { Calendar.current.isDateInToday(selectedDate) }
@@ -50,10 +53,18 @@ struct HomeView: View {
         }
         .clipped()
         
-        .onChange(of: pageID) { _, _ in
+        .onChange(of: pageID) {
             resetScroll = true
             DispatchQueue.main.async {
                 resetScroll = false
+            }
+        }
+        .onChange(of: resetHomeScroll) { _, shouldReset in
+            guard shouldReset else { return }
+            resetScroll = true
+            DispatchQueue.main.async {
+                resetScroll = false
+                resetHomeScroll = false
             }
         }
     }
@@ -226,25 +237,31 @@ struct HomeView: View {
     @ViewBuilder
     private var dateNav: some View {
         if #available(iOS 26.0, *), AppAvailability.liquidGlass {
-            if showCalendarGrid {
-                DateNavigator(
-                    showCalendar: $showCalendarGrid, date: $selectedDate, onPick: onDatePick,
-                    PrimaryColor: PrimaryColor, SecondaryColor: SecondaryColor,
-                    TertiaryColor: TertiaryColor, scheduleDict: scheduleDict
-                )
-                .background(TertiaryColor.opacity(0.95)).cornerRadius(32)
-                .padding(.horizontal, isPortrait ? 0 : 8)
-                .animation(.snappy, value: showCalendarGrid).shadow(radius: 16)
-            } else {
-                DateNavigator(
-                    showCalendar: $showCalendarGrid, date: $selectedDate, onPick: onDatePick,
-                    PrimaryColor: PrimaryColor, SecondaryColor: SecondaryColor,
-                    TertiaryColor: TertiaryColor, scheduleDict: scheduleDict
-                )
-                .glassEffect()
-                .padding(.horizontal, isPortrait ? 0 : 8)
-                .animation(.snappy, value: showCalendarGrid)
-            }
+            DateNavigator(
+                showCalendar: $showCalendarGrid, date: $selectedDate, onPick: onDatePick,
+                PrimaryColor: PrimaryColor, SecondaryColor: SecondaryColor,
+                TertiaryColor: TertiaryColor, scheduleDict: scheduleDict
+            )
+            .background(
+                GeometryReader { geo in
+                    Color.clear.onAppear {
+                        if !showCalendarGrid {
+                            dateNavHeight = geo.size.height
+                        }
+                    }
+                    .onChange(of: geo.size.height) { _, h in
+                        if !showCalendarGrid {
+                            dateNavHeight = h
+                        }
+                    }
+                }
+            )
+            .glassEffect(
+                .regular,
+                in: RoundedRectangle(cornerRadius: dateNavHeight / 2)
+            )
+            .animation(.snappy, value: showCalendarGrid)
+            .padding(.horizontal, isPortrait ? 0 : 8)
         } else {
             DateNavigator(
                 showCalendar: $showCalendarGrid, date: $selectedDate, onPick: onDatePick,

@@ -84,7 +84,12 @@ struct DateNavigator: View {
                     HStack {
                         Button {
                             calendarMonthAnchor = cal.date(byAdding: .month, value: -1, to: calendarMonthAnchor) ?? calendarMonthAnchor
-                        } label: { Image(systemName: "chevron.left") }
+                        } label: {
+                            Image(systemName: "chevron.left")
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+                        }
+                        .contentShape(Rectangle())
 
                         if iPad {
                             Spacer(minLength: 12)
@@ -104,7 +109,12 @@ struct DateNavigator: View {
 
                         Button {
                             calendarMonthAnchor = cal.date(byAdding: .month, value: 1, to: calendarMonthAnchor) ?? calendarMonthAnchor
-                        } label: { Image(systemName: "chevron.right") }
+                        } label: {
+                            Image(systemName: "chevron.right")
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+                        }
+                        .contentShape(Rectangle())
                     }
                     .padding(8)
                     .padding(.horizontal, 12)

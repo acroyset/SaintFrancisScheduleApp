@@ -79,17 +79,17 @@
 		E439AB9D2ECD56B80078C9FA /* Exceptions for "Schedule" folder in "ScheduleWidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				AppAvailability.swift,
+				App/AppAvailability.swift,
 				Core/Extensions/DateFormatterExtensions.swift,
 				Core/Models/ScheduleLine.swift,
 				Core/Models/Time.swift,
+				Core/Services/CSVParser.swift,
 				Core/Utilities/Constants.swift,
-				Core/Utilities/CSVParser.swift,
 				Core/Utilities/SharedGroup.swift,
 				Core/Utilities/ThemeColors.swift,
-				Shared/Background.swift,
-				Shared/ClassProgressBar.swift,
-				Shared/ToolBar.swift,
+				Features/Shared/Background.swift,
+				Features/Shared/ClassProgressBar.swift,
+				Features/Shared/ToolBar.swift,
 			);
 			target = E45D48882E6A54D700D88084 /* ScheduleWidgetExtension */;
 		};

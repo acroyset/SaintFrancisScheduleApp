@@ -43,7 +43,15 @@ struct Settings: View {
                         Color.clear.frame(height: iPad ? 60 : 50)
 
                         // ── Appearance ─────────────────────────────────
+                        
                         sectionBlock(title: "Appearance") {
+                            
+                            ThemePresetsSection(
+                                PrimaryColor:   $PrimaryColor,
+                                SecondaryColor: $SecondaryColor,
+                                TertiaryColor:  $TertiaryColor
+                            )
+                            
                             colorRow(
                                 label: "Primary Color",
                                 icon: "circle.lefthalf.filled",
@@ -355,4 +363,114 @@ struct DarkModeToggle: View {
         Binding(get: { tertiaryColor == .black }, set: { tertiaryColor = $0 ? .black : .white })
     }
     var body: some View { Toggle("", isOn: isDarkMode) }
+}
+
+struct ThemePresetsSection: View {
+    @Binding var PrimaryColor:   Color
+    @Binding var SecondaryColor: Color
+    @Binding var TertiaryColor:  Color
+
+    @State private var activePresetId: String? = UserDefaults.standard.string(forKey: "ActivePresetId")
+
+    let columns = [GridItem(.flexible()), GridItem(.flexible()),
+                   GridItem(.flexible()), GridItem(.flexible())]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Presets")
+                .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                .foregroundStyle(PrimaryColor)
+
+            LazyVGrid(columns: columns, spacing: 12) {
+                ForEach(ThemePreset.presets) { preset in
+                    PresetTile(
+                        preset: preset,
+                        isActive: activePresetId == preset.id,
+                        onTap: {
+                            withAnimation(.spring(duration: 0.25)) {
+                                PrimaryColor   = preset.primary
+                                SecondaryColor = preset.secondary
+                                TertiaryColor  = preset.tertiary
+                                activePresetId = preset.id
+                                UserDefaults.standard.set(preset.id, forKey: "ActivePresetId")
+                            }
+                        }
+                    )
+                }
+            }
+        }
+        .padding(16)
+        .background(SecondaryColor)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .onChange(of: PrimaryColor)   { _, _ in checkIfCustom() }
+        .onChange(of: SecondaryColor) { _, _ in checkIfCustom() }
+        .onChange(of: TertiaryColor)  { _, _ in checkIfCustom() }
+    }
+
+    private func checkIfCustom() {
+        let match = ThemePreset.presets.first {
+            $0.primaryHex   == (PrimaryColor.toHex()   ?? "") &&
+            $0.secondaryHex == (SecondaryColor.toHex() ?? "") &&
+            $0.tertiaryHex  == (TertiaryColor.toHex()  ?? "")
+        }
+        if match == nil {
+            activePresetId = nil
+            UserDefaults.standard.removeObject(forKey: "ActivePresetId")
+        }
+    }
+}
+
+private struct PresetTile: View {
+    let preset: ThemePreset
+    let isActive: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(spacing: 6) {
+                ZStack(alignment: .bottomTrailing) {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(preset.tertiary)
+                        .frame(height: 52)
+                        .overlay(
+                            VStack(spacing: 4) {
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(preset.secondary)
+                                    .frame(width: 36, height: 9)
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(preset.primary)
+                                    .frame(width: 22, height: 7)
+                            }
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(
+                                    isActive ? preset.primary : Color.gray.opacity(0.25),
+                                    lineWidth: isActive ? 2 : 1
+                                )
+                        )
+
+                    if isActive {
+                        Circle()
+                            .fill(preset.primary)
+                            .frame(width: 16, height: 16)
+                            .overlay(
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 8, weight: .bold))
+                                    .foregroundStyle(preset.tertiary)
+                            )
+                            .offset(x: 4, y: 4)
+                    }
+                }
+
+                Text(preset.name)
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .foregroundStyle(isActive ? preset.primary : Color.gray)
+                    .lineLimit(1)
+            }
+        }
+        .buttonStyle(.plain)
+        .scaleEffect(isActive ? 1.04 : 1)
+        .animation(.spring(duration: 0.25), value: isActive)
+    }
 }

@@ -2,6 +2,9 @@
 //  LiveActivityManager.swift
 //  Schedule
 //
+//  Created by Andreas Royset on 3/20/26.
+//
+//
 //  The widget now redraws itself at every class boundary via TimelineView,
 //  so this manager only needs to START the activity (with the full schedule
 //  baked in) and END it when school is over. No per-class updates required.

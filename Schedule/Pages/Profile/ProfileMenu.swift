@@ -1,5 +1,11 @@
+//
+//  ProfileMenu.swift
+//  Schedule
+//
+
 import SwiftUI
 import Foundation
+import FirebaseAuth
 
 struct ProfileMenu: View {
     @EnvironmentObject var authManager: AuthenticationManager
@@ -20,15 +26,23 @@ struct ProfileMenu: View {
     @State private var showSyncMessage = false
     @State private var showSettings = false
     
+    /// Detect Google accounts safely — only evaluated when the view
+    /// is fully alive and authManager.user is already set.
+    private var isGoogleAccount: Bool {
+        guard authManager.user != nil else { return false }
+        return Auth.auth().currentUser?.providerData
+            .contains(where: { $0.providerID == "google.com" }) ?? false
+    }
+    
     var body: some View {
         ZStack {
             VStack(spacing: 12) {
-                ScrollView{
+                ScrollView {
                     
                     Color.clear.frame(height: iPad ? 60 : 50)
                     
                     if let user = authManager.user {
-                        HStack{
+                        HStack {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Signed in as:")
                                     .font(.caption)
@@ -45,7 +59,7 @@ struct ProfileMenu: View {
                             
                             Spacer()
                             
-                            VStack{
+                            VStack {
                                 Button {
                                     showSettings.toggle()
                                 } label: {
@@ -55,7 +69,6 @@ struct ProfileMenu: View {
                                 }
                             }
                             .padding()
-                            
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding()
@@ -83,8 +96,7 @@ struct ProfileMenu: View {
                     } label: {
                         HStack {
                             if isLoadingSync {
-                                ProgressView()
-                                    .scaleEffect(0.8)
+                                ProgressView().scaleEffect(0.8)
                             } else {
                                 Image(systemName: "arrow.clockwise")
                             }
@@ -103,8 +115,7 @@ struct ProfileMenu: View {
                     } label: {
                         HStack {
                             if isLoadingLoad {
-                                ProgressView()
-                                    .scaleEffect(0.8)
+                                ProgressView().scaleEffect(0.8)
                             } else {
                                 Image(systemName: "arrow.clockwise")
                             }
@@ -174,7 +185,7 @@ struct ProfileMenu: View {
                     
                     Color.clear.frame(height: iPad ? 60 : 50)
                 }
-                .mask{
+                .mask {
                     LinearGradient(
                         gradient: Gradient(stops: [
                             .init(color: .clear, location: 0),
@@ -185,11 +196,10 @@ struct ProfileMenu: View {
                         startPoint: .top,
                         endPoint: .bottom
                     )
-                
                 }
             }
             
-            VStack{
+            VStack {
                 if #available(iOS 26.0, *), AppAvailability.liquidGlass {
                     Text("Profile")
                         .font(.system(
@@ -211,32 +221,40 @@ struct ProfileMenu: View {
                         .padding(12)
                         .foregroundStyle(PrimaryColor)
                 }
-                
                 Spacer()
             }
         }
         .sheet(
             isPresented: $showSettings,
-            onDismiss: {showSettings = false},
-            content: {Settings(
-                PrimaryColor: $PrimaryColor,
-                SecondaryColor: $SecondaryColor,
-                TertiaryColor: $TertiaryColor,
-                isPortrait: isPortrait)
-                    .padding(.top, 32)
-                    .background(TertiaryColor)
-            })
+            onDismiss: { showSettings = false },
+            content: {
+                Settings(
+                    PrimaryColor: $PrimaryColor,
+                    SecondaryColor: $SecondaryColor,
+                    TertiaryColor: $TertiaryColor,
+                    isPortrait: isPortrait
+                )
+                .padding(.top, 32)
+                .background(TertiaryColor)
+            }
+        )
+        .sheet(isPresented: $authManager.needsReauthForDeletion) {
+            ReauthDeleteSheet(
+                authManager: authManager,
+                isGoogleAccount: isGoogleAccount
+            )
+        }
         .alert("Delete Account", isPresented: $showingDeleteAlert) {
             Button("Cancel", role: .cancel) { }
             Button("Delete", role: .destructive) {
-                Task {
-                    deleteAccount()
-                }
+                Task { await authManager.deleteAccount() }
             }
         } message: {
             Text("This will permanently delete your account and all data. This action cannot be undone.")
         }
     }
+    
+    // MARK: - Cloud sync
     
     private func sync() {
         guard let user = authManager.user,
@@ -255,14 +273,12 @@ struct ProfileMenu: View {
                     secondary: SecondaryColor.toHex() ?? "#00A5FF19",
                     tertiary: TertiaryColor.toHex() ?? "#FFFFFFFF"
                 )
-                
                 try await dataManager.saveToCloud(
                     classes: scheduleData.classes,
                     theme: theme,
                     isSecondLunch: scheduleData.isSecondLunch,
                     for: user.id
                 )
-                
                 await MainActor.run {
                     showMessage("✅ Synced successfully")
                     isLoadingSync = false
@@ -272,7 +288,6 @@ struct ProfileMenu: View {
                     showMessage(" Sync failed: \(error.localizedDescription)")
                     isLoadingSync = false
                 }
-                print("❌ Failed to sync: \(error)")
             }
         }
     }
@@ -289,7 +304,6 @@ struct ProfileMenu: View {
         Task {
             do {
                 let (cloudClasses, theme, isSecondLunch) = try await dataManager.loadFromCloud(for: user.id)
-                
                 await MainActor.run {
                     if !cloudClasses.isEmpty {
                         if var currentData = self.data {
@@ -299,18 +313,13 @@ struct ProfileMenu: View {
                         }
                         overwriteClassesFile(with: cloudClasses)
                     }
-                    
-                    // Apply theme
                     self.PrimaryColor = Color(hex: theme.primary)
                     self.SecondaryColor = Color(hex: theme.secondary)
                     self.TertiaryColor = Color(hex: theme.tertiary)
-                    
-                    // Save theme locally
                     if let themeData = try? JSONEncoder().encode(theme) {
                         UserDefaults.standard.set(themeData, forKey: "LocalTheme")
                         SharedGroup.defaults.set(themeData, forKey: "ThemeColors")
                     }
-                    
                     showMessage("✅ Loaded successfully")
                     isLoadingLoad = false
                 }
@@ -319,30 +328,15 @@ struct ProfileMenu: View {
                     showMessage(" Load failed: \(error.localizedDescription)")
                     isLoadingLoad = false
                 }
-                print("❌ Failed to load: \(error)")
             }
-        }
-    }
-    
-    private func deleteAccount() {
-        guard let user = authManager.user else { return }
-        
-        Task {
-            await authManager.deleteAccount()
         }
     }
     
     private func showMessage(_ message: String) {
         syncMessage = message
-        withAnimation {
-            showSyncMessage = true
-        }
-        
-        // Hide message after 3 seconds
+        withAnimation { showSyncMessage = true }
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-            withAnimation {
-                showSyncMessage = false
-            }
+            withAnimation { showSyncMessage = false }
         }
     }
 }
