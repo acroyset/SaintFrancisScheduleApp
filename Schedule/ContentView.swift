@@ -2,11 +2,6 @@
 //  ContentView.swift
 //  Schedule
 //
-//  Changes vs previous version:
-//  • Global day-swipe gesture applied to ALL tabs (not just Home)
-//  • Live Activity started / updated / ended via LiveActivityManager
-//  • Jump-to-today and Share buttons surfaced in HomeView header
-//
 
 import SwiftUI
 import Foundation
@@ -68,6 +63,7 @@ struct ContentView: View {
                 )
                 .onTapGesture {
                     withAnimation(.snappy) {
+                        guard tutorial == .Hidden else { return }
                         showCalendarGrid = false
                         UserDefaults.standard.set(version, forKey: "LastSeenVersion")
                     }
@@ -173,6 +169,7 @@ struct ContentView: View {
             .padding(.horizontal, 16)
             .onTapGesture {
                 withAnimation(.snappy) {
+                    guard tutorial == .Hidden else { return }
                     showCalendarGrid = false
                     UserDefaults.standard.set(version, forKey: "LastSeenVersion")
                 }
@@ -184,15 +181,14 @@ struct ContentView: View {
     @ViewBuilder
     private var overlays: some View {
         if tutorial != TutorialState.Hidden {
-            Color.black.opacity(0.0001)
-                .ignoresSafeArea()
-                .zIndex(2500)
-                .onTapGesture {
-                    withAnimation(.snappy) { tutorial = .Hidden }
-                }
-            TutorialView(tutorial: $tutorial, PrimaryColor: PrimaryColor, TertiaryColor: TertiaryColor)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                .zIndex(3000)
+            TutorialView(
+                tutorial: $tutorial,
+                PrimaryColor: PrimaryColor,
+                TertiaryColor: TertiaryColor
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .ignoresSafeArea()
+            .zIndex(3000)
         }
 
         if whatsNewPopup {

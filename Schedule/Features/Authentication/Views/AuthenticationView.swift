@@ -9,7 +9,7 @@ struct AuthenticationView: View {
     @StateObject private var authManager = AuthenticationManager()
     @State private var isSignUp = false
     @State private var showOnboarding = false
-    @State private var classesFromOnboarding: [ClassItem] = []   // ← was [String]
+    @State private var classesFromOnboarding: [ClassItem] = []
 
     private var shouldShowOnboarding: Bool {
         !UserDefaults.standard.bool(forKey: "HasCompletedOnboarding")
@@ -36,12 +36,17 @@ struct AuthenticationView: View {
                 isRenewal: authManager.user != nil
             )
         }
-        // Onboarding overlay — shown after policy is accepted and user is signed in
+        // Watch for sign-in/sign-up completing
         .onChange(of: authManager.user != nil) { _, isSignedIn in
-            if isSignedIn && shouldShowOnboarding {
-                // Small delay so ContentView has time to appear first
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                    showOnboarding = true
+            guard isSignedIn else { return }
+            // Read the flag fresh from UserDefaults — give it a tick to settle
+            // after signUp() or signIn() writes it.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                let hasCompleted = UserDefaults.standard.bool(forKey: "HasCompletedOnboarding")
+                if !hasCompleted {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        showOnboarding = true
+                    }
                 }
             }
         }
@@ -53,7 +58,7 @@ struct AuthenticationView: View {
                     .transition(.opacity)
                     .zIndex(100)
 
-                OnboardingView(isPresented: $showOnboarding) { items in  // ← [ClassItem]
+                OnboardingView(isPresented: $showOnboarding) { items in
                     classesFromOnboarding = items
                 }
                 .transition(.scale(scale: 0.92).combined(with: .opacity))

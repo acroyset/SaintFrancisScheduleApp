@@ -266,9 +266,18 @@ class AuthenticationManager: ObservableObject {
 
     func deleteAccount() async {
         guard let userId = user?.id else { return }
+        guard let user = Auth.auth().currentUser else { return }
+
         do {
+            // 1. Delete Firestore data
             try await dataManager.deleteUserData(for: userId)
+
+            // 2. Delete Auth user
+            try await user.delete()
+
+            // 3. Sign out locally
             signOut()
+
         } catch {
             print("❌ Failed to delete account: \(error)")
         }
