@@ -107,6 +107,8 @@ struct OnboardingView: View {
                 .padding(.vertical, 16)
                 .padding(.bottom, 200)
             }
+            .scrollDismissesKeyboard(.interactively)
+            .onTapGesture { dismissKeyboard() }
 
             Divider()
 
@@ -230,7 +232,7 @@ private struct ClassEntryRow: View {
                 
                 // Expand / detail indicator
                 HStack(spacing: 4) {
-                    if !item.teacher.isEmpty || !item.room.isEmpty {
+                    if !item.teacher.isEmpty && !item.room.isEmpty {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 12))
                             .foregroundStyle(.green)

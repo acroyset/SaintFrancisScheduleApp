@@ -62,17 +62,12 @@ struct TutorialView: View {
     var body: some View {
         if let step = currentStep {
             ZStack {
-                // Dim backdrop — swallows all taps
-                Color.black.opacity(0.65)
-                    .ignoresSafeArea()
-                    .contentShape(Rectangle())
-                    .onTapGesture { }
-
-                // Centered card
                 cardView(step: step)
                     .scaleEffect(cardAppeared ? 1 : 0.92)
                     .opacity(cardAppeared ? 1 : 0)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .ignoresSafeArea()
             .id(tutorial)
             .onAppear {
                 animateIn()
@@ -96,7 +91,7 @@ struct TutorialView: View {
                 ForEach(steps.indices, id: \.self) { i in
                     let active = steps[i].state == tutorial
                     Circle()
-                        .fill(active ? PrimaryColor : PrimaryColor.opacity(0.25))
+                        .fill(active ? PrimaryColor : PrimaryColor.opacity(0.2))
                         .frame(width: active ? 9 : 6, height: active ? 9 : 6)
                         .animation(.spring(response: 0.25), value: tutorial)
                 }
@@ -104,35 +99,40 @@ struct TutorialView: View {
                 if let i = stepIndex {
                     Text("\(i + 1) / \(steps.count)")
                         .font(.system(size: 12, weight: .medium, design: .monospaced))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
 
             // Title
             Text(step.title)
                 .font(.system(size: iPad ? 26 : 22, weight: .bold, design: .rounded))
-                .foregroundColor(PrimaryColor)
+                .foregroundStyle(PrimaryColor)
 
             // Body
             Text(step.body)
                 .font(.system(size: iPad ? 17 : 15))
-                .foregroundColor(TertiaryColor.highContrastTextColor())
+                .foregroundStyle(TertiaryColor.highContrastTextColor())
                 .fixedSize(horizontal: false, vertical: true)
                 .lineSpacing(3)
 
-            // Support link
+            // Help link — pill background ensures it's readable on any card colour
             HStack(spacing: 4) {
                 Text("Need more help?")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(TertiaryColor.highContrastTextColor())
                 Button("Visit our website") {
                     UIApplication.shared.open(
                         URL(string: "https://sites.google.com/view/sf-schedule-help/home")!
                     )
                 }
-                .font(.caption)
-                .foregroundColor(.blue)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(PrimaryColor)
             }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(PrimaryColor.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
 
             // Navigation buttons
             HStack {
@@ -143,7 +143,7 @@ struct TutorialView: View {
                             Text("Back")
                         }
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(PrimaryColor)
+                        .foregroundStyle(PrimaryColor)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
                         .background(PrimaryColor.opacity(0.1))
@@ -162,7 +162,7 @@ struct TutorialView: View {
                         }
                     }
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(TertiaryColor)
+                    .foregroundStyle(TertiaryColor)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
                     .background(PrimaryColor)
@@ -173,11 +173,9 @@ struct TutorialView: View {
             }
         }
         .padding(24)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(TertiaryColor)
-                .shadow(color: .black.opacity(0.25), radius: 20, x: 0, y: 8)
-        )
+        .background(TertiaryColor)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: .black.opacity(0.25), radius: 20, x: 0, y: 8)
         .frame(maxWidth: iPad ? 460 : 320)
         .padding(.horizontal, 24)
     }
@@ -197,8 +195,6 @@ struct TutorialView: View {
             tutorial = steps[i - 1].state
         }
     }
-
-    // MARK: - Animation
 
     private func animateIn() {
         cardAppeared = false

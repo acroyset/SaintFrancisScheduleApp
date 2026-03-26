@@ -131,6 +131,8 @@ struct VphoneClassEditor: View {
                 }
                 .padding(12)
             }
+            // Swipe down dismisses keyboard, tap elsewhere dismisses it too
+            .scrollDismissesKeyboard(.interactively)
             .mask{
                 LinearGradient(
                     gradient: Gradient(stops: [
@@ -335,6 +337,8 @@ struct HphoneClassEditor: View {
                 }
                 .padding(12)
             }
+            // Swipe down dismisses keyboard
+            .scrollDismissesKeyboard(.interactively)
         }
     }
 }

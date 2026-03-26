@@ -2,7 +2,11 @@
 //  CalendarGrid.swift
 //  Schedule
 //
-//  Created by Andreas Royset on 8/15/25.
+//  Visual hierarchy:
+//  • Selected         → filled PrimaryColor circle, TertiaryColor bold text
+//  • Today (unselected) → SecondaryColor fill + PrimaryColor ring, PrimaryColor bold text
+//  • Normal day (has schedule) → clear background, regular weight text
+//  • No schedule day  → clear background, PrimaryColor at 0.25 opacity (clearly dimmed)
 //
 
 import SwiftUI
@@ -25,8 +29,9 @@ struct CalendarGrid: View {
         LazyVGrid(columns: cols, spacing: 6) {
             ForEach(days.indices, id: \.self) { i in
                 if let day = days[i] {
-                    let isSelected = cal.isDate(day, inSameDayAs: selected)
-                    let isToday = cal.isDateInToday(day)
+                    let isSelected  = cal.isDate(day, inSameDayAs: selected)
+                    let isToday     = cal.isDateInToday(day)
+                    let hasSchedule = checkIfSchedule(day)
 
                     Button {
                         onPick(day)
@@ -35,21 +40,26 @@ struct CalendarGrid: View {
                             .frame(maxWidth: .infinity, minHeight: 34)
                             .font(.system(
                                 size: iPad ? 20 : 15,
-                                weight: .medium,
-                                design: .rounded))
-                            .foregroundStyle(isSelected ? TertiaryColor : PrimaryColor)
+                                weight: (isSelected || isToday) ? .bold : .medium,
+                                design: .rounded
+                            ))
+                            .foregroundStyle(
+                                isSelected  ? TertiaryColor :
+                                !hasSchedule ? PrimaryColor.opacity(0.25) :
+                                               PrimaryColor
+                            )
                             .background(
-                                Group {
+                                ZStack {
                                     if isSelected {
+                                        // Filled circle — strongest indicator
                                         Circle().fill(PrimaryColor)
                                     } else if isToday {
+                                        // Soft fill + bold ring — clearly "today" without selection
                                         Circle().fill(SecondaryColor)
-                                    } else if !checkIfSchedule(day) {
-                                        Circle().fill(PrimaryColor.highContrastTextColor().opacity(0.1))
+                                        Circle().strokeBorder(PrimaryColor, lineWidth: 2)
                                     }
-                                    else {
-                                        Circle().fill(Color.clear)
-                                    }
+                                    // No-schedule and normal days share a clear background;
+                                    // they're distinguished purely by text opacity above.
                                 }
                             )
                     }
@@ -73,7 +83,7 @@ struct CalendarGrid: View {
             let first = cal.date(from: cal.dateComponents([.year, .month], from: month))
         else { return [] }
 
-        let firstWeekdayIndex = (cal.component(.weekday, from: first) + 6) % 7 // 0=Mon if you prefer, adjust as needed
+        let firstWeekdayIndex = (cal.component(.weekday, from: first) + 6) % 7
         let daysCount = range.count
 
         var grid: [Date?] = Array(repeating: nil, count: firstWeekdayIndex)
@@ -81,21 +91,16 @@ struct CalendarGrid: View {
             grid.append(cal.date(byAdding: .day, value: day, to: first)!)
         }
 
-        // pad to full weeks (optional)
         while grid.count % 7 != 0 { grid.append(nil) }
         return grid
     }
-    
+
     private func checkIfSchedule(_ date: Date) -> Bool {
         let key = getKeyToday(date)
-        
-        if (scheduleDict?[key]) != nil {
-            return true
-        }
-        return false
+        return scheduleDict?[key] != nil
     }
-    
-    private func getKeyToday (_ date: Date) -> String {
+
+    private func getKeyToday(_ date: Date) -> String {
         let f = DateFormatter()
         f.calendar = .current
         f.timeZone = .current

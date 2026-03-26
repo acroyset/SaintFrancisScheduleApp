@@ -6,8 +6,8 @@
 //  UIKit gesture level — the scroll view's pan recognizer is cancelled
 //  the instant the direction is clearly horizontal, so it never competes.
 //
-//  Result: swiping left/right always works on the first try, even when
-//  starting a touch that has any slight vertical component.
+//  Now includes NowNextCard in the floating header for zero-scan
+//  understanding of current class.
 //
 
 import SwiftUI
@@ -28,18 +28,20 @@ struct HomeView: View {
     let TertiaryColor: Color
     var isPortrait: Bool
     var onDatePick: (Date) -> Void
-    
-    @State private var headerPillHeight: CGFloat = 0
-    @State private var dateNavHeight: CGFloat = 0
-    
+
+    // Header height tracking
+    @State private var headerPillHeight: CGFloat  = 0
+    @State private var nowNextHeight: CGFloat      = 0
+    @State private var dateNavHeight: CGFloat      = 0
+
     private var headerHeight: CGFloat {
-        headerPillHeight + dateNavHeight + 16 + 8 // 16 for padding, 8 between
+        headerPillHeight + nowNextHeight + dateNavHeight + 16 + 8 + 8
     }
 
-    // MARK: Swipe state
+    // Swipe state
     @State private var dragX: CGFloat = 0
     @State private var pageID: Date   = Date()
-    @State var resetScroll = true
+    @State var resetToken = 0
 
     private var screenW: CGFloat { UIScreen.main.bounds.width }
     private var isToday: Bool    { Calendar.current.isDateInToday(selectedDate) }
@@ -56,12 +58,8 @@ struct HomeView: View {
             }
         }
         .clipped()
-        
         .onChange(of: pageID) {
-            resetScroll = true
-            DispatchQueue.main.async {
-                resetScroll = false
-            }
+            resetToken += 1
         }
     }
 
@@ -69,16 +67,14 @@ struct HomeView: View {
 
     private var pageContent: some View {
         ZStack(alignment: .bottom) {
-            // ── Scrollable list via UIKit wrapper ──────────────────────
             DirectionalScrollView(
                 topInset: headerHeight,
                 bottomInset: iPad ? 160 : 130,
                 onHorizontalDrag: handleDrag,
                 onHorizontalEnd:  handleDragEnd,
-                resetScroll: resetScroll
+                resetToken: resetToken
             ) {
                 VStack(spacing: 0) {
-                    
                     if scheduleDict == nil {
                         SkeletonScheduleView(
                             PrimaryColor: PrimaryColor,
@@ -106,7 +102,6 @@ struct HomeView: View {
             }
             .mask(scrollMask)
 
-            // ── Header slides WITH the content ─────────────────────────
             VStack(spacing: 0) {
                 floatingHeader
                 Spacer()
@@ -118,7 +113,6 @@ struct HomeView: View {
     // MARK: Drag handlers
 
     private func handleDrag(_ tx: CGFloat) {
-        // 1:1 tracking with a soft rubber-band past 45% screen width
         let limit = screenW * 0.45
         if abs(tx) <= limit {
             dragX = tx
@@ -129,35 +123,30 @@ struct HomeView: View {
     }
 
     private func handleDragEnd(_ tx: CGFloat, _ vel: CGFloat) {
-        // Commit if dragged far enough OR flicked fast enough
         let committed = abs(tx) > screenW * 0.28 || abs(vel) > 250
         guard committed else {
             withAnimation(.spring(response: 0.28, dampingFraction: 0.80)) { dragX = 0 }
             return
         }
 
-        let goBack   = tx > 0          // swipe right → go to yesterday
+        let goBack = tx > 0
         let exitX: CGFloat = goBack ? screenW : -screenW
 
-        // Fly current page off
         withAnimation(.easeIn(duration: 0.15)) { dragX = exitX }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.13) {
             let delta   = goBack ? -1 : 1
             let newDate = Calendar.current.date(byAdding: .day, value: delta, to: selectedDate) ?? selectedDate
 
-            // Place incoming page on opposite side (no animation) then spring in
             dragX  = goBack ? -screenW : screenW
             pageID = newDate
 
-            withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
-                dragX = 0
-            }
+            withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) { dragX = 0 }
             onDatePick(newDate)
         }
     }
 
-    // MARK: Layout helpers
+    // MARK: Scroll mask
 
     @ViewBuilder
     private var scrollMask: some View {
@@ -186,40 +175,87 @@ struct HomeView: View {
         if #available(iOS 26.0, *), AppAvailability.liquidGlass {
             if !isPortrait {
                 HStack {
-                    VStack { headerPill.glassEffect(.regular.tint(PrimaryColor.opacity(0.9))); Spacer() }
+                    VStack(spacing: 6) {
+                        headerPill.glassEffect(.regular.tint(PrimaryColor.opacity(0.9)))
+                        nowNextSection.glassEffect(in: RoundedRectangle(cornerRadius: headerPillHeight/2))
+                        Spacer()
+                    }
                     VStack { dateNav; Spacer() }
                     VStack { addEventInline; Spacer() }
                 }
             } else {
-                VStack(spacing: 0) {
+                VStack(spacing: 6) {
                     headerPill
                         .frame(maxWidth: .infinity)
                         .glassEffect(.regular.tint(PrimaryColor.opacity(0.9)))
-                        .padding(8)
+                        .padding(.horizontal, 8)
+                    nowNextSection
+                        .glassEffect(in: RoundedRectangle(cornerRadius: headerPillHeight/2))
+                        .padding(.horizontal, 8)
                     dateNav.padding(.horizontal, 8)
                 }
             }
         } else {
             if !isPortrait {
                 HStack {
-                    VStack { headerPill.padding(8).background(SecondaryColor).cornerRadius(16); Spacer() }
+                    VStack(spacing: 6) {
+                        headerPill.padding(8).background(PrimaryColor).cornerRadius(16)
+                        nowNextSection.padding(8).background(PrimaryColor).cornerRadius(16)
+                        Spacer()
+                    }
                     VStack { dateNav; Spacer() }
                     VStack { addEventInline; Spacer() }
                 }
             } else {
-                VStack(spacing: 0) {
+                VStack(spacing: 6) {
                     headerPill
                         .background(SecondaryColor).cornerRadius(16)
-                        .frame(maxWidth: .infinity).padding(8)
+                        .frame(maxWidth: .infinity).padding(.horizontal, 8)
+                    nowNextSection
+                        .background(SecondaryColor).cornerRadius(16)
+                        .padding(.horizontal, 8)
                     dateNav.padding(.horizontal, 8)
                 }
             }
         }
     }
 
+    // MARK: NOW/NEXT section
+
+    @ViewBuilder
+    private var nowNextSection: some View {
+        // Only render the card and track its height when it has content
+        let showCard = isToday && scheduleDict != nil
+
+        if showCard {
+            NowNextCard(
+                scheduleLines: scheduleLines,
+                dayCode: dayCode,
+                note: note,
+                isToday: isToday,
+                PrimaryColor: PrimaryColor,
+                SecondaryColor: SecondaryColor,
+                TertiaryColor: TertiaryColor
+            )
+            .background(
+                GeometryReader { geo in
+                    Color.clear
+                        .onAppear { nowNextHeight = geo.size.height + 6 }
+                        .onChange(of: geo.size.height) { _, h in nowNextHeight = h + 6 }
+                }
+            )
+        } else {
+            Color.clear.frame(height: 0)
+                .onAppear { nowNextHeight = 0 }
+        }
+    }
+
+    // MARK: Sub-views
+
     private var headerPill: some View {
         DayHeaderView(
             dayInfo: getDayInfo(for: dayCode),
+            dayCode: dayCode,
             PrimaryColor: PrimaryColor,
             SecondaryColor: SecondaryColor,
             TertiaryColor: TertiaryColor
@@ -238,24 +274,15 @@ struct HomeView: View {
                 PrimaryColor: PrimaryColor, SecondaryColor: SecondaryColor,
                 TertiaryColor: TertiaryColor, scheduleDict: scheduleDict
             )
-            .background(
-                GeometryReader { geo in
-                    Color.clear.onAppear {
-                        if !showCalendarGrid {
-                            dateNavHeight = geo.size.height
-                        }
-                    }
-                    .onChange(of: geo.size.height) { _, h in
-                        if !showCalendarGrid {
-                            dateNavHeight = h
-                        }
-                    }
+            .background(GeometryReader { geo in
+                Color.clear.onAppear {
+                    if !showCalendarGrid { dateNavHeight = geo.size.height }
                 }
-            )
-            .glassEffect(
-                .regular,
-                in: RoundedRectangle(cornerRadius: dateNavHeight / 2)
-            )
+                .onChange(of: geo.size.height) { _, h in
+                    if !showCalendarGrid { dateNavHeight = h }
+                }
+            })
+            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: dateNavHeight / 2))
             .animation(.snappy, value: showCalendarGrid)
             .padding(.horizontal, isPortrait ? 0 : 8)
         } else {
@@ -277,8 +304,7 @@ struct HomeView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: iPad ? 24 : 20, weight: .semibold))
-                    if iPad { Text("Add Personal Event")
-                        .font(.system(size: 20, weight: .semibold)) }
+                    if iPad { Text("Add Personal Event").font(.system(size: 20, weight: .semibold)) }
                 }
                 .foregroundColor(TertiaryColor).padding(12)
             }
@@ -290,8 +316,7 @@ struct HomeView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: iPad ? 24 : 20, weight: .semibold))
-                    if iPad { Text("Add Personal Event")
-                        .font(.system(size: 20, weight: .semibold)) }
+                    if iPad { Text("Add Personal Event").font(.system(size: 20, weight: .semibold)) }
                 }
                 .padding(8).foregroundColor(TertiaryColor).frame(maxWidth: .infinity)
                 .padding(16).background(PrimaryColor).cornerRadius(16).shadow(radius: 8)
@@ -333,7 +358,7 @@ struct HomeView: View {
         }
     }
 
-    // MARK: Day helpers
+    // MARK: Helpers
 
     func getDayInfo(for currentDay: String) -> Day? {
         guard let di = getDayNumber(for: currentDay),
@@ -346,4 +371,3 @@ struct HomeView: View {
         ["g1":0,"b1":1,"g2":2,"b2":3,"a1":4,"a2":5,"a3":6,"a4":7,"l1":8,"l2":9,"s1":10][currentDay.lowercased()]
     }
 }
-

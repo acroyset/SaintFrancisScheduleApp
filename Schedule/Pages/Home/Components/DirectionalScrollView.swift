@@ -6,7 +6,7 @@ struct DirectionalScrollView<Content: View>: UIViewRepresentable {
     var bottomInset: CGFloat = 0
     var onHorizontalDrag: (CGFloat) -> Void
     var onHorizontalEnd: (CGFloat, CGFloat) -> Void
-    var resetScroll: Bool = false
+    var resetToken: Int = 0
     @ViewBuilder var content: () -> Content
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
@@ -18,11 +18,12 @@ struct DirectionalScrollView<Content: View>: UIViewRepresentable {
         scrollView.alwaysBounceVertical = true
         scrollView.backgroundColor = .clear
         scrollView.contentInsetAdjustmentBehavior = .never
+        // Dismiss keyboard interactively when the user drags down
+        scrollView.keyboardDismissMode = .interactive
 
         let inset = UIEdgeInsets(top: topInset, left: 0, bottom: bottomInset, right: 0)
         scrollView.contentInset = inset
         scrollView.scrollIndicatorInsets = inset
-        // Start at the correct "top" position so content appears below the floating header
         scrollView.contentOffset = CGPoint(x: 0, y: -topInset)
 
         let host = UIHostingController(rootView: content())
@@ -78,15 +79,17 @@ struct DirectionalScrollView<Content: View>: UIViewRepresentable {
         context.coordinator.hostController?.view.invalidateIntrinsicContentSize()
         context.coordinator.hostController?.view.setNeedsLayout()
         context.coordinator.hostController?.view.layoutIfNeeded()
-
         scrollView.setNeedsLayout()
         scrollView.layoutIfNeeded()
-        
-        if resetScroll {
-            scrollView.setContentOffset(
-                CGPoint(x: 0, y: -topInset),
-                animated: false
-            )
+
+        if context.coordinator.lastResetToken != resetToken {
+            context.coordinator.lastResetToken = resetToken
+            DispatchQueue.main.async {
+                scrollView.setContentOffset(
+                    CGPoint(x: 0, y: -topInset),
+                    animated: false
+                )
+            }
         }
     }
 
@@ -96,6 +99,7 @@ struct DirectionalScrollView<Content: View>: UIViewRepresentable {
         weak var horizontalPan: UIPanGestureRecognizer?
         var hostController: UIHostingController<Content>?
         private var isHorizontal: Bool? = nil
+        var lastResetToken: Int = -1
 
         init(_ parent: DirectionalScrollView) {
             self.parent = parent

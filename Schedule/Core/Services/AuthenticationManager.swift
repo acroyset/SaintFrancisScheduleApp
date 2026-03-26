@@ -22,7 +22,7 @@ class AuthenticationManager: ObservableObject {
 
     private var pendingPolicyUserId: String? = nil
     private var pendingPolicyIsNewUser: Bool = false
-    let policyVersion = "2026-03-17"
+    let policyVersion = "2026-03-24"
     private let dataManager = DataManager()
     private var authStateHandle: AuthStateDidChangeListenerHandle?
     private var isHandlingSignUp = false
@@ -194,7 +194,10 @@ class AuthenticationManager: ObservableObject {
             GIDSignIn.sharedInstance.signOut()
             user = nil
             policyDenied = false
+            // Reset all first-launch / onboarding flags so tutorial shows on next account
             UserDefaults.standard.set(false, forKey: "HasCompletedOnboarding")
+            UserDefaults.standard.set(false, forKey: "HasLaunchedBefore")
+            UserDefaults.standard.removeObject(forKey: "LastSeenVersion")
             if let url = try? classesDocumentsURL() {
                 try? FileManager.default.removeItem(at: url)
             }
@@ -218,14 +221,10 @@ class AuthenticationManager: ObservableObject {
 
     // MARK: - Delete Account
 
-    /// Entry point called from the UI.
-    /// Checks whether Firebase needs re-authentication first.
     func deleteAccount() async {
         guard let userId = user?.id,
               let firebaseUser = Auth.auth().currentUser else { return }
 
-        // Try the deletion straight away — Firebase will throw
-        // ERROR_REQUIRES_RECENT_LOGIN if the session is stale.
         do {
             try await dataManager.deleteUserData(for: userId)
             try await firebaseUser.delete()
@@ -234,7 +233,6 @@ class AuthenticationManager: ObservableObject {
             where error.domain == AuthErrorDomain
                && error.code   == AuthErrorCode.requiresRecentLogin.rawValue
         {
-            // Session is stale — ask the user to re-authenticate
             reauthError = ""
             needsReauthForDeletion = true
         } catch {
@@ -243,7 +241,6 @@ class AuthenticationManager: ObservableObject {
         }
     }
 
-    /// Called by the re-auth sheet when the user submits their password.
     func reauthWithPasswordAndDelete(password: String) async {
         guard let firebaseUser = Auth.auth().currentUser,
               let email = firebaseUser.email else { return }
@@ -254,7 +251,6 @@ class AuthenticationManager: ObservableObject {
         do {
             let credential = EmailAuthProvider.credential(withEmail: email, password: password)
             try await firebaseUser.reauthenticate(with: credential)
-            // Re-auth succeeded — now delete
             if let userId = user?.id {
                 try await dataManager.deleteUserData(for: userId)
             }
@@ -267,7 +263,6 @@ class AuthenticationManager: ObservableObject {
         isLoading = false
     }
 
-    /// Called by the re-auth sheet when the user wants to re-auth via Google.
     func reauthWithGoogleAndDelete(presenting viewController: UIViewController) async {
         guard let firebaseUser = Auth.auth().currentUser else { return }
 

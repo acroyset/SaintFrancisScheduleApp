@@ -11,10 +11,6 @@ struct AuthenticationView: View {
     @State private var showOnboarding = false
     @State private var classesFromOnboarding: [ClassItem] = []
 
-    private var shouldShowOnboarding: Bool {
-        !UserDefaults.standard.bool(forKey: "HasCompletedOnboarding")
-    }
-
     var body: some View {
         Group {
             if authManager.user != nil {
@@ -36,17 +32,15 @@ struct AuthenticationView: View {
                 isRenewal: authManager.user != nil
             )
         }
-        // Watch for sign-in/sign-up completing
-        .onChange(of: authManager.user != nil) { _, isSignedIn in
-            guard isSignedIn else { return }
-            // Read the flag fresh from UserDefaults — give it a tick to settle
-            // after signUp() or signIn() writes it.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+        // Use user?.id so the onChange fires reliably for any account transition,
+        // including sign-out → new account (nil → id1 → nil → id2).
+        .onChange(of: authManager.user?.id) { _, userId in
+            guard userId != nil else { return }
+            // Small delay lets ContentView settle before presenting onboarding
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                 let hasCompleted = UserDefaults.standard.bool(forKey: "HasCompletedOnboarding")
                 if !hasCompleted {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        showOnboarding = true
-                    }
+                    showOnboarding = true
                 }
             }
         }
@@ -68,4 +62,3 @@ struct AuthenticationView: View {
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: showOnboarding)
     }
 }
-

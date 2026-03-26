@@ -2,7 +2,8 @@
 //  NotificationManager.swift
 //  Schedule
 //
-//  Created by Andreas Royset on 12/2/25.
+//  Updated: Notifications now include class name, room, and time.
+//  Added a morning "class starts in 10 min" alert.
 //
 
 import Foundation
@@ -23,146 +24,226 @@ func fancyDayName(_ code: String) -> String {
         "L2": "Liturgy 2",
         "S1": "Special Schedule"
     ]
-
     return map[code.uppercased()] ?? code
 }
 
 class NotificationManager {
     static let shared = NotificationManager()
-    private let notificationIDPrefix = "nightly"
-    
-    func scheduleNightly(dayCode: String) {
+    private let nightlyIDPrefix  = "nightly"
+    private let morningIDPrefix  = "morning"
+
+    // MARK: - Schedule nightly + morning alerts
+
+    /// Call this whenever schedule data changes.
+    /// - Parameters:
+    ///   - dayCode: Tomorrow's day code (e.g. "G2")
+    ///   - firstClassName: Name of first period class tomorrow (optional)
+    ///   - firstClassTime: Start time string, e.g. "9:00" (optional)
+    ///   - firstClassRoom: Room number (optional)
+    func scheduleNightly(
+        dayCode: String,
+        firstClassName: String = "",
+        firstClassTime: String = "",
+        firstClassRoom: String = ""
+    ) {
         guard NotificationSettings.isEnabled else {
             cancelNightlyNotifications()
+            cancelMorningNotifications()
             return
         }
-        
-        guard !dayCode.isEmpty && dayCode != "Unknown" else {
-            print("⚠️ Notification: Invalid day code provided")
-            return
-        }
-        
-        let fancy = fancyDayName(dayCode)
-        
-        let content = UNMutableNotificationContent()
-        content.title = "Daily Update"
-        content.body = "Tomorrow is \(fancy)"
-        content.sound = .default
-        
-        let formatter = DateFormatter()
+
+        guard !dayCode.isEmpty && dayCode != "Unknown" else { return }
+
+        let fancy       = fancyDayName(dayCode)
+        let formatter   = DateFormatter()
         formatter.dateFormat = "MM-dd-yy"
-        let today = formatter.string(from: Date())
-        let id = "\(notificationIDPrefix)-\(today)"
-        
-        let selectedTime = NotificationSettings.time
-        let timeComponents = Calendar.current.dateComponents([.hour, .minute], from: selectedTime)
-        
-        // Start with today
-        var triggerComponents = Calendar.current.dateComponents([.year, .month, .day], from: Date())
-        triggerComponents.hour = timeComponents.hour
-        triggerComponents.minute = timeComponents.minute
-        triggerComponents.second = 0
-        
-        // If that time has already passed today, push to tomorrow
-        if let triggerDate = Calendar.current.date(from: triggerComponents), triggerDate <= Date() {
-            let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date())!
-            triggerComponents = Calendar.current.dateComponents([.year, .month, .day], from: tomorrow)
-            triggerComponents.hour = timeComponents.hour
-            triggerComponents.minute = timeComponents.minute
-            triggerComponents.second = 0
+        let today       = formatter.string(from: Date())
+
+        // ── Evening notification ──────────────────────────────────────
+        let eveningContent       = UNMutableNotificationContent()
+        eveningContent.title     = "Tomorrow: \(fancy)"
+        if !firstClassName.isEmpty {
+            var body = "\(firstClassName) starts at \(firstClassTime)"
+            if !firstClassRoom.isEmpty { body += " · Room \(firstClassRoom)" }
+            eveningContent.body  = body
+        } else {
+            eveningContent.body  = "Tap to see tomorrow's schedule"
         }
-        
-        let trigger = UNCalendarNotificationTrigger(dateMatching: triggerComponents, repeats: false)
-        let request = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
-        
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [id])
-        
-        UNUserNotificationCenter.current().add(request) { err in
-            if let err = err {
-                print("❌ Notification scheduling failed: \(err)")
-            } else {
-                //print("✅ Notification scheduled for \(triggerComponents.month!)/\(triggerComponents.day!) at \(triggerComponents.hour ?? 0):\(String(format: "%02d", triggerComponents.minute ?? 0)) for \(dayCode)")
-            }
+        eveningContent.sound = .default
+
+        let selectedTime    = NotificationSettings.time
+        let timeComponents  = Calendar.current.dateComponents([.hour, .minute], from: selectedTime)
+        var triggerComps    = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+        triggerComps.hour   = timeComponents.hour
+        triggerComps.minute = timeComponents.minute
+        triggerComps.second = 0
+
+        // Push to tomorrow if time already passed today
+        if let t = Calendar.current.date(from: triggerComps), t <= Date() {
+            let tmrw = Calendar.current.date(byAdding: .day, value: 1, to: Date())!
+            triggerComps = Calendar.current.dateComponents([.year, .month, .day], from: tmrw)
+            triggerComps.hour   = timeComponents.hour
+            triggerComps.minute = timeComponents.minute
+            triggerComps.second = 0
+        }
+
+        let eveningTrigger  = UNCalendarNotificationTrigger(dateMatching: triggerComps, repeats: false)
+        let eveningID        = "\(nightlyIDPrefix)-\(today)"
+        let eveningRequest   = UNNotificationRequest(identifier: eveningID,
+                                                     content: eveningContent,
+                                                     trigger: eveningTrigger)
+
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [eveningID])
+        UNUserNotificationCenter.current().add(eveningRequest) { err in
+            if let err { print("❌ Evening notification error: \(err)") }
+        }
+
+        // ── Morning notification (10 min before first class) ──────────
+        if !firstClassName.isEmpty, !firstClassTime.isEmpty {
+            scheduleMorningAlert(
+                className:    firstClassName,
+                classTimeStr: firstClassTime,
+                classRoom:    firstClassRoom,
+                targetDate:   Calendar.current.date(byAdding: .day, value: 1, to: Date())!,
+                todayKey:     today
+            )
         }
     }
-    
+
+    // MARK: - Morning alert
+
+    private func scheduleMorningAlert(
+        className: String,
+        classTimeStr: String,
+        classRoom: String,
+        targetDate: Date,
+        todayKey: String
+    ) {
+        // Parse "H:MM" into hour + minute
+        let parts = classTimeStr.split(separator: ":").compactMap { Int($0) }
+        guard parts.count == 2 else { return }
+        var hour   = parts[0]
+        let minute = parts[1]
+        // Mirror Time struct's AM/PM fix: times < 7 are PM
+        if hour < 7 { hour += 12 }
+
+        // 10 minutes before class
+        var alertMin  = minute - 10
+        var alertHour = hour
+        if alertMin < 0 {
+            alertMin  += 60
+            alertHour -= 1
+        }
+        guard alertHour >= 0 else { return }
+
+        var triggerComps  = Calendar.current.dateComponents([.year, .month, .day], from: targetDate)
+        triggerComps.hour   = alertHour
+        triggerComps.minute = alertMin
+        triggerComps.second = 0
+
+        // Don't schedule if already in the past
+        guard let triggerDate = Calendar.current.date(from: triggerComps),
+              triggerDate > Date() else { return }
+
+        let content       = UNMutableNotificationContent()
+        content.title     = "Class in 10 minutes"
+        var body          = className
+        if !classRoom.isEmpty { body += " · Room \(classRoom)" }
+        body += " at \(classTimeStr)"
+        content.body      = body
+        content.sound     = .default
+        content.interruptionLevel = .timeSensitive
+
+        let trigger  = UNCalendarNotificationTrigger(dateMatching: triggerComps, repeats: false)
+        let id       = "\(morningIDPrefix)-\(todayKey)"
+        let request  = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
+
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [id])
+        UNUserNotificationCenter.current().add(request) { err in
+            if let err { print("❌ Morning notification error: \(err)") }
+        }
+    }
+
+    // MARK: - Cancel
+
     func cancelNightlyNotifications() {
         UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
-            let nightlyIDs = requests
-                .filter { $0.identifier.hasPrefix(self.notificationIDPrefix) }
-                .map { $0.identifier }
-            
-            if !nightlyIDs.isEmpty {
-                UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: nightlyIDs)
-                //print("✅ Cancelled \(nightlyIDs.count) nightly notification(s)")
+            let ids = requests
+                .filter { $0.identifier.hasPrefix(self.nightlyIDPrefix) }
+                .map    { $0.identifier }
+            if !ids.isEmpty {
+                UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ids)
             }
         }
     }
-    
+
+    func cancelMorningNotifications() {
+        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
+            let ids = requests
+                .filter { $0.identifier.hasPrefix(self.morningIDPrefix) }
+                .map    { $0.identifier }
+            if !ids.isEmpty {
+                UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ids)
+            }
+        }
+    }
+
     func cleanupExpiredNotifications() {
         UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
             let now = Date()
-            var expiredIDs: [String] = []
-            
-            for request in requests {
-                if request.identifier.hasPrefix(self.notificationIDPrefix),
-                   let trigger = request.trigger as? UNCalendarNotificationTrigger,
-                   let nextTrigger = trigger.nextTriggerDate(),
-                   nextTrigger < now {
-                    expiredIDs.append(request.identifier)
-                }
+            let expiredIDs: [String] = requests.compactMap { req in
+                guard req.identifier.hasPrefix(self.nightlyIDPrefix) ||
+                      req.identifier.hasPrefix(self.morningIDPrefix),
+                      let trigger = req.trigger as? UNCalendarNotificationTrigger,
+                      let next    = trigger.nextTriggerDate(),
+                      next < now
+                else { return nil }
+                return req.identifier
             }
-            
             if !expiredIDs.isEmpty {
                 UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: expiredIDs)
-                //print("🧹 Cleaned up \(expiredIDs.count) expired notification(s)")
             }
         }
     }
 }
 
+// MARK: - NotificationSettings
 
 class NotificationSettings {
     static let enabledKey = "NotificationsEnabled"
-    static let timeKey = "NotificationTime" // stored as "HH:mm"
-    
+    static let timeKey    = "NotificationTime"
+
     static var isEnabled: Bool {
         get { UserDefaults.standard.bool(forKey: enabledKey) }
         set {
             UserDefaults.standard.set(newValue, forKey: enabledKey)
             if newValue {
-                // Re-request notification permissions if user re-enables
                 let center = UNUserNotificationCenter.current()
-                let notificationDelegate = NotificationDelegate()
-                center.delegate = notificationDelegate
-                center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-                    if !granted {print("❌ Notification Permission Denied")}
-                } 
-                
+                center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+                    if !granted { print("❌ Notification Permission Denied") }
+                }
                 ScheduleBackgroundManager.shared.scheduleNextNightlyRefresh()
             } else {
-                // Cancel all notifications if disabled
                 NotificationManager.shared.cancelNightlyNotifications()
+                NotificationManager.shared.cancelMorningNotifications()
             }
         }
     }
-    
+
     static var time: Date {
         get {
             if let raw = UserDefaults.standard.string(forKey: timeKey) {
-                let formatter = DateFormatter()
-                formatter.dateFormat = "HH:mm"
-                return formatter.date(from: raw) ?? defaultTime
+                let f = DateFormatter(); f.dateFormat = "HH:mm"
+                return f.date(from: raw) ?? defaultTime
             }
             return defaultTime
         }
         set {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "HH:mm"
-            UserDefaults.standard.set(formatter.string(from: newValue), forKey: timeKey)
+            let f = DateFormatter(); f.dateFormat = "HH:mm"
+            UserDefaults.standard.set(f.string(from: newValue), forKey: timeKey)
         }
     }
-    
+
     static var defaultTime: Date {
         Calendar.current.date(bySettingHour: 20, minute: 0, second: 0, of: Date())!
     }

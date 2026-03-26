@@ -7,8 +7,8 @@ import SwiftUI
 import Foundation
 import UserNotifications
 
-let version = "1.15"
-let whatsNew = "- More Widgets!!!\n- Settings now in profile tab\n- Encrypted data storage for privacy\n- Bug Fixes"
+let version = "1.16"
+let whatsNew = "- Live Activities\n- Better Graphics\n- Bug Fixes"
 
 struct ContentView: View {
     @EnvironmentObject var authManager: AuthenticationManager
@@ -606,16 +606,50 @@ struct ContentView: View {
     private func loadEventsFromCloud() { eventsManager.loadFromCloud(using: authManager) }
 
     func updateNightlyNotification() {
-        if let scheduleDict = scheduleDict {
-            let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date())!
-            let formatter = DateFormatter()
-            formatter.dateFormat = "MM-dd-yy"
-            let key = formatter.string(from: tomorrow)
-            let rawCode = (scheduleDict[key] ?? ["",""])[0]
-            NotificationManager.shared.scheduleNightly(dayCode: rawCode)
-        } else {
-            NotificationManager.shared.scheduleNightly(dayCode: "")
+        // Get tomorrow's day code
+        let tomorrow  = Calendar.current.date(byAdding: .day, value: 1, to: Date())!
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MM-dd-yy"
+        let key     = formatter.string(from: tomorrow)
+        let rawCode = (scheduleDict?[key] ?? ["", ""])[0]
+ 
+        // Extract first period class info from tomorrow's schedule
+        var firstName = ""
+        var firstTime = ""
+        var firstRoom = ""
+ 
+        if let scheduleData = data, !rawCode.isEmpty {
+            let dayMap = ["g1":0,"b1":1,"g2":2,"b2":3,
+                          "a1":4,"a2":5,"a3":6,"a4":7,
+                          "l1":8,"l2":9,"s1":10]
+            if let di = dayMap[rawCode.lowercased()],
+               scheduleData.days.indices.contains(di) {
+                let day = scheduleData.days[di]
+                // Find first numbered period ($1–$7)
+                for i in day.names.indices {
+                    let nameRaw = day.names[i]
+                    if nameRaw.hasPrefix("$"),
+                       let idx = Int(nameRaw.dropFirst()),
+                       (1...7).contains(idx),
+                       idx <= scheduleData.classes.count {
+                        let c = scheduleData.classes[idx - 1]
+                        if c.name != "Period \(idx)" && c.name != "None" {
+                            firstName = c.name
+                            firstTime = day.startTimes[i].string()
+                            firstRoom = (c.room == "N" || c.room.isEmpty) ? "" : c.room
+                            break
+                        }
+                    }
+                }
+            }
         }
+ 
+        NotificationManager.shared.scheduleNightly(
+            dayCode:        rawCode,
+            firstClassName: firstName,
+            firstClassTime: firstTime,
+            firstClassRoom: firstRoom
+        )
     }
     
     private func applyOnboardingClassesIfNeeded() {

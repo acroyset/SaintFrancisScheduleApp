@@ -204,9 +204,11 @@ final class EncryptionService {
             kSecClass as String:                kSecClassGenericPassword,
             kSecAttrService as String:          tag,
             kSecValueData as String:            keyData,
-            // Only accessible when device is unlocked; backed up to iCloud Keychain
-            // so the key survives a device wipe + restore for the same Apple ID.
-            kSecAttrAccessible as String:       kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+            // kSecAttrAccessibleWhenUnlocked allows iCloud Keychain backup so the
+            // key survives a device wipe + restore for the same Apple ID.
+            // If the key is missing after restore, re-derivation from userId + salt
+            // produces the same key, so encrypted cloud data remains readable.
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked
         ]
         SecItemAdd(addQuery as CFDictionary, nil)
     }
