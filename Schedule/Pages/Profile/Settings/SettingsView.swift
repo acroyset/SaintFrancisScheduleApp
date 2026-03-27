@@ -203,7 +203,7 @@ struct Settings: View {
                             }
                         } else {
                             NotificationSettings.isEnabled = false
-                            NotificationManager.shared.cancelNightlyNotifications()
+                            NotificationManager.shared.cancelAllNotifications()
                         }
                     }
                 ))

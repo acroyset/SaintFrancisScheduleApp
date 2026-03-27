@@ -2,12 +2,10 @@
 //  LiveActivityManager.swift
 //  Schedule
 //
-//  Created by Andreas Royset on 3/20/26.
-//
-//
-//  The widget now redraws itself at every class boundary via TimelineView,
-//  so this manager only needs to START the activity (with the full schedule
-//  baked in) and END it when school is over. No per-class updates required.
+//  Fixes:
+//  1. Duplicate activities — guard checks ALL non-active states before requesting
+//  2. Progress bar stale — classBoundaryDates() now includes per-minute ticks
+//     during the current class so TimelineView redraws without app involvement
 //
 
 import ActivityKit
@@ -26,12 +24,17 @@ final class LiveActivityManager {
     func update(scheduleLines: [ScheduleLine], dayCode: String, dayName: String) {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
 
-        // Clean up any externally dismissed/ended reference
+        // --- FIX 1: Properly resolve stale activity references ---
+        // Any state other than .active means we should nil the reference
+        // so we request a fresh one rather than trying to update a dead one.
         if let existing = activity {
             switch existing.activityState {
-            case .dismissed, .ended: activity = nil
-            case .active, .stale:   break
-            @unknown default:       activity = nil
+            case .active:
+                break // keep it
+            case .stale, .ended, .dismissed:
+                activity = nil
+            @unknown default:
+                activity = nil
             }
         }
 
@@ -42,7 +45,7 @@ final class LiveActivityManager {
             .filter { $0.startSec != nil && $0.endSec != nil && $0.className != "Passing Period" }
             .sorted { ($0.startSec ?? 0) < ($1.startSec ?? 0) }
 
-        // Nothing left today → end
+        // Nothing left today → end any running activity
         guard realClasses.contains(where: { ($0.endSec ?? 0) > nowSec }) else {
             endActivity()
             return
@@ -59,18 +62,22 @@ final class LiveActivityManager {
             )
         }
 
-        let lastEndSec   = realClasses.compactMap(\.endSec).max() ?? (nowSec + 3600)
+        let lastEndSec    = realClasses.compactMap(\.endSec).max() ?? (nowSec + 3600)
         let schoolEndDate = wallDate(lastEndSec, reference: nowDate)
 
         let state   = ScheduleWidgetAttributes.ContentState(updatedAt: nowDate)
-        // staleDate = school end so the system dismisses the activity automatically
         let content = ActivityContent(state: state, staleDate: schoolEndDate)
 
         if let existing = activity {
-            // Already running — just heartbeat so the system knows we're alive.
-            // The TimelineView inside the widget handles all visual transitions.
+            // Already active — heartbeat so the system knows we're alive.
+            // The TimelineView inside handles all visual transitions.
             Task { await existing.update(content) }
         } else {
+            // --- FIX 1 (continued): Only call .request() when activity is nil ---
+            // Before requesting, terminate any orphaned activities from a previous
+            // session that we lost the reference to.
+            terminateOrphanedActivities(dayCode: dayCode)
+
             let attributes = ScheduleWidgetAttributes(
                 dayCode:          dayCode,
                 dayName:          dayName,
@@ -97,6 +104,25 @@ final class LiveActivityManager {
     }
 
     // MARK: - Private
+
+    /// Ends any activities from a previous session that we no longer hold a
+    /// reference to. This prevents the duplicate-on-launch bug where the app
+    /// crashed or was killed while an activity was running.
+    private func terminateOrphanedActivities(dayCode: String) {
+        let orphans = Activity<ScheduleWidgetAttributes>.activities.filter { a in
+            // If we already have a reference to this one, skip it
+            guard a.id != activity?.id else { return false }
+            // End anything that isn't already done
+            switch a.activityState {
+            case .active, .stale: return true
+            default: return false
+            }
+        }
+        for orphan in orphans {
+            Task { await orphan.end(using: nil, dismissalPolicy: .immediate) }
+            print("🧹 Terminated orphaned LiveActivity: \(orphan.id)")
+        }
+    }
 
     private func wallDate(_ sec: Int, reference: Date) -> Date {
         var comps = Calendar.current.dateComponents([.year, .month, .day], from: reference)

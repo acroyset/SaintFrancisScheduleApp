@@ -2,72 +2,65 @@
 //  CustomEventsManager.swift
 //  Schedule
 //
-//  Created by Andreas Royset on 11/18/25.
+//  Fix 4: Deletion race condition eliminated by removing the concurrent
+//  dispatch queue entirely. All mutations now happen directly on the
+//  MainActor, which is already where callers (SwiftUI gestures,
+//  @MainActor ViewModels) live. The barrier queue was creating a
+//  write/saveEvents() race because @Published writes must happen on
+//  the main thread while the barrier fired on a background thread.
 //
 
 import Foundation
 import SwiftUI
 import FirebaseFirestore
 
+@MainActor
 class CustomEventsManager: ObservableObject {
     @Published var events: [CustomEvent] = []
-    
+
     private let userDefaults = UserDefaults.standard
-    private let eventsKey = "CustomEvents"
-    private let syncQueue = DispatchQueue(label: "com.schedule.events.sync", attributes: .concurrent)
+    private let eventsKey    = "CustomEvents"
     private var authManager: AuthenticationManager?
-    
+
     init() {
         loadEvents()
     }
-    
+
     func setAuthManager(_ manager: AuthenticationManager) {
-        self.authManager = manager
+        authManager = manager
     }
-    
+
     // MARK: - Persistence
-    
-    @MainActor func saveEvents() {
-        let hasUser = authManager?.user != nil
-        
+
+    func saveEvents() {
         do {
-            let data = try JSONEncoder().encode(self.events)
-            self.userDefaults.set(data, forKey: self.eventsKey)
+            let data = try JSONEncoder().encode(events)
+            userDefaults.set(data, forKey: eventsKey)
             SharedGroup.defaults.set(data, forKey: "CustomEvents")
-            
-            if hasUser {
-                Task {
-                    await self.saveToCloudAsync()
-                }
+
+            if authManager?.user != nil {
+                Task { await saveToCloudAsync() }
             }
         } catch {
             print("❌ Failed to save custom events: \(error)")
         }
     }
-    
+
     func loadEvents() {
-        syncQueue.async { [weak self] in
-            guard let self = self else { return }
-            guard let data = self.userDefaults.data(forKey: self.eventsKey) else { return }
-            do {
-                let loadedEvents = try JSONDecoder().decode([CustomEvent].self, from: data)
-                DispatchQueue.main.async {
-                    self.events = loadedEvents
-                }
-            } catch {
-                print("❌ Failed to load custom events: \(error)")
-            }
+        guard let data = userDefaults.data(forKey: eventsKey) else { return }
+        do {
+            events = try JSONDecoder().decode([CustomEvent].self, from: data)
+        } catch {
+            print("❌ Failed to load custom events: \(error)")
         }
     }
-    
+
     // MARK: - Cloud Sync
-    
-    @MainActor
+
     func saveToCloud(using authManager: AuthenticationManager) {
         guard let user = authManager.user else { return }
-        let userId = user.id
+        let userId       = user.id
         let eventsToSave = events
-        
         Task {
             do {
                 try await CloudEventsDataManager().saveEvents(eventsToSave, for: userId)
@@ -76,124 +69,88 @@ class CustomEventsManager: ObservableObject {
             }
         }
     }
-    
-    @MainActor
+
     func loadFromCloud(using authManager: AuthenticationManager) {
         guard let user = authManager.user else { return }
         let userId = user.id
-        
         Task {
             do {
                 let cloudEvents = try await CloudEventsDataManager().loadEvents(for: userId)
-                await MainActor.run {
-                    if !cloudEvents.isEmpty {
-                        self.events = cloudEvents
-                        self.saveEvents()
-                    }
+                if !cloudEvents.isEmpty {
+                    events = cloudEvents
+                    saveEvents()
                 }
             } catch {
                 print("❌ Failed to load events from cloud: \(error)")
             }
         }
     }
-    
+
     private func saveToCloudAsync() async {
-        guard let authManager = authManager,
-              let user = await authManager.user else { return }
-        
+        guard let user = authManager?.user else { return }
         do {
             try await CloudEventsDataManager().saveEvents(events, for: user.id)
         } catch {
             print("❌ Failed to auto-save events to cloud: \(error)")
         }
     }
-    
-    // MARK: - Event Management
-    
+
+    // MARK: - Event Management (all on MainActor — no queue needed)
+
+    /// Adds a new event. Identical to addEventSync; kept for call-site compat.
     func addEvent(_ event: CustomEvent) {
-        syncQueue.async(flags: .barrier) { [weak self] in
-            self?.events.append(event)
-            DispatchQueue.main.async {
-                self?.saveEvents()
-            }
-        }
-    }
-
-    func updateEvent(_ event: CustomEvent) {
-        syncQueue.async(flags: .barrier) { [weak self] in
-            guard let self = self else { return }
-            if let index = self.events.firstIndex(where: { $0.id == event.id }) {
-                self.events[index] = event
-                DispatchQueue.main.async {
-                    self.saveEvents()
-                }
-            }
-        }
-    }
-
-    func deleteEvent(_ event: CustomEvent) {
-        syncQueue.async(flags: .barrier) { [weak self] in
-            self?.events.removeAll { $0.id == event.id }
-            DispatchQueue.main.async {
-                self?.saveEvents()
-            }
-        }
-    }
-    
-    // MARK: - Event Filtering
-    
-    func eventsFor(dayCode: String, date: Date) -> [CustomEvent] {
-        return syncQueue.sync {
-            return events.filter { $0.appliesTo(dayCode: dayCode, date: date) }
-        }
-    }
-    
-    // MARK: - Conflict Detection
-    
-    func detectConflicts(for event: CustomEvent, with scheduleLines: [ScheduleLine]) -> [EventConflict] {
-        var conflicts: [EventConflict] = []
-        
-        for line in scheduleLines {
-            if event.conflictsWith(line) {
-                let severity = calculateConflictSeverity(event: event, scheduleLine: line)
-                conflicts.append(EventConflict(event: event, conflictingScheduleLine: line, severity: severity))
-            }
-        }
-        
-        return conflicts
-    }
-    
-    private func calculateConflictSeverity(event: CustomEvent, scheduleLine: ScheduleLine) -> ConflictSeverity {
-        guard let classStart = scheduleLine.startSec,
-              let classEnd = scheduleLine.endSec else { return .minor }
-        
-        let eventStart = event.startTime.seconds
-        let eventEnd = event.endTime.seconds
-        
-        let overlapStart = max(eventStart, classStart)
-        let overlapEnd = min(eventEnd, classEnd)
-        let overlapDuration = overlapEnd - overlapStart
-        
-        if overlapDuration >= (classEnd - classStart) * 8 / 10 {
-            return .complete
-        } else if overlapDuration >= 900 {
-            return .major
-        } else {
-            return .minor
-        }
-    }
-    
-    @MainActor
-    func updateEventSync(_ event: CustomEvent) {
-        if let index = events.firstIndex(where: { $0.id == event.id }) {
-            events[index] = event
-        }
-        saveEvents()
-    }
- 
-    @MainActor
-    func addEventSync(_ event: CustomEvent) {
         events.append(event)
         saveEvents()
+    }
+
+    /// Updates an existing event in-place.
+    func updateEvent(_ event: CustomEvent) {
+        guard let index = events.firstIndex(where: { $0.id == event.id }) else { return }
+        events[index] = event
+        saveEvents()
+    }
+
+    /// Removes an event. Fix 4: now atomic — no barrier/main-thread split.
+    func deleteEvent(_ event: CustomEvent) {
+        events.removeAll { $0.id == event.id }
+        saveEvents()
+    }
+
+    // These remain for call sites that use the "Sync" suffix
+    func addEventSync(_ event: CustomEvent)    { addEvent(event) }
+    func updateEventSync(_ event: CustomEvent) { updateEvent(event) }
+
+    // MARK: - Event Filtering
+
+    func eventsFor(dayCode: String, date: Date) -> [CustomEvent] {
+        events.filter { $0.appliesTo(dayCode: dayCode, date: date) }
+    }
+
+    // MARK: - Conflict Detection
+
+    func detectConflicts(for event: CustomEvent, with scheduleLines: [ScheduleLine]) -> [EventConflict] {
+        scheduleLines.compactMap { line in
+            guard event.conflictsWith(line) else { return nil }
+            return EventConflict(
+                event: event,
+                conflictingScheduleLine: line,
+                severity: calculateConflictSeverity(event: event, scheduleLine: line)
+            )
+        }
+    }
+
+    private func calculateConflictSeverity(event: CustomEvent, scheduleLine: ScheduleLine) -> ConflictSeverity {
+        guard let classStart = scheduleLine.startSec,
+              let classEnd   = scheduleLine.endSec else { return .minor }
+
+        let eventStart   = event.startTime.seconds
+        let eventEnd     = event.endTime.seconds
+        let overlapStart = max(eventStart, classStart)
+        let overlapEnd   = min(eventEnd, classEnd)
+        let overlap      = overlapEnd - overlapStart
+
+        if overlap >= (classEnd - classStart) * 8 / 10 { return .complete }
+        if overlap >= 900                               { return .major    }
+        return .minor
     }
 }

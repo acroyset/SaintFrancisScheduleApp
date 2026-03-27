@@ -52,14 +52,41 @@ extension ScheduleWidgetAttributes {
 
     /// Dates fed to TimelineView — only used to trigger redraws, not for logic
     func classBoundaryDates() -> [Date] {
-        let today = Calendar.current.startOfDay(for: Date())
+        let today  = Calendar.current.startOfDay(for: Date())
+        let nowSec = secsSinceMidnight(Date())
         var dates: [Date] = []
+
         for cls in scheduledClasses {
-            dates.append(today.addingTimeInterval(TimeInterval(cls.startSec)))
-            dates.append(today.addingTimeInterval(TimeInterval(cls.endSec)))
+            let startDate = today.addingTimeInterval(TimeInterval(cls.startSec))
+            let endDate   = today.addingTimeInterval(TimeInterval(cls.endSec))
+
+            if startDate > Date() { dates.append(startDate) }
+            if endDate   > Date() { dates.append(endDate) }
+
+            // --- FIX 2: Minute-level ticks for the current class only ---
+            // Only add ticks if we're currently inside this class.
+            let isCurrent = cls.startSec <= nowSec && nowSec < cls.endSec
+            if isCurrent {
+                let nextMinuteSec = ((nowSec / 60) + 1) * 60
+                var tick = nextMinuteSec
+                while tick < cls.endSec {
+                    let tickDate = today.addingTimeInterval(TimeInterval(tick))
+                    if tickDate > Date() {
+                        dates.append(tickDate)
+                    }
+                    tick += 60
+                }
+            }
         }
+
         return dates.filter { $0 > Date() }.sorted()
     }
+
+    private func secsSinceMidnight(_ date: Date) -> Int {
+        let c = Calendar.current.dateComponents([.hour, .minute, .second], from: date)
+        return (c.hour ?? 0) * 3600 + (c.minute ?? 0) * 60 + (c.second ?? 0)
+    }
+
 
     func wallDate(secSinceMidnight: Int) -> Date {
         let today = Calendar.current.startOfDay(for: Date())

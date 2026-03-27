@@ -100,7 +100,6 @@ struct ContentView: View {
             .onChange(of: eventsManager.events) { _, _ in
                 render()
                 saveScheduleLinesWithEvents()
-                saveEventsToCloud()
                 saveDataForWidget()
             }
             .onChange(of: dayCode) { oldDay, newDay in

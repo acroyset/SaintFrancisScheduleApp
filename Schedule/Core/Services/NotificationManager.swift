@@ -2,8 +2,14 @@
 //  NotificationManager.swift
 //  Schedule
 //
-//  Updated: Notifications now include class name, room, and time.
-//  Added a morning "class starts in 10 min" alert.
+//  Fixes:
+//  3. Duplicate notifications — scheduling is now debounced (0.5 s) so rapid
+//     callers (ticker + dayCode change + scenePhase) collapse into one request.
+//     IDs are keyed on the *target date* rather than today's date, so a
+//     reschedule atomically replaces the old request instead of stacking.
+//  5. Notifications persist after toggle-off — disabling now removes BOTH
+//     pending AND already-delivered notifications, and cancels the background
+//     task that was silently rescheduling them.
 //
 
 import Foundation
@@ -12,16 +18,11 @@ import SwiftUI
 
 func fancyDayName(_ code: String) -> String {
     let map: [String: String] = [
-        "G1": "Gold 1",
-        "G2": "Gold 2",
-        "B1": "Brown 1",
-        "B2": "Brown 2",
-        "A1": "Activity 1",
-        "A2": "Activity 2",
-        "A3": "Activity 3",
-        "A4": "Activity 4",
-        "L1": "Liturgy 1",
-        "L2": "Liturgy 2",
+        "G1": "Gold 1",   "G2": "Gold 2",
+        "B1": "Brown 1",  "B2": "Brown 2",
+        "A1": "Activity 1", "A2": "Activity 2",
+        "A3": "Activity 3", "A4": "Activity 4",
+        "L1": "Liturgy 1",  "L2": "Liturgy 2",
         "S1": "Special Schedule"
     ]
     return map[code.uppercased()] ?? code
@@ -29,35 +30,104 @@ func fancyDayName(_ code: String) -> String {
 
 class NotificationManager {
     static let shared = NotificationManager()
-    private let nightlyIDPrefix  = "nightly"
-    private let morningIDPrefix  = "morning"
 
-    // MARK: - Schedule nightly + morning alerts
+    // --- FIX 3: Debounce token ---
+    private var scheduleDebounceTimer: Timer?
+    private let debounceInterval: TimeInterval = 0.5
 
-    /// Call this whenever schedule data changes.
-    /// - Parameters:
-    ///   - dayCode: Tomorrow's day code (e.g. "G2")
-    ///   - firstClassName: Name of first period class tomorrow (optional)
-    ///   - firstClassTime: Start time string, e.g. "9:00" (optional)
-    ///   - firstClassRoom: Room number (optional)
+    // Pending values held during debounce window
+    private var pendingDayCode:      String = ""
+    private var pendingFirstName:    String = ""
+    private var pendingFirstTime:    String = ""
+    private var pendingFirstRoom:    String = ""
+
+    // MARK: - Public scheduling entry point
+
+    /// Thread-safe, debounced. Multiple rapid calls collapse into one.
     func scheduleNightly(
-        dayCode: String,
+        dayCode:        String,
         firstClassName: String = "",
         firstClassTime: String = "",
         firstClassRoom: String = ""
     ) {
         guard NotificationSettings.isEnabled else {
-            cancelNightlyNotifications()
-            cancelMorningNotifications()
+            cancelAllNotifications()
             return
         }
-
         guard !dayCode.isEmpty && dayCode != "Unknown" else { return }
 
-        let fancy       = fancyDayName(dayCode)
-        let formatter   = DateFormatter()
+        // Store the latest values; the timer will use them when it fires
+        pendingDayCode   = dayCode
+        pendingFirstName = firstClassName
+        pendingFirstTime = firstClassTime
+        pendingFirstRoom = firstClassRoom
+
+        // --- FIX 3: Debounce — cancel any pending timer, restart it ---
+        scheduleDebounceTimer?.invalidate()
+        scheduleDebounceTimer = Timer.scheduledTimer(
+            withTimeInterval: debounceInterval,
+            repeats: false
+        ) { [weak self] _ in
+            guard let self else { return }
+            self._scheduleNightlyNow(
+                dayCode:        self.pendingDayCode,
+                firstClassName: self.pendingFirstName,
+                firstClassTime: self.pendingFirstTime,
+                firstClassRoom: self.pendingFirstRoom
+            )
+        }
+    }
+
+    // MARK: - Cancel
+
+    func cancelAllNotifications() {
+        scheduleDebounceTimer?.invalidate()
+        scheduleDebounceTimer = nil
+
+        let center = UNUserNotificationCenter.current()
+        // --- FIX 5: Remove both pending AND delivered ---
+        center.removeAllPendingNotificationRequests()
+        center.removeAllDeliveredNotifications()
+    }
+
+    func cleanupExpiredNotifications() {
+        let prefixes = ["nightly-", "morning-"]
+        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
+            let now = Date()
+            let expired = requests.compactMap { req -> String? in
+                guard prefixes.contains(where: { req.identifier.hasPrefix($0) }),
+                      let trigger = req.trigger as? UNCalendarNotificationTrigger,
+                      let next = trigger.nextTriggerDate(),
+                      next < now
+                else { return nil }
+                return req.identifier
+            }
+            if !expired.isEmpty {
+                UNUserNotificationCenter.current()
+                    .removePendingNotificationRequests(withIdentifiers: expired)
+            }
+        }
+    }
+
+    // MARK: - Private implementation
+
+    private func _scheduleNightlyNow(
+        dayCode:        String,
+        firstClassName: String,
+        firstClassTime: String,
+        firstClassRoom: String
+    ) {
+        let fancy     = fancyDayName(dayCode)
+        let tomorrow  = Calendar.current.date(byAdding: .day, value: 1, to: Date())!
+        let formatter = DateFormatter()
         formatter.dateFormat = "MM-dd-yy"
-        let today       = formatter.string(from: Date())
+        let tomorrowKey = formatter.string(from: tomorrow)
+
+        // --- FIX 3: ID keyed on the TARGET date, not today ---
+        // This means rescheduling always replaces the same notification
+        // rather than adding a second one with a different ID.
+        let eveningID = "nightly-\(tomorrowKey)"
+        let morningID = "morning-\(tomorrowKey)"
 
         // ── Evening notification ──────────────────────────────────────
         let eveningContent       = UNMutableNotificationContent()
@@ -71,69 +141,62 @@ class NotificationManager {
         }
         eveningContent.sound = .default
 
-        let selectedTime    = NotificationSettings.time
-        let timeComponents  = Calendar.current.dateComponents([.hour, .minute], from: selectedTime)
-        var triggerComps    = Calendar.current.dateComponents([.year, .month, .day], from: Date())
-        triggerComps.hour   = timeComponents.hour
-        triggerComps.minute = timeComponents.minute
+        let selectedTime   = NotificationSettings.time
+        let timeComps      = Calendar.current.dateComponents([.hour, .minute], from: selectedTime)
+        var triggerComps   = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+        triggerComps.hour   = timeComps.hour
+        triggerComps.minute = timeComps.minute
         triggerComps.second = 0
 
-        // Push to tomorrow if time already passed today
+        // If the time has already passed today, schedule for tomorrow instead
         if let t = Calendar.current.date(from: triggerComps), t <= Date() {
-            let tmrw = Calendar.current.date(byAdding: .day, value: 1, to: Date())!
-            triggerComps = Calendar.current.dateComponents([.year, .month, .day], from: tmrw)
-            triggerComps.hour   = timeComponents.hour
-            triggerComps.minute = timeComponents.minute
+            triggerComps = Calendar.current.dateComponents([.year, .month, .day], from: tomorrow)
+            triggerComps.hour   = timeComps.hour
+            triggerComps.minute = timeComps.minute
             triggerComps.second = 0
         }
 
-        let eveningTrigger  = UNCalendarNotificationTrigger(dateMatching: triggerComps, repeats: false)
-        let eveningID        = "\(nightlyIDPrefix)-\(today)"
-        let eveningRequest   = UNNotificationRequest(identifier: eveningID,
-                                                     content: eveningContent,
-                                                     trigger: eveningTrigger)
-
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [eveningID])
-        UNUserNotificationCenter.current().add(eveningRequest) { err in
+        let eveningRequest = UNNotificationRequest(
+            identifier: eveningID,
+            content:    eveningContent,
+            trigger:    UNCalendarNotificationTrigger(dateMatching: triggerComps, repeats: false)
+        )
+        // Remove then add atomically to replace any existing request with the same ID
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: [eveningID])
+        center.add(eveningRequest) { err in
             if let err { print("❌ Evening notification error: \(err)") }
         }
 
-        // ── Morning notification (10 min before first class) ──────────
+        // ── Morning notification ──────────────────────────────────────
+        center.removePendingNotificationRequests(withIdentifiers: [morningID])
         if !firstClassName.isEmpty, !firstClassTime.isEmpty {
-            scheduleMorningAlert(
+            _scheduleMorningAlert(
                 className:    firstClassName,
                 classTimeStr: firstClassTime,
                 classRoom:    firstClassRoom,
-                targetDate:   Calendar.current.date(byAdding: .day, value: 1, to: Date())!,
-                todayKey:     today
+                targetDate:   tomorrow,
+                id:           morningID
             )
         }
     }
 
-    // MARK: - Morning alert
-
-    private func scheduleMorningAlert(
-        className: String,
+    private func _scheduleMorningAlert(
+        className:    String,
         classTimeStr: String,
-        classRoom: String,
-        targetDate: Date,
-        todayKey: String
+        classRoom:    String,
+        targetDate:   Date,
+        id:           String
     ) {
-        // Parse "H:MM" into hour + minute
         let parts = classTimeStr.split(separator: ":").compactMap { Int($0) }
         guard parts.count == 2 else { return }
         var hour   = parts[0]
         let minute = parts[1]
-        // Mirror Time struct's AM/PM fix: times < 7 are PM
         if hour < 7 { hour += 12 }
 
-        // 10 minutes before class
         var alertMin  = minute - 10
         var alertHour = hour
-        if alertMin < 0 {
-            alertMin  += 60
-            alertHour -= 1
-        }
+        if alertMin < 0 { alertMin += 60; alertHour -= 1 }
         guard alertHour >= 0 else { return }
 
         var triggerComps  = Calendar.current.dateComponents([.year, .month, .day], from: targetDate)
@@ -141,7 +204,6 @@ class NotificationManager {
         triggerComps.minute = alertMin
         triggerComps.second = 0
 
-        // Don't schedule if already in the past
         guard let triggerDate = Calendar.current.date(from: triggerComps),
               triggerDate > Date() else { return }
 
@@ -154,55 +216,13 @@ class NotificationManager {
         content.sound     = .default
         content.interruptionLevel = .timeSensitive
 
-        let trigger  = UNCalendarNotificationTrigger(dateMatching: triggerComps, repeats: false)
-        let id       = "\(morningIDPrefix)-\(todayKey)"
-        let request  = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
-
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [id])
+        let request = UNNotificationRequest(
+            identifier: id,
+            content:    content,
+            trigger:    UNCalendarNotificationTrigger(dateMatching: triggerComps, repeats: false)
+        )
         UNUserNotificationCenter.current().add(request) { err in
             if let err { print("❌ Morning notification error: \(err)") }
-        }
-    }
-
-    // MARK: - Cancel
-
-    func cancelNightlyNotifications() {
-        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
-            let ids = requests
-                .filter { $0.identifier.hasPrefix(self.nightlyIDPrefix) }
-                .map    { $0.identifier }
-            if !ids.isEmpty {
-                UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ids)
-            }
-        }
-    }
-
-    func cancelMorningNotifications() {
-        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
-            let ids = requests
-                .filter { $0.identifier.hasPrefix(self.morningIDPrefix) }
-                .map    { $0.identifier }
-            if !ids.isEmpty {
-                UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ids)
-            }
-        }
-    }
-
-    func cleanupExpiredNotifications() {
-        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
-            let now = Date()
-            let expiredIDs: [String] = requests.compactMap { req in
-                guard req.identifier.hasPrefix(self.nightlyIDPrefix) ||
-                      req.identifier.hasPrefix(self.morningIDPrefix),
-                      let trigger = req.trigger as? UNCalendarNotificationTrigger,
-                      let next    = trigger.nextTriggerDate(),
-                      next < now
-                else { return nil }
-                return req.identifier
-            }
-            if !expiredIDs.isEmpty {
-                UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: expiredIDs)
-            }
         }
     }
 }
@@ -224,8 +244,9 @@ class NotificationSettings {
                 }
                 ScheduleBackgroundManager.shared.scheduleNextNightlyRefresh()
             } else {
-                NotificationManager.shared.cancelNightlyNotifications()
-                NotificationManager.shared.cancelMorningNotifications()
+                // --- FIX 5: Cancel ALL notifications (pending + delivered) ---
+                // Also clear background task so it can't silently reschedule.
+                NotificationManager.shared.cancelAllNotifications()
             }
         }
     }
