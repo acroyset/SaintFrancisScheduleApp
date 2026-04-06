@@ -16,6 +16,8 @@ struct ProfileMenu: View {
     @Binding var PrimaryColor: Color
     @Binding var SecondaryColor: Color
     @Binding var TertiaryColor: Color
+    @Binding var primaryFontChoice: AppFontChoice
+    @Binding var secondaryFontChoice: AppFontChoice
     var iPad: Bool
     var isPortrait: Bool
     
@@ -45,15 +47,15 @@ struct ProfileMenu: View {
                         HStack {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Signed in as:")
-                                    .font(.caption)
+                                    .appThemeFont(.secondary, style: .caption)
                                     .foregroundStyle(TertiaryColor.highContrastTextColor())
                                 
                                 Text(user.displayName ?? "User")
-                                    .font(.headline)
+                                    .appThemeFont(.primary, style: .headline, weight: .semibold)
                                     .foregroundColor(PrimaryColor)
                                 
                                 Text(user.email)
-                                    .font(.caption)
+                                    .appThemeFont(.secondary, style: .caption)
                                     .foregroundStyle(TertiaryColor.highContrastTextColor())
                             }
                             
@@ -61,12 +63,14 @@ struct ProfileMenu: View {
                             
                             VStack {
                                 Button {
+                                    AppFeatureBadge.settings.markSeen()
                                     showSettings.toggle()
                                 } label: {
                                     Label(iPad ? "Settings" : "", systemImage: "gearshape.fill")
-                                        .font(.title)
+                                        .appThemeFont(.primary, style: .title)
                                         .foregroundStyle(PrimaryColor)
                                 }
+                                .newBadge(AppFeatureBadge.settings.isVisible)
                             }
                             .padding()
                         }
@@ -82,7 +86,7 @@ struct ProfileMenu: View {
                             Image(systemName: syncMessage.contains("✅") ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
                                 .foregroundColor(syncMessage.contains("✅") ? .green : .red)
                             Text(syncMessage.dropFirst())
-                                .font(.footnote)
+                                .appThemeFont(.secondary, style: .footnote)
                                 .foregroundStyle(TertiaryColor.highContrastTextColor())
                             Spacer()
                         }
@@ -137,11 +141,7 @@ struct ProfileMenu: View {
                         HStack {
                             Image(systemName: "questionmark.circle")
                             Text("Start Tutorial")
-                                .font(.system(
-                                    size: iPad ? 28 : 18,
-                                    weight: .bold,
-                                    design: .monospaced
-                                ))
+                                .appThemeFont(.secondary, size: iPad ? 28 : 18, weight: .bold)
                             Spacer()
                             Image(systemName: "chevron.right")
                         }
@@ -156,7 +156,7 @@ struct ProfileMenu: View {
                     // Danger Zone
                     VStack(spacing: 8) {
                         Text("Danger Zone")
-                            .font(.caption)
+                            .appThemeFont(.secondary, style: .caption)
                             .foregroundColor(.red)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         
@@ -202,22 +202,14 @@ struct ProfileMenu: View {
             VStack {
                 if #available(iOS 26.0, *), AppAvailability.liquidGlass {
                     Text("Profile")
-                        .font(.system(
-                            size: iPad ? 34 : 22,
-                            weight: .bold,
-                            design: .monospaced
-                        ))
+                        .appThemeFont(.secondary, size: iPad ? 34 : 22, weight: .bold)
                         .padding(iPad ? 16 : 12)
                         .frame(maxWidth: .infinity)
                         .foregroundStyle(PrimaryColor)
                         .glassEffect()
                 } else {
                     Text("Profile")
-                        .font(.system(
-                            size: iPad ? 34 : 22,
-                            weight: .bold,
-                            design: .monospaced
-                        ))
+                        .appThemeFont(.secondary, size: iPad ? 34 : 22, weight: .bold)
                         .padding(12)
                         .foregroundStyle(PrimaryColor)
                 }
@@ -232,6 +224,8 @@ struct ProfileMenu: View {
                     PrimaryColor: $PrimaryColor,
                     SecondaryColor: $SecondaryColor,
                     TertiaryColor: $TertiaryColor,
+                    primaryFontChoice: $primaryFontChoice,
+                    secondaryFontChoice: $secondaryFontChoice,
                     isPortrait: isPortrait
                 )
                 .padding(.top, 32)

@@ -187,7 +187,7 @@ struct CompactColorPicker: View {
                     // Hue slider
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Hue")
-                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                            .appThemeFont(.secondary, size: 11, weight: .semibold)
                             .foregroundColor(.secondary)
                         TrackSlider(
                             value: $hue,
@@ -200,7 +200,7 @@ struct CompactColorPicker: View {
                     // Opacity slider
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Opacity")
-                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                            .appThemeFont(.secondary, size: 11, weight: .semibold)
                             .foregroundColor(.secondary)
                         TrackSlider(
                             value: $opacity,

@@ -42,11 +42,7 @@ struct DateNavigator: View {
                         withAnimation(.snappy) { showCalendar.toggle() }
                     } label: {
                         Text(dfHeader.string(from: date))
-                            .font(.system(
-                                size: iPad ? 27 : 20,
-                                weight: .semibold,
-                                design: .rounded
-                            ))
+                            .appThemeFont(.primary, size: iPad ? 27 : 20, weight: .semibold)
                             .foregroundColor(PrimaryColor)
                             .frame(maxWidth: .infinity)
                             .multilineTextAlignment(.center)
@@ -68,11 +64,7 @@ struct DateNavigator: View {
                         withAnimation(.snappy) { showCalendar.toggle() }
                     } label: {
                         Text(dfHeader.string(from: date))
-                            .font(.system(
-                                size: iPad ? 27 : 20,
-                                weight: .semibold,
-                                design: .rounded
-                            ))
+                            .appThemeFont(.primary, size: iPad ? 27 : 20, weight: .semibold)
                             .foregroundColor(PrimaryColor)
                             .frame(maxWidth: .infinity)
                             .multilineTextAlignment(.center)
@@ -98,7 +90,7 @@ struct DateNavigator: View {
                         }
                         
                         Text(dfMonth.string(from: calendarMonthAnchor))
-                            .font(.system(size: 16, weight: .semibold))
+                            .appThemeFont(.primary, size: 16, weight: .semibold)
                             .foregroundColor(PrimaryColor)
                         
                         if iPad {
@@ -124,7 +116,7 @@ struct DateNavigator: View {
                     LazyVGrid(columns: cols, spacing: 6) {
                         ForEach(symbols, id: \.self) { s in
                             Text(s.uppercased())
-                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                .appThemeFont(.primary, size: 11, weight: .semibold)
                                 .foregroundStyle(PrimaryColor)
                                 .frame(maxWidth: .infinity)
                         }

@@ -27,6 +27,8 @@ struct Settings: View {
     @Binding var PrimaryColor:   Color
     @Binding var SecondaryColor: Color
     @Binding var TertiaryColor:  Color
+    @Binding var primaryFontChoice: AppFontChoice
+    @Binding var secondaryFontChoice: AppFontChoice
 
     @State private var selectedOption: SelectedOption = .none
     var isPortrait: Bool
@@ -76,6 +78,20 @@ struct Settings: View {
                             )
                         }
 
+                        sectionBlock(title: "Fonts") {
+                            fontRow(
+                                label: "Main Text",
+                                icon: "textformat",
+                                selection: $primaryFontChoice
+                            )
+                            divider()
+                            fontRow(
+                                label: "Time + Detail Text",
+                                icon: "character.cursor.ibeam",
+                                selection: $secondaryFontChoice
+                            )
+                        }
+
                         // ── Notifications ───────────────────────────────
                         sectionBlock(title: "Notifications") {
                             notificationToggleRow()
@@ -91,7 +107,7 @@ struct Settings: View {
                                 Image(systemName: "arrow.counterclockwise")
                                 Text("Reset to Defaults")
                             }
-                            .font(.system(size: 15, weight: .semibold))
+                            .appThemeFont(.primary, size: 15, weight: .semibold)
                             .foregroundColor(.red)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
@@ -118,14 +134,14 @@ struct Settings: View {
             VStack {
                 if #available(iOS 26.0, *), AppAvailability.liquidGlass {
                     Text("Settings")
-                        .font(.system(size: iPad ? 34 : 22, weight: .bold, design: .monospaced))
+                        .appThemeFont(.secondary, size: iPad ? 34 : 22, weight: .bold)
                         .padding(iPad ? 16 : 12)
                         .frame(maxWidth: .infinity)
                         .foregroundStyle(PrimaryColor)
                         .glassEffect()
                 } else {
                     Text("Settings")
-                        .font(.system(size: iPad ? 34 : 22, weight: .bold, design: .monospaced))
+                        .appThemeFont(.secondary, size: iPad ? 34 : 22, weight: .bold)
                         .padding(12)
                         .foregroundStyle(PrimaryColor)
                 }
@@ -158,10 +174,10 @@ struct Settings: View {
                     .padding(.leading, 16)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Nightly Notifications")
-                        .font(.system(size: iPad ? 18 : 15, weight: .semibold, design: .monospaced))
+                        .appThemeFont(.secondary, size: iPad ? 18 : 15, weight: .semibold)
                         .foregroundColor(PrimaryColor)
                     Text("Permission denied — tap to open Settings")
-                        .font(.caption)
+                        .appThemeFont(.secondary, style: .caption)
                         .foregroundColor(.secondary)
                 }
                 Spacer()
@@ -171,7 +187,7 @@ struct Settings: View {
                     }
                 } label: {
                     Text("Open Settings")
-                        .font(.system(size: 13, weight: .semibold))
+                        .appThemeFont(.primary, size: 13, weight: .semibold)
                         .foregroundColor(.white)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
@@ -190,7 +206,7 @@ struct Settings: View {
                     .foregroundColor(PrimaryColor)
                     .padding(.leading, 16)
                 Text("Nightly Notifications")
-                    .font(.system(size: iPad ? 18 : 15, weight: .semibold, design: .monospaced))
+                    .appThemeFont(.secondary, size: iPad ? 18 : 15, weight: .semibold)
                     .foregroundColor(PrimaryColor)
                 Spacer()
                 Toggle("", isOn: Binding(
@@ -230,7 +246,7 @@ struct Settings: View {
                 ),
                 displayedComponents: .hourAndMinute
             )
-            .font(.system(size: iPad ? 18 : 15, weight: .semibold, design: .monospaced))
+            .appThemeFont(.secondary, size: iPad ? 18 : 15, weight: .semibold)
             .foregroundColor(PrimaryColor)
             .padding(.trailing, 16)
         }
@@ -279,6 +295,8 @@ struct Settings: View {
             PrimaryColor   = Color(hex: "#00A5FFFF")
             SecondaryColor = Color(hex: "#00A5FF19")
             TertiaryColor  = Color.white
+            primaryFontChoice = .rounded
+            secondaryFontChoice = .monospaced
         }
         NotificationSettings.isEnabled = false
     }
@@ -289,7 +307,7 @@ struct Settings: View {
     private func sectionBlock<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title.uppercased())
-                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                .appThemeFont(.secondary, size: 12, weight: .bold)
                 .foregroundColor(PrimaryColor.opacity(0.55))
                 .padding(.leading, 4)
 
@@ -318,7 +336,7 @@ struct Settings: View {
                 .foregroundColor(PrimaryColor)
                 .padding(.leading, 16)
             Text(label)
-                .font(.system(size: iPad ? 18 : 15, weight: .semibold, design: .monospaced))
+                .appThemeFont(.secondary, size: iPad ? 18 : 15, weight: .semibold)
                 .foregroundColor(PrimaryColor)
             Spacer()
             Toggle("", isOn: isOn)
@@ -336,7 +354,7 @@ struct Settings: View {
                 .foregroundColor(PrimaryColor)
                 .padding(.leading, 16)
             Text(label)
-                .font(.system(size: iPad ? 18 : 15, weight: .semibold, design: .monospaced))
+                .appThemeFont(.secondary, size: iPad ? 18 : 15, weight: .semibold)
                 .foregroundColor(PrimaryColor)
             Spacer()
             CompactColorPicker(
@@ -353,6 +371,64 @@ struct Settings: View {
             .padding(.trailing, 16)
         }
         .padding(.vertical, 10)
+    }
+
+    @ViewBuilder
+    private func fontRow(label: String, icon: String, selection: Binding<AppFontChoice>) -> some View {
+        HStack {
+            Image(systemName: icon)
+                .frame(width: 24)
+                .foregroundColor(PrimaryColor)
+                .padding(.leading, 16)
+            Text(label)
+                .appThemeFont(.secondary, size: iPad ? 18 : 15, weight: .semibold)
+                .foregroundColor(PrimaryColor)
+            Spacer()
+            Menu {
+                ForEach(AppFontChoice.allCases) { choice in
+                    Button {
+                        AppFeatureBadge.fontPicker.markSeen()
+                        selection.wrappedValue = choice
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(choice.displayName)
+                                    .font(.system(size: 15, weight: .semibold, design: choice.design))
+                                Text(choice == .monospaced ? "12:45 PM" : "Aa Bb Cc")
+                                    .font(.system(size: 12, weight: .regular, design: choice.design))
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if selection.wrappedValue == choice {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+            } label: {
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(selection.wrappedValue.displayName)
+                        .font(.system(size: 15, weight: .semibold, design: selection.wrappedValue.design))
+                        .foregroundStyle(PrimaryColor)
+                    Text(selection.wrappedValue == .monospaced ? "12:45 PM" : "Aa Bb Cc")
+                        .font(.system(size: 12, weight: .regular, design: selection.wrappedValue.design))
+                        .foregroundStyle(PrimaryColor.opacity(0.7))
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(SecondaryColor.opacity(0.75))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+            .newBadge(AppFeatureBadge.fontPicker.isVisible)
+            .simultaneousGesture(
+                TapGesture().onEnded {
+                    AppFeatureBadge.fontPicker.markSeen()
+                }
+            )
+            .tint(PrimaryColor)
+            .padding(.trailing, 16)
+        }
+        .padding(.vertical, 14)
     }
 }
 
@@ -378,7 +454,7 @@ struct ThemePresetsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Presets")
-                .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                .appThemeFont(.secondary, size: 13, weight: .semibold)
                 .foregroundStyle(PrimaryColor)
 
             LazyVGrid(columns: columns, spacing: 12) {
@@ -456,7 +532,7 @@ private struct PresetTile: View {
                             .frame(width: 16, height: 16)
                             .overlay(
                                 Image(systemName: "checkmark")
-                                    .font(.system(size: 8, weight: .bold))
+                                    .appThemeFont(.secondary, size: 8, weight: .bold)
                                     .foregroundStyle(preset.tertiary)
                             )
                             .offset(x: 4, y: 4)
@@ -464,7 +540,7 @@ private struct PresetTile: View {
                 }
 
                 Text(preset.name)
-                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .appThemeFont(.secondary, size: 10, weight: .medium)
                     .foregroundStyle(isActive ? preset.primary : Color.gray)
                     .lineLimit(1)
             }

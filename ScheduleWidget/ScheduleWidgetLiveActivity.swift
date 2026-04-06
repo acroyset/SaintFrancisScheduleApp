@@ -15,6 +15,24 @@ import ActivityKit
 import WidgetKit
 import SwiftUI
 
+private struct LiveActivityTheme {
+    let primary: Color
+    let secondary: Color
+    let tertiary: Color
+    let contrast: Color
+
+    init(themeColors: ThemeColors? = loadThemeColors()) {
+        let resolvedPrimary = Color(hex: themeColors?.primary ?? "#00A5FFFF")
+        let resolvedSecondary = Color(hex: themeColors?.secondary ?? "#00A5FF19")
+        let resolvedTertiary = Color(hex: themeColors?.tertiary ?? "#FFFFFFFF")
+
+        primary = resolvedPrimary
+        secondary = resolvedSecondary
+        tertiary = resolvedTertiary
+        contrast = resolvedPrimary.highContrastTextColor()
+    }
+}
+
 // MARK: - Attributes
 
 struct ScheduleWidgetAttributes: ActivityAttributes {
@@ -111,11 +129,12 @@ private func secsSinceMidnight(_ date: Date) -> Int {
 private struct SplitProgressBar: View {
     let progress: Double
     let label: String
+    let theme: LiveActivityTheme
 
-    private let barFill     = Color.blue
-    private let barTrack    = Color.white.opacity(0.18)
-    private let textOnFill  = Color.black
-    private let textOnTrack = Color.white
+    private var barFill: Color { theme.primary }
+    private var barTrack: Color { theme.tertiary.opacity(0.18) }
+    private var textOnFill: Color { theme.contrast }
+    private var textOnTrack: Color { theme.tertiary }
 
     var body: some View {
         GeometryReader { geo in
@@ -151,8 +170,8 @@ struct ScheduleWidgetLiveActivity: Widget {
             TimelineView(.explicit(context.attributes.classBoundaryDates())) { _ in
                 LiveActivityBannerView(attributes: context.attributes)
             }
-            .activityBackgroundTint(Color.black.opacity(0.85))
-            .activitySystemActionForegroundColor(.white)
+            .activityBackgroundTint(LiveActivityTheme().secondary)
+            .activitySystemActionForegroundColor(LiveActivityTheme().tertiary)
 
         } dynamicIsland: { context in
             DynamicIsland {
@@ -172,16 +191,18 @@ struct ScheduleWidgetLiveActivity: Widget {
                     }
                 }
             } compactLeading: {
-                Image(systemName: "clock.fill").foregroundStyle(.blue).font(.caption)
+                Image(systemName: "clock.fill")
+                    .foregroundStyle(LiveActivityTheme().primary)
+                    .font(.caption)
             } compactTrailing: {
                 TimelineView(.explicit(context.attributes.classBoundaryDates())) { _ in
                     CompactTrailingView(attributes: context.attributes)
                 }
             } minimal: {
-                Image(systemName: "clock.fill").foregroundStyle(.blue)
+                Image(systemName: "clock.fill").foregroundStyle(LiveActivityTheme().primary)
             }
             .widgetURL(URL(string: "scheduleapp://home"))
-            .keylineTint(.blue)
+            .keylineTint(LiveActivityTheme().primary)
         }
     }
 }
@@ -190,13 +211,14 @@ struct ScheduleWidgetLiveActivity: Widget {
 
 private struct ExpandedLeadingView: View {
     let attributes: ScheduleWidgetAttributes
+    private let theme = LiveActivityTheme()
     var body: some View {
         let info = attributes.currentDisplay()
         VStack(alignment: .leading, spacing: 2) {
             Text(info?.isCurrent == true ? "Now" : "Up Next")
-                .font(.caption2).foregroundStyle(.secondary)
+                .font(.caption2).foregroundStyle(theme.primary.opacity(0.7))
             Text(info?.cls.className ?? "—")
-                .font(.headline).lineLimit(1)
+                .font(.headline).foregroundStyle(theme.tertiary).lineLimit(1)
         }
         .padding(.leading, 4)
     }
@@ -204,6 +226,7 @@ private struct ExpandedLeadingView: View {
 
 private struct ExpandedTrailingView: View {
     let attributes: ScheduleWidgetAttributes
+    private let theme = LiveActivityTheme()
     var body: some View {
         let info = attributes.currentDisplay()
         VStack(alignment: .trailing, spacing: 2) {
@@ -213,13 +236,13 @@ private struct ExpandedTrailingView: View {
                               Date.now.addingTimeInterval(1))
                 Text(timerInterval: Date.now...end, countsDown: true)
                     .font(.headline.monospacedDigit())
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(theme.primary)
             } else {
                 Text(info?.cls.timeRange ?? "—")
-                    .font(.caption2).foregroundStyle(.secondary)
+                    .font(.caption2).foregroundStyle(theme.primary.opacity(0.7))
             }
             if let room = info?.cls.room, !room.isEmpty {
-                Text(room).font(.caption2).foregroundStyle(.secondary)
+                Text(room).font(.caption2).foregroundStyle(theme.primary.opacity(0.7))
             }
         }
         .padding(.trailing, 4)
@@ -228,12 +251,13 @@ private struct ExpandedTrailingView: View {
 
 private struct ExpandedBottomView: View {
     let attributes: ScheduleWidgetAttributes
+    private let theme = LiveActivityTheme()
     var body: some View {
         let info = attributes.currentDisplay()
         if let next = info?.next, info?.isCurrent == true {
             HStack {
-                Text("Next:").font(.caption2).foregroundStyle(.secondary)
-                Text(next.className).font(.caption2)
+                Text("Next:").font(.caption2).foregroundStyle(theme.primary.opacity(0.7))
+                Text(next.className).font(.caption2).foregroundStyle(theme.tertiary)
             }
         }
     }
@@ -241,6 +265,7 @@ private struct ExpandedBottomView: View {
 
 private struct CompactTrailingView: View {
     let attributes: ScheduleWidgetAttributes
+    private let theme = LiveActivityTheme()
     var body: some View {
         let info = attributes.currentDisplay()
         if info?.isCurrent == true, let cls = info?.cls {
@@ -248,17 +273,18 @@ private struct CompactTrailingView: View {
                           Date.now.addingTimeInterval(1))
             Text(timerInterval: Date.now...end, countsDown: true)
                 .font(.caption2.monospacedDigit())
-                .foregroundStyle(.blue)
+                .foregroundStyle(theme.primary)
                 .frame(width: 44)
         } else {
             Text(info?.cls.timeRange.components(separatedBy: " to").first ?? "")
-                .font(.caption2).foregroundStyle(.blue)
+                .font(.caption2).foregroundStyle(theme.primary)
         }
     }
 }
 
 private struct LiveActivityBannerView: View {
     let attributes: ScheduleWidgetAttributes
+    private let theme = LiveActivityTheme()
 
     var body: some View {
         let info      = attributes.currentDisplay()
@@ -274,42 +300,44 @@ private struct LiveActivityBannerView: View {
             HStack {
                 Text(isCurrent ? "IN CLASS" : "UP NEXT")
                     .font(.system(size: 10, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(theme.primary)
                 Spacer()
                 Text(attributes.dayName)
                     .font(.system(size: 10, weight: .medium, design: .monospaced))
-                    .foregroundStyle(.blue.opacity(0.75))
+                    .foregroundStyle(theme.primary.opacity(0.75))
             }
 
             SplitProgressBar(
                 progress: isCurrent ? progress : 0,
-                label: cls?.className ?? "—"
+                label: cls?.className ?? "—",
+                theme: theme
             )
 
             HStack(spacing: 12) {
                 Label(cls?.timeRange ?? "—", systemImage: "clock")
-                    .font(.caption2).foregroundStyle(.secondary)
+                    .font(.caption2).foregroundStyle(theme.tertiary.opacity(0.7))
                 if let room = cls?.room, !room.isEmpty {
                     Label(room, systemImage: "mappin")
-                        .font(.caption2).foregroundStyle(.secondary)
+                        .font(.caption2).foregroundStyle(theme.tertiary.opacity(0.7))
                 }
                 Spacer()
                 if isCurrent {
                     // Always Date.now as start — never timeline.date
                     Text(timerInterval: Date.now...endDate, countsDown: true)
                         .font(.system(size: 14, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(theme.primary)
                         .multilineTextAlignment(.trailing)
                 }
             }
 
             if let next = info?.next, isCurrent {
                 Text("Next: \(next.className)")
-                    .font(.caption2).foregroundStyle(.tertiary)
+                    .font(.caption2).foregroundStyle(theme.tertiary.opacity(0.6))
             }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
+        .foregroundStyle(theme.tertiary)
     }
 }
 

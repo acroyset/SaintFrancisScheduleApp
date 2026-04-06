@@ -18,11 +18,7 @@ struct TextFieldClassEditor: View {
     
     var body: some View {
         TextField(defaultText, text: $inputText)
-        .font(.system(
-            size: iPad ? 20 : 14,
-            weight: .bold,
-            design: .monospaced
-        ))
+        .appThemeFont(.secondary, size: iPad ? 20 : 14, weight: .bold)
         .padding(12)
         .foregroundStyle(
             PrimaryColor)

@@ -41,6 +41,8 @@ struct ContentView: View {
     @State private var PrimaryColor: Color = .blue
     @State private var SecondaryColor: Color = .blue.opacity(0.1)
     @State private var TertiaryColor: Color = .primary
+    @State private var primaryFontChoice: AppFontChoice = .rounded
+    @State private var secondaryFontChoice: AppFontChoice = .rounded
 
     @State private var isPortrait: Bool = !iPad
     @State private var hasLoadedFromCloud = false
@@ -134,6 +136,8 @@ struct ContentView: View {
             .onChange(of: PrimaryColor)  { _, _ in saveTheme() }
             .onChange(of: SecondaryColor){ _, _ in saveTheme() }
             .onChange(of: TertiaryColor) { _, _ in saveTheme() }
+            .onChange(of: primaryFontChoice) { _, _ in saveTheme() }
+            .onChange(of: secondaryFontChoice) { _, _ in saveTheme() }
             .onChange(of: NotificationSettings.isEnabled) { _, _ in updateNightlyNotification() }
             .onChange(of: NotificationSettings.time)      { _, _ in updateNightlyNotification() }
             .onReceive(ticker) { _ in
@@ -151,6 +155,7 @@ struct ContentView: View {
                 }
             }
         }
+        .environment(\.appTheme, currentTheme)
     }
 
     // MARK: - Top Header
@@ -158,7 +163,7 @@ struct ContentView: View {
     @ViewBuilder
     private var topHeader: some View {
         Text("Version - \(version)\nBugs / Ideas - Email acroyset@gmail.com")
-            .font(.system(size: iPad ? 12 : 10, weight: .regular))
+            .font(currentTheme.font(.secondary, size: iPad ? 12 : 10, weight: .regular))
             .foregroundStyle(TertiaryColor.highContrastTextColor())
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 16)
@@ -214,17 +219,17 @@ struct ContentView: View {
             VStack(spacing: 8) {
                 SpinningGear(color: PrimaryColor)
                 Text("Loading...")
-                    .font(.system(size: 13, weight: .medium, design: .monospaced))
+                    .appThemeFont(.secondary, size: 13, weight: .medium)
                     .foregroundStyle(PrimaryColor.opacity(0.8))
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let error = scheduleLoadError {
             VStack(spacing: 8) {
                 Image(systemName: "wifi.exclamationmark")
-                    .font(.system(size: 32))
+                    .appThemeFont(.primary, size: 32)
                     .foregroundStyle(PrimaryColor.opacity(0.6))
                 Text(error)
-                    .font(.system(size: 14, weight: .medium, design: .monospaced))
+                    .appThemeFont(.secondary, size: 14, weight: .medium)
                     .foregroundStyle(PrimaryColor.opacity(0.8))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
@@ -292,6 +297,8 @@ struct ContentView: View {
                 PrimaryColor: $PrimaryColor,
                 SecondaryColor: $SecondaryColor,
                 TertiaryColor: $TertiaryColor,
+                primaryFontChoice: $primaryFontChoice,
+                secondaryFontChoice: $secondaryFontChoice,
                 iPad: iPad,
                 isPortrait: isPortrait
             )
@@ -326,16 +333,21 @@ struct ContentView: View {
         PrimaryColor = Color(hex: theme.primary)
         SecondaryColor = Color(hex: theme.secondary)
         TertiaryColor = Color(hex: theme.tertiary)
+        primaryFontChoice = theme.primaryFontChoice
+        secondaryFontChoice = theme.secondaryFontChoice
     }
 
     private func saveTheme() {
         let theme = ThemeColors(
             primary: PrimaryColor.toHex() ?? "#00A5FFFF",
             secondary: SecondaryColor.toHex() ?? "#00A5FF19",
-            tertiary: TertiaryColor.toHex() ?? "#FFFFFFFF"
+            tertiary: TertiaryColor.toHex() ?? "#FFFFFFFF",
+            primaryFont: primaryFontChoice,
+            secondaryFont: secondaryFontChoice
         )
         if let data = try? JSONEncoder().encode(theme) {
             UserDefaults.standard.set(data, forKey: "LocalTheme")
+            SharedGroup.defaults.set(data, forKey: "ThemeColors")
             WidgetManager.shared.saveTheme(theme)
         }
         if authManager.user != nil { debouncedCloudSave(theme: theme) }
@@ -346,7 +358,9 @@ struct ContentView: View {
         if let lastTheme = lastSavedTheme,
            lastTheme.primary == theme.primary,
            lastTheme.secondary == theme.secondary,
-           lastTheme.tertiary == theme.tertiary { return }
+           lastTheme.tertiary == theme.tertiary,
+           lastTheme.primaryFont == theme.primaryFont,
+           lastTheme.secondaryFont == theme.secondaryFont { return }
         themeDebounceTask = Task {
             do {
                 try await Task.sleep(nanoseconds: 2_000_000_000)
@@ -401,6 +415,8 @@ struct ContentView: View {
                     self.PrimaryColor = Color(hex: theme.primary)
                     self.SecondaryColor = Color(hex: theme.secondary)
                     self.TertiaryColor = Color(hex: theme.tertiary)
+                    self.primaryFontChoice = theme.primaryFontChoice
+                    self.secondaryFontChoice = theme.secondaryFontChoice
                     self.saveThemeLocally(theme)
                     self.saveDataForWidget()
                     self.hasLoadedFromCloud = true
@@ -418,7 +434,9 @@ struct ContentView: View {
                 let theme = ThemeColors(
                     primary: PrimaryColor.toHex() ?? "#00A5FFFF",
                     secondary: SecondaryColor.toHex() ?? "#00A5FF19",
-                    tertiary: TertiaryColor.toHex() ?? "#FFFFFFFF"
+                    tertiary: TertiaryColor.toHex() ?? "#FFFFFFFF",
+                    primaryFont: primaryFontChoice,
+                    secondaryFont: secondaryFontChoice
                 )
                 try await dataManager.saveToCloud(
                     classes: data.classes,
@@ -550,6 +568,8 @@ struct ContentView: View {
                     self.PrimaryColor = Color(hex: theme.primary)
                     self.SecondaryColor = Color(hex: theme.secondary)
                     self.TertiaryColor = Color(hex: theme.tertiary)
+                    self.primaryFontChoice = theme.primaryFontChoice
+                    self.secondaryFontChoice = theme.secondaryFontChoice
                     SharedGroup.defaults.set(Date(), forKey: "LastAppDataUpdate")
                     self.render()
                     self.saveScheduleLinesWithEvents()
@@ -710,7 +730,7 @@ struct ContentView: View {
 
         var body: some View {
             Image(systemName: "gearshape.fill")
-                .font(.system(size: 32))
+                .appThemeFont(.primary, size: 32)
                 .foregroundStyle(color.opacity(0.6))
                 .rotationEffect(.degrees(rotation))
                 .onAppear {
@@ -722,5 +742,17 @@ struct ContentView: View {
                     }
                 }
         }
+    }
+}
+
+private extension ContentView {
+    var currentTheme: ThemeColors {
+        ThemeColors(
+            primary: PrimaryColor.toHex() ?? "#00A5FFFF",
+            secondary: SecondaryColor.toHex() ?? "#00A5FF19",
+            tertiary: TertiaryColor.toHex() ?? "#FFFFFFFF",
+            primaryFont: primaryFontChoice,
+            secondaryFont: secondaryFontChoice
+        )
     }
 }

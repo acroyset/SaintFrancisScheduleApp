@@ -33,9 +33,9 @@ struct VphoneClassEditor: View {
                                 Image(systemName: "book.circle")
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("Import from Schoology")
-                                        .font(.system(size: iPad ? 18 : 14, weight: .semibold, design: .monospaced))
+                                        .appThemeFont(.secondary, size: iPad ? 18 : 14, weight: .semibold)
                                     Text("Auto-fill your classes")
-                                        .font(.system(size: iPad ? 14 : 11, weight: .regular, design: .monospaced))
+                                        .appThemeFont(.secondary, size: iPad ? 14 : 11)
                                         .opacity(0.7)
                                 }
                                 Spacer()
@@ -51,13 +51,13 @@ struct VphoneClassEditor: View {
                     
                     HStack(spacing: 40) {
                         Text("Second Lunch")
-                            .font(.system(size: iPad ? 20 : 16, weight: .semibold, design: .monospaced))
+                            .appThemeFont(.secondary, size: iPad ? 20 : 16, weight: .semibold)
                             .foregroundStyle(PrimaryColor)
                         
                         VStack {
                             HStack(spacing: 8) {
                                 Text("Gold Day")
-                                    .font(.system(size: iPad ? 18 : 14, weight: .semibold, design: .monospaced))
+                                    .appThemeFont(.secondary, size: iPad ? 18 : 14, weight: .semibold)
                                     .foregroundStyle(PrimaryColor)
                                 
                                 Toggle("", isOn: $data.isSecondLunch[0])
@@ -67,7 +67,7 @@ struct VphoneClassEditor: View {
                             
                             HStack(spacing: 8) {
                                 Text("Brown Day")
-                                    .font(.system(size: iPad ? 18 : 14, weight: .semibold, design: .monospaced))
+                                    .appThemeFont(.secondary, size: iPad ? 18 : 14, weight: .semibold)
                                     .foregroundStyle(PrimaryColor)
                                 
                                 Toggle("", isOn: $data.isSecondLunch[1])
@@ -96,11 +96,7 @@ struct VphoneClassEditor: View {
                             } else {
                                 Text(data.classes[number].name)
                                     .frame(maxWidth: .infinity, alignment: .leading)
-                                    .font(.system(
-                                        size: iPad ? 20 : 14,
-                                        weight: .bold,
-                                        design: .monospaced
-                                    ))
+                                    .appThemeFont(.secondary, size: iPad ? 20 : 14, weight: .bold)
                                     .padding(12)
                                     .foregroundStyle(PrimaryColor)
                                     .background(SecondaryColor)
@@ -151,11 +147,7 @@ struct VphoneClassEditor: View {
                 if #available(iOS 26.0, *), AppAvailability.liquidGlass {
                     HStack {
                         Text("Class Editor")
-                            .font(.system(
-                                size: iPad ? 34 : 22,
-                                weight: .bold,
-                                design: .monospaced
-                            ))
+                            .appThemeFont(.secondary, size: iPad ? 34 : 22, weight: .bold)
                             .padding(iPad ? 16 : 12)
                             .padding(.horizontal, iPad ? 20 : 16)
                         
@@ -163,7 +155,7 @@ struct VphoneClassEditor: View {
                         
                         Button(action: { window = .None }) {
                             Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: iPad ? 30 : 26))
+                                .appThemeFont(.primary, size: iPad ? 30 : 26)
                                 .foregroundStyle(PrimaryColor)
                         }
                         .padding(iPad ? 16 : 12)
@@ -174,14 +166,14 @@ struct VphoneClassEditor: View {
                 } else {
                     HStack {
                         Text("Class Editor")
-                            .font(.system(size: 24, weight: .bold, design: .monospaced))
+                            .appThemeFont(.secondary, size: 24, weight: .bold)
                             .foregroundStyle(PrimaryColor)
                         
                         Spacer()
                         
                         Button(action: { window = .None }) {
                             Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 24))
+                                .appThemeFont(.primary, size: 24)
                                 .foregroundStyle(PrimaryColor)
                         }
                     }
@@ -220,14 +212,14 @@ struct HphoneClassEditor: View {
         VStack {
             HStack {
                 Text("Class Editor")
-                    .font(.system(size: 24, weight: .bold, design: .monospaced))
+                    .appThemeFont(.secondary, size: 24, weight: .bold)
                     .foregroundStyle(PrimaryColor)
                 
                 Spacer()
                 
                 Button(action: { window = .None }) {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 24))
+                        .appThemeFont(.primary, size: 24)
                         .foregroundStyle(PrimaryColor)
                 }
             }
@@ -241,11 +233,7 @@ struct HphoneClassEditor: View {
                     // Second Lunch Toggle
                     HStack(spacing: 40) {
                         Text("Second Lunch")
-                            .font(.system(
-                                size: iPad ? 20 : 16,
-                                weight: .semibold,
-                                design: .monospaced
-                            ))
+                            .appThemeFont(.secondary, size: iPad ? 20 : 16, weight: .semibold)
                             .foregroundStyle(PrimaryColor)
                         
                         VStack{
@@ -253,11 +241,7 @@ struct HphoneClassEditor: View {
                             HStack(spacing: 8) {
                                 
                                 Text("Gold Day")
-                                    .font(.system(
-                                        size: iPad ? 18 : 14,
-                                        weight: .semibold,
-                                        design: .monospaced
-                                    ))
+                                    .appThemeFont(.secondary, size: iPad ? 18 : 14, weight: .semibold)
                                     .foregroundStyle(PrimaryColor)
                                 
                                 Toggle("", isOn: $data.isSecondLunch[0])
@@ -268,11 +252,7 @@ struct HphoneClassEditor: View {
                             HStack(spacing: 8) {
                                 
                                 Text("Brown Day")
-                                    .font(.system(
-                                        size: iPad ? 18 : 14,
-                                        weight: .semibold,
-                                        design: .monospaced
-                                    ))
+                                    .appThemeFont(.secondary, size: iPad ? 18 : 14, weight: .semibold)
                                     .foregroundStyle(PrimaryColor)
                                 
                                 Toggle("", isOn: $data.isSecondLunch[1])
@@ -302,11 +282,7 @@ struct HphoneClassEditor: View {
                                 } else {
                                     Text(data.classes[number].name)
                                         .frame(maxWidth: .infinity, alignment: .leading)
-                                        .font(.system(
-                                            size: iPad ? 20 : 14,
-                                            weight: .bold,
-                                            design: .monospaced
-                                        ))
+                                        .appThemeFont(.secondary, size: iPad ? 20 : 14, weight: .bold)
                                         .padding(12)
                                         .foregroundStyle(PrimaryColor)
                                         .background(SecondaryColor)

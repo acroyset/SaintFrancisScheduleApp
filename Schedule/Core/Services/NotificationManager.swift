@@ -3,13 +3,15 @@
 //  Schedule
 //
 //  Fixes:
-//  3. Duplicate notifications — scheduling is now debounced (0.5 s) so rapid
-//     callers (ticker + dayCode change + scenePhase) collapse into one request.
-//     IDs are keyed on the *target date* rather than today's date, so a
-//     reschedule atomically replaces the old request instead of stacking.
-//  5. Notifications persist after toggle-off — disabling now removes BOTH
-//     pending AND already-delivered notifications, and cancels the background
-//     task that was silently rescheduling them.
+//  1. Debounce was resetting every second because the ticker calls
+//     scheduleNightly() every second. Changed to a time-gated approach:
+//     notifications are only rescheduled when the dayCode actually changes
+//     or after a minimum interval has elapsed since the last real schedule.
+//  2. Nightly notifications no longer roll over to the next evening after
+//     the selected time has already passed, which caused duplicate "Tomorrow"
+//     alerts on the following day.
+//  3. Notifications persist after toggle-off — disabling now removes BOTH
+//     pending AND already-delivered notifications.
 //
 
 import Foundation
@@ -31,19 +33,21 @@ func fancyDayName(_ code: String) -> String {
 class NotificationManager {
     static let shared = NotificationManager()
 
-    // --- FIX 3: Debounce token ---
-    private var scheduleDebounceTimer: Timer?
-    private let debounceInterval: TimeInterval = 0.5
+    // Track last successfully scheduled values so we only reschedule
+    // when something meaningful has actually changed.
+    private var lastScheduledDayCode: String = ""
+    private var lastScheduledTime: Date = .distantPast
+    var lastScheduledNotificationTime: String = ""   // HH:mm of alert time; var so NotificationSettings.time setter can reset it
 
-    // Pending values held during debounce window
-    private var pendingDayCode:      String = ""
-    private var pendingFirstName:    String = ""
-    private var pendingFirstTime:    String = ""
-    private var pendingFirstRoom:    String = ""
+    // Minimum gap between actual reschedule calls (prevents ticker spam)
+    private let minRescheduleInterval: TimeInterval = 300   // 5 minutes
+
+    private init() {}
 
     // MARK: - Public scheduling entry point
 
-    /// Thread-safe, debounced. Multiple rapid calls collapse into one.
+    /// Call this freely — it gates on actual changes so the ticker calling it
+    /// every second is harmless.
     func scheduleNightly(
         dayCode:        String,
         firstClassName: String = "",
@@ -56,38 +60,40 @@ class NotificationManager {
         }
         guard !dayCode.isEmpty && dayCode != "Unknown" else { return }
 
-        // Store the latest values; the timer will use them when it fires
-        pendingDayCode   = dayCode
-        pendingFirstName = firstClassName
-        pendingFirstTime = firstClassTime
-        pendingFirstRoom = firstClassRoom
+        // Compute current notification time string for change detection
+        let alertTimeFormatter = DateFormatter()
+        alertTimeFormatter.dateFormat = "HH:mm"
+        let currentAlertTimeStr = alertTimeFormatter.string(from: NotificationSettings.time)
 
-        // --- FIX 3: Debounce — cancel any pending timer, restart it ---
-        scheduleDebounceTimer?.invalidate()
-        scheduleDebounceTimer = Timer.scheduledTimer(
-            withTimeInterval: debounceInterval,
-            repeats: false
-        ) { [weak self] _ in
-            guard let self else { return }
-            self._scheduleNightlyNow(
-                dayCode:        self.pendingDayCode,
-                firstClassName: self.pendingFirstName,
-                firstClassTime: self.pendingFirstTime,
-                firstClassRoom: self.pendingFirstRoom
-            )
-        }
+        // Only reschedule if something changed OR enough time has passed
+        let dayCodeChanged   = dayCode != lastScheduledDayCode
+        let alertTimeChanged = currentAlertTimeStr != lastScheduledNotificationTime
+        let intervalElapsed  = Date().timeIntervalSince(lastScheduledTime) > minRescheduleInterval
+
+        guard dayCodeChanged || alertTimeChanged || intervalElapsed else { return }
+
+        // Update tracking state before scheduling
+        lastScheduledDayCode         = dayCode
+        lastScheduledNotificationTime = currentAlertTimeStr
+        lastScheduledTime            = Date()
+
+        _scheduleNightlyNow(
+            dayCode:        dayCode,
+            firstClassName: firstClassName,
+            firstClassTime: firstClassTime,
+            firstClassRoom: firstClassRoom
+        )
     }
 
     // MARK: - Cancel
 
     func cancelAllNotifications() {
-        scheduleDebounceTimer?.invalidate()
-        scheduleDebounceTimer = nil
-
         let center = UNUserNotificationCenter.current()
-        // --- FIX 5: Remove both pending AND delivered ---
         center.removeAllPendingNotificationRequests()
         center.removeAllDeliveredNotifications()
+        // Reset tracking so next enable reschedules immediately
+        lastScheduledDayCode = ""
+        lastScheduledTime    = .distantPast
     }
 
     func cleanupExpiredNotifications() {
@@ -109,6 +115,51 @@ class NotificationManager {
         }
     }
 
+#if DEBUG
+    func scheduleDebugTestNotifications() {
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: ["debug-nightly", "debug-morning"])
+
+        let nightlyContent = UNMutableNotificationContent()
+        nightlyContent.title = "Tomorrow: Gold 1"
+        nightlyContent.body = "Debug test nightly notification"
+        nightlyContent.sound = .default
+
+        let nightlyTrigger = UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)
+        let nightlyRequest = UNNotificationRequest(
+            identifier: "debug-nightly",
+            content: nightlyContent,
+            trigger: nightlyTrigger
+        )
+
+        let morningContent = UNMutableNotificationContent()
+        morningContent.title = "Class in 10 minutes"
+        morningContent.body = "Debug test morning reminder"
+        morningContent.sound = .default
+        morningContent.interruptionLevel = .timeSensitive
+
+        let morningTrigger = UNTimeIntervalNotificationTrigger(timeInterval: 10, repeats: false)
+        let morningRequest = UNNotificationRequest(
+            identifier: "debug-morning",
+            content: morningContent,
+            trigger: morningTrigger
+        )
+
+        center.add(nightlyRequest) { err in
+            if let err { print("❌ Debug nightly notification error: \(err)") }
+        }
+        center.add(morningRequest) { err in
+            if let err { print("❌ Debug morning notification error: \(err)") }
+        }
+    }
+
+    func clearDebugTestNotifications() {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(
+            withIdentifiers: ["debug-nightly", "debug-morning"]
+        )
+    }
+#endif
+
     // MARK: - Private implementation
 
     private func _scheduleNightlyNow(
@@ -123,9 +174,6 @@ class NotificationManager {
         formatter.dateFormat = "MM-dd-yy"
         let tomorrowKey = formatter.string(from: tomorrow)
 
-        // --- FIX 3: ID keyed on the TARGET date, not today ---
-        // This means rescheduling always replaces the same notification
-        // rather than adding a second one with a different ID.
         let eveningID = "nightly-\(tomorrowKey)"
         let morningID = "morning-\(tomorrowKey)"
 
@@ -148,24 +196,29 @@ class NotificationManager {
         triggerComps.minute = timeComps.minute
         triggerComps.second = 0
 
-        // If the time has already passed today, schedule for tomorrow instead
-        if let t = Calendar.current.date(from: triggerComps), t <= Date() {
-            triggerComps = Calendar.current.dateComponents([.year, .month, .day], from: tomorrow)
-            triggerComps.hour   = timeComps.hour
-            triggerComps.minute = timeComps.minute
-            triggerComps.second = 0
-        }
-
-        let eveningRequest = UNNotificationRequest(
-            identifier: eveningID,
-            content:    eveningContent,
-            trigger:    UNCalendarNotificationTrigger(dateMatching: triggerComps, repeats: false)
-        )
-        // Remove then add atomically to replace any existing request with the same ID
         let center = UNUserNotificationCenter.current()
-        center.removePendingNotificationRequests(withIdentifiers: [eveningID])
-        center.add(eveningRequest) { err in
-            if let err { print("❌ Evening notification error: \(err)") }
+        let shouldScheduleEvening = (Calendar.current.date(from: triggerComps) ?? .distantPast) > Date()
+
+        center.getPendingNotificationRequests { requests in
+            let nightlyIDs = requests
+                .filter { $0.identifier.hasPrefix("nightly-") }
+                .map(\.identifier)
+
+            if !nightlyIDs.isEmpty {
+                center.removePendingNotificationRequests(withIdentifiers: nightlyIDs)
+            }
+
+            guard shouldScheduleEvening else { return }
+
+            let eveningRequest = UNNotificationRequest(
+                identifier: eveningID,
+                content:    eveningContent,
+                trigger:    UNCalendarNotificationTrigger(dateMatching: triggerComps, repeats: false)
+            )
+
+            center.add(eveningRequest) { err in
+                if let err { print("❌ Evening notification error: \(err)") }
+            }
         }
 
         // ── Morning notification ──────────────────────────────────────
@@ -244,8 +297,6 @@ class NotificationSettings {
                 }
                 ScheduleBackgroundManager.shared.scheduleNextNightlyRefresh()
             } else {
-                // --- FIX 5: Cancel ALL notifications (pending + delivered) ---
-                // Also clear background task so it can't silently reschedule.
                 NotificationManager.shared.cancelAllNotifications()
             }
         }
@@ -262,6 +313,8 @@ class NotificationSettings {
         set {
             let f = DateFormatter(); f.dateFormat = "HH:mm"
             UserDefaults.standard.set(f.string(from: newValue), forKey: timeKey)
+            // Reset tracking so the new time triggers a reschedule on next call
+            NotificationManager.shared.lastScheduledNotificationTime = ""
         }
     }
 

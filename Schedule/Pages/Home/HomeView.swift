@@ -13,6 +13,8 @@
 import SwiftUI
 
 struct HomeView: View {
+    private let headerGlassTintOpacity: Double = 0.9
+
     @Binding var selectedDate: Date
     @Binding var showCalendarGrid: Bool
     @Binding var scrollTarget: Int?
@@ -30,13 +32,13 @@ struct HomeView: View {
     var onDatePick: (Date) -> Void
 
     // Header height tracking
-    @State private var headerPillHeight: CGFloat  = 0
-    @State private var nowNextHeight: CGFloat      = 0
-    @State private var dateNavHeight: CGFloat      = 0
+    @State private var nowNextHeight: CGFloat = 0
+    @State private var dateNavHeight: CGFloat = 0
+    @State private var floatingHeaderHeight: CGFloat = 0
 
-    private var headerHeight: CGFloat {
-        headerPillHeight + nowNextHeight + dateNavHeight + 16 + 8 + 8
-    }
+    private var headerHeight: CGFloat { floatingHeaderHeight + 16 }
+    private var sharedHeaderRadius: CGFloat { max(dateNavHeight / 2, 16) }
+    private var nowNextCornerRadius: CGFloat { sharedHeaderRadius + 4 }
 
     // Swipe state
     @State private var dragX: CGFloat = 0
@@ -107,6 +109,7 @@ struct HomeView: View {
                 Spacer()
             }
             .zIndex(10)
+            .simultaneousGesture(headerSwipeGesture)
         }
     }
 
@@ -138,11 +141,12 @@ struct HomeView: View {
             let delta   = goBack ? -1 : 1
             let newDate = Calendar.current.date(byAdding: .day, value: delta, to: selectedDate) ?? selectedDate
 
+            showCalendarGrid = false
             dragX  = goBack ? -screenW : screenW
             pageID = newDate
+            onDatePick(newDate)
 
             withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) { dragX = 0 }
-            onDatePick(newDate)
         }
     }
 
@@ -170,54 +174,66 @@ struct HomeView: View {
 
     // MARK: Floating header
 
+    private var headerSwipeGesture: some Gesture {
+        DragGesture(minimumDistance: 8)
+            .onChanged { value in
+                guard abs(value.translation.width) > abs(value.translation.height) else { return }
+                handleDrag(value.translation.width)
+            }
+            .onEnded { value in
+                guard abs(value.translation.width) > abs(value.translation.height) else { return }
+                handleDragEnd(value.translation.width, value.predictedEndTranslation.width - value.translation.width)
+            }
+    }
+
     @ViewBuilder
     private var floatingHeader: some View {
-        if #available(iOS 26.0, *), AppAvailability.liquidGlass {
-            if !isPortrait {
-                HStack {
-                    VStack(spacing: 6) {
-                        headerPill.glassEffect(.regular.tint(PrimaryColor.opacity(0.9)))
-                        nowNextSection.glassEffect(in: RoundedRectangle(cornerRadius: headerPillHeight/2))
-                        Spacer()
+        trackFloatingHeaderHeight(
+            Group {
+                if #available(iOS 26.0, *), AppAvailability.liquidGlass {
+                    if !isPortrait {
+                        HStack(alignment: .top) {
+                            VStack(spacing: 6) {
+                                headerPill.glassEffect(.regular.tint(PrimaryColor.opacity(headerGlassTintOpacity)))
+                                nowNextSection
+                            }
+                            VStack { dateNav }
+                            VStack { addEventInline }
+                        }
+                    } else {
+                        VStack(spacing: 6) {
+                            headerPill
+                                .frame(maxWidth: .infinity)
+                                .glassEffect(.regular.tint(PrimaryColor.opacity(headerGlassTintOpacity)))
+                                .padding(.horizontal, 8)
+                            nowNextSection
+                                .padding(.horizontal, 8)
+                            dateNav.padding(.horizontal, 8)
+                        }
                     }
-                    VStack { dateNav; Spacer() }
-                    VStack { addEventInline; Spacer() }
-                }
-            } else {
-                VStack(spacing: 6) {
-                    headerPill
-                        .frame(maxWidth: .infinity)
-                        .glassEffect(.regular.tint(PrimaryColor.opacity(0.9)))
-                        .padding(.horizontal, 8)
-                    nowNextSection
-                        .glassEffect(in: RoundedRectangle(cornerRadius: headerPillHeight/2))
-                        .padding(.horizontal, 8)
-                    dateNav.padding(.horizontal, 8)
+                } else {
+                    if !isPortrait {
+                        HStack(alignment: .top) {
+                            VStack(spacing: 6) {
+                                headerPill.padding(8).background(PrimaryColor).cornerRadius(16)
+                                nowNextSection
+                            }
+                            VStack { dateNav }
+                            VStack { addEventInline }
+                        }
+                    } else {
+                        VStack(spacing: 6) {
+                            headerPill
+                                .background(PrimaryColor).cornerRadius(16)
+                                .frame(maxWidth: .infinity).padding(.horizontal, 8)
+                            nowNextSection
+                                .padding(.horizontal, 8)
+                            dateNav.padding(.horizontal, 8)
+                        }
+                    }
                 }
             }
-        } else {
-            if !isPortrait {
-                HStack {
-                    VStack(spacing: 6) {
-                        headerPill.padding(8).background(PrimaryColor).cornerRadius(16)
-                        nowNextSection.padding(8).background(PrimaryColor).cornerRadius(16)
-                        Spacer()
-                    }
-                    VStack { dateNav; Spacer() }
-                    VStack { addEventInline; Spacer() }
-                }
-            } else {
-                VStack(spacing: 6) {
-                    headerPill
-                        .background(SecondaryColor).cornerRadius(16)
-                        .frame(maxWidth: .infinity).padding(.horizontal, 8)
-                    nowNextSection
-                        .background(SecondaryColor).cornerRadius(16)
-                        .padding(.horizontal, 8)
-                    dateNav.padding(.horizontal, 8)
-                }
-            }
-        }
+        )
     }
 
     // MARK: NOW/NEXT section
@@ -235,13 +251,15 @@ struct HomeView: View {
                 isToday: isToday,
                 PrimaryColor: PrimaryColor,
                 SecondaryColor: SecondaryColor,
-                TertiaryColor: TertiaryColor
+                TertiaryColor: TertiaryColor,
+                cornerRadius: nowNextCornerRadius,
+                usesGlassStyle: false
             )
             .background(
                 GeometryReader { geo in
                     Color.clear
-                        .onAppear { nowNextHeight = geo.size.height + 6 }
-                        .onChange(of: geo.size.height) { _, h in nowNextHeight = h + 6 }
+                        .onAppear { nowNextHeight = geo.size.height }
+                        .onChange(of: geo.size.height) { _, h in nowNextHeight = h }
                 }
             )
         } else {
@@ -260,10 +278,16 @@ struct HomeView: View {
             SecondaryColor: SecondaryColor,
             TertiaryColor: TertiaryColor
         )
-        .background(GeometryReader { geo in
-            Color.clear.onAppear { headerPillHeight = geo.size.height }
-                .onChange(of: geo.size.height) { _, h in headerPillHeight = h }
-        })
+    }
+
+    private func trackFloatingHeaderHeight<Content: View>(_ content: Content) -> some View {
+        content.background(
+            GeometryReader { geo in
+                Color.clear
+                    .onAppear { floatingHeaderHeight = geo.size.height }
+                    .onChange(of: geo.size.height) { _, h in floatingHeaderHeight = h }
+            }
+        )
     }
 
     @ViewBuilder
@@ -303,20 +327,20 @@ struct HomeView: View {
             Button { addEvent = true } label: {
                 HStack(spacing: 12) {
                     Image(systemName: "plus.circle.fill")
-                        .font(.system(size: iPad ? 24 : 20, weight: .semibold))
-                    if iPad { Text("Add Personal Event").font(.system(size: 20, weight: .semibold)) }
+                        .appThemeFont(.primary, size: iPad ? 24 : 20, weight: .semibold)
+                    if iPad { Text("Add Personal Event").appThemeFont(.primary, size: 20, weight: .semibold) }
                 }
                 .foregroundColor(TertiaryColor).padding(12)
             }
             .padding(iPad ? 16 : 8)
-            .glassEffect(.regular.tint(PrimaryColor.opacity(0.9)))
+            .glassEffect(.regular.tint(PrimaryColor.opacity(headerGlassTintOpacity)))
             .padding(.horizontal, iPad ? 40 : 24)
         } else {
             Button { addEvent = true } label: {
                 HStack(spacing: 12) {
                     Image(systemName: "plus.circle.fill")
-                        .font(.system(size: iPad ? 24 : 20, weight: .semibold))
-                    if iPad { Text("Add Personal Event").font(.system(size: 20, weight: .semibold)) }
+                        .appThemeFont(.primary, size: iPad ? 24 : 20, weight: .semibold)
+                    if iPad { Text("Add Personal Event").appThemeFont(.primary, size: 20, weight: .semibold) }
                 }
                 .padding(8).foregroundColor(TertiaryColor).frame(maxWidth: .infinity)
                 .padding(16).background(PrimaryColor).cornerRadius(16).shadow(radius: 8)
@@ -331,15 +355,15 @@ struct HomeView: View {
             Button { addEvent = true } label: {
                 HStack(spacing: 12) {
                     Image(systemName: "plus.circle.fill")
-                        .font(.system(size: iPad ? 24 : 20, weight: .semibold))
+                        .appThemeFont(.primary, size: iPad ? 24 : 20, weight: .semibold)
                     Text("Add Personal Event")
-                        .font(.system(size: iPad ? 20 : 16, weight: .semibold))
+                        .appThemeFont(.primary, size: iPad ? 20 : 16, weight: .semibold)
                 }
                 .foregroundColor(TertiaryColor).frame(maxWidth: .infinity)
                 .padding(.vertical, iPad ? 18 : 14)
                 .padding(.horizontal, iPad ? 28 : 20)
             }
-            .glassEffect(.regular.tint(PrimaryColor.opacity(0.9)))
+            .glassEffect(.regular.tint(PrimaryColor.opacity(headerGlassTintOpacity)))
             .padding(.horizontal, iPad ? 40 : 24)
             .padding(.bottom, iPad ? 80 : 70)
             .zIndex(5)
@@ -347,9 +371,9 @@ struct HomeView: View {
             Button { addEvent = true } label: {
                 HStack(spacing: 12) {
                     Image(systemName: "plus.circle.fill")
-                        .font(.system(size: iPad ? 24 : 20, weight: .semibold))
+                        .appThemeFont(.primary, size: iPad ? 24 : 20, weight: .semibold)
                     Text("Add Personal Event")
-                        .font(.system(size: iPad ? 20 : 16, weight: .semibold))
+                        .appThemeFont(.primary, size: iPad ? 20 : 16, weight: .semibold)
                 }
                 .foregroundColor(TertiaryColor).frame(maxWidth: .infinity)
                 .padding(16).background(PrimaryColor).cornerRadius(16).shadow(radius: 8)

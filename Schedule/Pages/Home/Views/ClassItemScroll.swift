@@ -70,11 +70,11 @@ struct ClassItemScroll: View {
                     Spacer()
                     if output.isEmpty {
                         Text("")
-                            .font(.title2)
+                            .appThemeFont(.primary, style: .title2)
                             .foregroundColor(PrimaryColor)
                     } else {
                         Text(output)
-                            .font(.title2)
+                            .appThemeFont(.primary, style: .title2)
                             .foregroundColor(PrimaryColor)
                     }
                     Spacer()
@@ -179,14 +179,14 @@ struct ClassItemScroll: View {
             VStack(alignment: .leading, spacing: 4) {
                 if !line.timeRange.isEmpty {
                     Text(line.timeRange)
-                        .font(.system(size: iPad ? 16 : 14, weight: .medium, design: .monospaced))
+                        .appThemeFont(.secondary, size: iPad ? 16 : 14, weight: .medium)
                         .foregroundColor(line.isCurrentClass ? TertiaryColor : PrimaryColor.opacity(0.8))
                 }
                 
                 HStack(spacing: 8) {
                     let name = line.className == "Activity" ? note : line.className
                     Text(name.isEmpty ? "Unknown" : name)
-                        .font(.system(size: iPad ? 20 : 17, weight: .bold, design: .rounded))
+                        .appThemeFont(.primary, size: iPad ? 20 : 17, weight: .bold)
                         .foregroundColor(line.isCurrentClass ? TertiaryColor : PrimaryColor)
                     
                     if let end = line.endSec, isToday && line.isCurrentClass {
@@ -195,11 +195,11 @@ struct ClassItemScroll: View {
                         if remainingSeconds > 60 {
                             let remainingMinutes = floor(Double(remainingSeconds)/60.0)
                             Text("• \(Int(remainingMinutes))m left")
-                                .font(.system(size: iPad ? 16 : 14, weight: .medium))
+                                .appThemeFont(.primary, size: iPad ? 16 : 14, weight: .medium)
                                 .foregroundColor(TertiaryColor.opacity(0.8))
                         } else if (remainingSeconds > 0){
                             Text("• \(Int(remainingSeconds))s left")
-                                .font(.system(size: iPad ? 16 : 14, weight: .medium))
+                                .appThemeFont(.primary, size: iPad ? 16 : 14, weight: .medium)
                                 .foregroundColor(TertiaryColor.opacity(0.8))
                         }
                     }
@@ -209,12 +209,12 @@ struct ClassItemScroll: View {
                     HStack(spacing: 8) {
                         if !line.teacher.isEmpty {
                             Text(line.teacher)
-                                .font(.system(size: iPad ? 16 : 14, weight: .medium))
+                                .appThemeFont(.primary, size: iPad ? 16 : 14, weight: .medium)
                                 .foregroundColor(line.isCurrentClass ? TertiaryColor.opacity(0.9) : PrimaryColor.opacity(0.7))
                         }
                         if !line.room.isEmpty {
                             Text("• \(line.room)")
-                                .font(.system(size: iPad ? 16 : 14, weight: .medium))
+                                .appThemeFont(.primary, size: iPad ? 16 : 14, weight: .medium)
                                 .foregroundColor(line.isCurrentClass ? TertiaryColor.opacity(0.9) : PrimaryColor.opacity(0.7))
                         }
                     }
@@ -253,7 +253,7 @@ struct ClassItemScroll: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text("\(event.startTime.string()) to \(event.endTime.string())")
-                        .font(.system(size: iPad ? 16 : 14, weight: .medium, design: .monospaced))
+                        .appThemeFont(.secondary, size: iPad ? 16 : 14, weight: .medium)
                         .foregroundColor(isCurrentEvent ? TertiaryColor : eventColor.opacity(0.8))
                     
                     // Conflict warning indicator
@@ -266,7 +266,7 @@ struct ClassItemScroll: View {
                 
                 HStack(spacing: 8) {
                     Text(event.title)
-                        .font(.system(size: iPad ? 20 : 17, weight: .bold, design: .rounded))
+                        .appThemeFont(.primary, size: iPad ? 20 : 17, weight: .bold)
                         .foregroundColor(isCurrentEvent ? TertiaryColor : eventColor)
                     
                     if isCurrentEvent {
@@ -274,11 +274,11 @@ struct ClassItemScroll: View {
                         if remainingSeconds > 60 {
                             let remainingMinutes = floor(Double(remainingSeconds)/60.0)
                             Text("• \(Int(remainingMinutes))m left")
-                                .font(.system(size: iPad ? 16 : 14, weight: .medium))
+                                .appThemeFont(.primary, size: iPad ? 16 : 14, weight: .medium)
                                 .foregroundColor(TertiaryColor.opacity(0.8))
                         } else if (remainingSeconds > 0){
                             Text("• \(Int(remainingSeconds))s left")
-                                .font(.system(size: iPad ? 16 : 14, weight: .medium))
+                                .appThemeFont(.primary, size: iPad ? 16 : 14, weight: .medium)
                                 .foregroundColor(TertiaryColor.opacity(0.8))
                         }
                     }
@@ -293,12 +293,12 @@ struct ClassItemScroll: View {
                     HStack(spacing: 8) {
                         if !event.location.isEmpty {
                             Text(event.location)
-                                .font(.system(size: iPad ? 16 : 14, weight: .medium))
+                                .appThemeFont(.primary, size: iPad ? 16 : 14, weight: .medium)
                                 .foregroundColor(isCurrentEvent ? TertiaryColor.opacity(0.9) : eventColor.opacity(0.7))
                         }
                         if !event.note.isEmpty {
                             Text("• \(event.note)")
-                                .font(.system(size: iPad ? 16 : 14, weight: .medium))
+                                .appThemeFont(.primary, size: iPad ? 16 : 14, weight: .medium)
                                 .foregroundColor(isCurrentEvent ? TertiaryColor.opacity(0.9) : eventColor.opacity(0.7))
                         }
                     }
@@ -307,7 +307,7 @@ struct ClassItemScroll: View {
                 // Show repeat pattern
                 if event.repeatPattern != .none {
                     Text(event.repeatPattern.description)
-                        .font(.system(size: iPad ? 14 : 12, weight: .medium))
+                        .appThemeFont(.primary, size: iPad ? 14 : 12, weight: .medium)
                         .foregroundColor(isCurrentEvent ? TertiaryColor.opacity(0.7) : eventColor.opacity(0.5))
                 }
                 
@@ -317,7 +317,7 @@ struct ClassItemScroll: View {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.system(size: 10))
                         Text("\(eventConflicts.count) conflict(s)")
-                            .font(.system(size: 10))
+                            .appThemeFont(.secondary, size: 10)
                     }
                     .foregroundColor(.orange)
                 }

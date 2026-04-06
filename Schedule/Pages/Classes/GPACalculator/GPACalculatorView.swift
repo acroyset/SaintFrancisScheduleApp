@@ -62,11 +62,11 @@ struct GPACalculatorModal: View {
                         HStack{
                             VStack(spacing: 8) {
                                 Text("Weighted")
-                                    .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                                    .appThemeFont(.secondary, size: 14, weight: .semibold)
                                     .foregroundStyle(PrimaryColor)
                                 
                                 Text(String(format: "%.2f", calculateGPA(isWeighted: true)))
-                                    .font(.system(size: 48, weight: .bold, design: .default))
+                                    .appThemeFont(.primary, size: 48, weight: .bold)
                                     .foregroundStyle(PrimaryColor)
                             }
                             .frame(maxWidth: .infinity)
@@ -74,11 +74,11 @@ struct GPACalculatorModal: View {
                             
                             VStack(spacing: 8) {
                                 Text("Unweighted")
-                                    .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                                    .appThemeFont(.secondary, size: 14, weight: .semibold)
                                     .foregroundStyle(PrimaryColor)
                                 
                                 Text(String(format: "%.2f", calculateGPA(isWeighted: false)))
-                                    .font(.system(size: 48, weight: .bold, design: .default))
+                                    .appThemeFont(.primary, size: 48, weight: .bold)
                                     .foregroundStyle(PrimaryColor)
                             }
                             .frame(maxWidth: .infinity)
@@ -93,14 +93,14 @@ struct GPACalculatorModal: View {
                             ForEach(0..<7, id: \.self) { index in
                                 VStack(spacing: 8) {
                                     Text(data.classes[index].name.isEmpty ? "Class Name" : data.classes[index].name)
-                                        .font(.system(size: 14, weight: .bold, design: .monospaced))
+                                        .appThemeFont(.secondary, size: 14, weight: .bold)
                                         .foregroundStyle(PrimaryColor)
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                     
                                     HStack(spacing: 8) {
                                         VStack(alignment: .leading, spacing: 4) {
                                             Text("Grade")
-                                                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                                .appThemeFont(.secondary, size: 11, weight: .semibold)
                                                 .foregroundStyle(PrimaryColor.opacity(0.7))
                                             
                                             Picker("Grade", selection: $gpaGrades[index]) {
@@ -115,7 +115,7 @@ struct GPACalculatorModal: View {
                                         
                                         VStack(alignment: .leading, spacing: 4) {
                                             Text("Type")
-                                                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                                .appThemeFont(.secondary, size: 11, weight: .semibold)
                                                 .foregroundStyle(PrimaryColor.opacity(0.7))
                                             
                                             Picker("Type", selection: $gpaTypes[index]) {
@@ -129,11 +129,11 @@ struct GPACalculatorModal: View {
                                         
                                         VStack(alignment: .leading, spacing: 4) {
                                             Text("GPA")
-                                                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                                .appThemeFont(.secondary, size: 11, weight: .semibold)
                                                 .foregroundStyle(PrimaryColor.opacity(0.7))
                                             
                                             Text(String(format: "%.2f", gradeToGPA(gpaGrades[index], isHonors: gpaTypes[index] == "Honors", isAP: gpaTypes[index] == "AP")))
-                                                .font(.system(size: 14, weight: .bold, design: .monospaced))
+                                                .appThemeFont(.secondary, size: 14, weight: .bold)
                                                 .foregroundStyle(PrimaryColor)
                                         }
                                     }
@@ -146,7 +146,7 @@ struct GPACalculatorModal: View {
                         }
                         
                         Text("For your privacy we do not save your grades and therefore will reset upon closing the gpa calculator.")
-                            .font(.footnote)
+                            .appThemeFont(.secondary, style: .footnote)
                             .foregroundStyle(TertiaryColor.highContrastTextColor())
                         
                     }
@@ -173,11 +173,7 @@ struct GPACalculatorModal: View {
                 if #available(iOS 26.0, *), AppAvailability.liquidGlass {
                     HStack {
                         Text("GPA Calculator")
-                            .font(.system(
-                                size: iPad ? 34 : 22,
-                                weight: .bold,
-                                design: .monospaced
-                            ))
+                            .appThemeFont(.secondary, size: iPad ? 34 : 22, weight: .bold)
                             .padding(iPad ? 16 : 12)
                             .padding(.horizontal, iPad ? 20 : 16)
                         
@@ -185,7 +181,7 @@ struct GPACalculatorModal: View {
                         
                         Button(action: { window = .None }) {
                             Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: iPad ? 30 : 26))
+                                .appThemeFont(.primary, size: iPad ? 30 : 26)
                                 .foregroundStyle(PrimaryColor)
                         }
                         .padding(iPad ? 16 : 12)
@@ -196,14 +192,14 @@ struct GPACalculatorModal: View {
                 } else {
                     HStack {
                         Text("GPA Calculator")
-                            .font(.system(size: 24, weight: .bold, design: .monospaced))
+                            .appThemeFont(.secondary, size: 24, weight: .bold)
                             .foregroundStyle(PrimaryColor)
                         
                         Spacer()
                         
                         Button(action: { window = .None }) {
                             Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 24))
+                                .appThemeFont(.primary, size: 24)
                                 .foregroundStyle(PrimaryColor)
                         }
                     }

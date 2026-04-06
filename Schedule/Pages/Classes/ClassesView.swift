@@ -14,6 +14,7 @@ enum classWindow: Int{
     case CoursesList = 2
     case FinalGradeCalculator = 3
     case ClassEditor = 4
+    case WhatIfCalculator = 5
 }
 
 func inferClassLevel(from className: String) -> String {
@@ -49,63 +50,37 @@ struct ClassesView: View {
                 switch window {
                     
                 case .None:
-                    Text("Classes")
-                        .font(.system(size: iPad ? 34 : 22, weight: .bold, design: .monospaced))
-                        .padding(12)
-                        .foregroundStyle(PrimaryColor)
-                    
-                    Divider()
-                    
-                    Button(action: { window = .GPACalculator }) {
-                        HStack {
-                            Image(systemName: "chart.bar.fill")
-                            Text("GPA Calculator")
+                    VStack(spacing: 16) {
+                        Text("Classes")
+                            .appThemeFont(.secondary, size: iPad ? 34 : 22, weight: .bold)
+                            .padding(.top, 12)
+                            .foregroundStyle(PrimaryColor)
+
+                        sectionCard(title: "Class Management") {
+                            menuButton(title: "Edit Classes", systemImage: "pencil") {
+                                window = .ClassEditor
+                            }
+                            menuDivider
+                            menuButton(title: "Browse Courses", systemImage: "book.fill") {
+                                window = .CoursesList
+                            }
                         }
-                        .font(.system(size: 14, weight: .bold, design: .monospaced))
-                        .foregroundStyle(TertiaryColor)
-                        .frame(maxWidth: .infinity)
-                        .padding(12)
-                        .background(PrimaryColor)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                    }
-                    
-                    Button(action: { window = .CoursesList }) {
-                        HStack {
-                            Image(systemName: "book.fill")
-                            Text("Browse Courses")
+
+                        sectionCard(title: "Grade Tools") {
+                            menuButton(title: "GPA Calculator", systemImage: "chart.bar.fill") {
+                                window = .GPACalculator
+                            }
+                            menuDivider
+                            menuButton(title: "Final Grade Calculator", systemImage: "percent") {
+                                window = .FinalGradeCalculator
+                            }
+                            menuDivider
+                            menuButton(title: "What-If Calculator", systemImage: "wand.and.stars") {
+                                AppFeatureBadge.whatIfCalculator.markSeen()
+                                window = .WhatIfCalculator
+                            }
+                            .newBadge(AppFeatureBadge.whatIfCalculator.isVisible)
                         }
-                        .font(.system(size: 14, weight: .bold, design: .monospaced))
-                        .foregroundStyle(TertiaryColor)
-                        .frame(maxWidth: .infinity)
-                        .padding(12)
-                        .background(PrimaryColor)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                    }
-                    
-                    Button(action: { window = .FinalGradeCalculator }) {
-                        HStack {
-                            Image(systemName: "percent")
-                            Text("Final Grade Calculator")
-                        }
-                        .font(.system(size: 14, weight: .bold, design: .monospaced))
-                        .foregroundStyle(TertiaryColor)
-                        .frame(maxWidth: .infinity)
-                        .padding(12)
-                        .background(PrimaryColor)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                    }
-                    
-                    Button(action: { window = .ClassEditor }) {
-                        HStack {
-                            Image(systemName: "pencil")
-                            Text("Edit Classes")
-                        }
-                        .font(.system(size: 14, weight: .bold, design: .monospaced))
-                        .foregroundStyle(TertiaryColor)
-                        .frame(maxWidth: .infinity)
-                        .padding(12)
-                        .background(PrimaryColor)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
                     
                 case .GPACalculator:
@@ -130,6 +105,15 @@ struct ClassesView: View {
                     
                 case .FinalGradeCalculator:
                     FinalGradeCalculatorModal(
+                        data: $data,
+                        PrimaryColor: PrimaryColor,
+                        SecondaryColor: SecondaryColor,
+                        TertiaryColor: TertiaryColor,
+                        window: $window
+                    )
+
+                case .WhatIfCalculator:
+                    WhatIfGradeCalculatorModal(
                         data: $data,
                         PrimaryColor: PrimaryColor,
                         SecondaryColor: SecondaryColor,
@@ -165,5 +149,46 @@ struct ClassesView: View {
             courseViewModel.allCourses = loadSFHSCourses()
             gpaTypes = data.classes.prefix(7).map { inferClassLevel(from: $0.name) }
         })
+    }
+
+    @ViewBuilder
+    private func sectionCard<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title.uppercased())
+                .appThemeFont(.secondary, size: 12, weight: .bold)
+                .foregroundStyle(PrimaryColor.opacity(0.65))
+
+            VStack(spacing: 0) {
+                content()
+            }
+            .background(SecondaryColor)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 12)
+    }
+
+    private func menuButton(title: String, systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: systemImage)
+                    .appThemeFont(.primary, size: 16, weight: .semibold)
+                    .frame(width: 22)
+                Text(title)
+                    .appThemeFont(.secondary, size: 15, weight: .bold)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .appThemeFont(.primary, size: 13, weight: .semibold)
+                    .foregroundStyle(PrimaryColor.opacity(0.7))
+            }
+            .foregroundStyle(PrimaryColor)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 14)
+        }
+    }
+
+    private var menuDivider: some View {
+        Divider().padding(.leading, 48)
     }
 }
