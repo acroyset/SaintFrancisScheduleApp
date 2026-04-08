@@ -31,9 +31,14 @@ struct ThemedAutoHeightWebView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
+        context.coordinator.parent = self
+
         // ✅ Prevent reload loops (height updates trigger SwiftUI updates)
         let signature = "\(isDarkTheme)|\(html.hashValue)"
-        guard context.coordinator.lastLoadedSignature != signature else { return }
+        if context.coordinator.lastLoadedSignature == signature {
+            context.coordinator.updateHeight(webView)
+            return
+        }
         context.coordinator.lastLoadedSignature = signature
 
         let textHex = isDarkTheme ? "#F0F0F0" : "#0F0F0F"
@@ -77,9 +82,16 @@ struct ThemedAutoHeightWebView: UIViewRepresentable {
             }
         }
 
-        private func updateHeight(_ webView: WKWebView) {
-            webView.evaluateJavaScript("document.body.scrollHeight") { [weak self] result, _ in
-                guard let self, let h = result as? CGFloat else { return }
+        func updateHeight(_ webView: WKWebView) {
+            webView.evaluateJavaScript("Math.max(document.body.scrollHeight, document.documentElement.scrollHeight)") { [weak self] result, _ in
+                guard let self else { return }
+                let heightValue: CGFloat?
+                if let number = result as? NSNumber {
+                    heightValue = CGFloat(truncating: number)
+                } else {
+                    heightValue = nil
+                }
+                guard let h = heightValue else { return }
                 DispatchQueue.main.async {
                     if abs(self.parent.height - h) > 1 { self.parent.height = h }
                 }

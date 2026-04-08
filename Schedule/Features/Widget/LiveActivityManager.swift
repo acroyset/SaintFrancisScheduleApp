@@ -36,7 +36,7 @@ final class LiveActivityManager {
             switch existing.activityState {
             case .active:
                 break
-            case .stale, .ended, .dismissed:
+            case .pending, .stale, .ended, .dismissed:
                 activity = nil
                 lastScheduledClasses = []
             @unknown default:
@@ -114,7 +114,7 @@ final class LiveActivityManager {
         guard let existing = activity else { return }
         activity = nil
         lastScheduledClasses = []
-        Task { await existing.end(using: nil, dismissalPolicy: .immediate) }
+        Task { await existing.end(nil, dismissalPolicy: .immediate) }
     }
 
     // MARK: - Private
@@ -128,7 +128,7 @@ final class LiveActivityManager {
             }
         }
         for orphan in orphans {
-            Task { await orphan.end(using: nil, dismissalPolicy: .immediate) }
+            Task { await orphan.end(nil, dismissalPolicy: .immediate) }
             print("🧹 Terminated orphaned LiveActivity: \(orphan.id)")
         }
     }

@@ -22,7 +22,7 @@ func loadScheduleData() -> ScheduleData? {
     
     let isSecondLunch = (SharedGroup.defaults.array(forKey: "IsSecondLunch") as? [Bool]) ?? [false, false]
     
-    return ScheduleData(classes: classes, days: days, isSecondLunch: isSecondLunch)
+    return ScheduleData(classes: classes, days: days, isSecondLunch: isSecondLunch).normalized()
 }
 
 func getKeyForDate(_ date: Date) -> String {

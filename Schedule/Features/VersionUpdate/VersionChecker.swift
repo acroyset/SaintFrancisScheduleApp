@@ -41,5 +41,17 @@ struct AppStoreResult: Codable {
 }
 
 func isUpdateAvailable(current: String, latest: String) -> Bool {
-    return latest > current;
+    let currentParts = current.split(separator: ".").compactMap { Int($0) }
+    let latestParts = latest.split(separator: ".").compactMap { Int($0) }
+    let maxCount = max(currentParts.count, latestParts.count)
+
+    for index in 0..<maxCount {
+        let currentValue = index < currentParts.count ? currentParts[index] : 0
+        let latestValue = index < latestParts.count ? latestParts[index] : 0
+        if latestValue != currentValue {
+            return latestValue > currentValue
+        }
+    }
+
+    return false
 }

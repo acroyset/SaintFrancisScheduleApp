@@ -91,6 +91,33 @@ class DataManager: ObservableObject {
         return stored < currentVersion
     }
 
+    func touchLastUpdated(for userId: String) async throws {
+        try await db.collection("users").document(userId).setData([
+            "lastUpdated": FieldValue.serverTimestamp()
+        ], merge: true)
+    }
+
+    func appendUsageSessionToCloud(_ session: UsageSessionRecord, for userId: String) async throws {
+        let sessionData: [String: Any] = [
+            "startedAt": Timestamp(date: session.startedAt),
+            "endedAt": Timestamp(date: session.endedAt)
+        ]
+
+        try await db.collection("users").document(userId).setData([
+            "usageStats.sessions": FieldValue.arrayUnion([sessionData]),
+            "usageStatsUpdatedAt": FieldValue.serverTimestamp()
+        ], merge: true)
+    }
+
+    func clearUsageStats(for userId: String) async throws {
+        try await db.collection("users").document(userId).setData([
+            "usageStats": [
+                "sessions": []
+            ],
+            "usageStatsUpdatedAt": FieldValue.serverTimestamp()
+        ], merge: true)
+    }
+
     // -------------------------------------------------------------------------
     // MARK: Other operations
     // -------------------------------------------------------------------------

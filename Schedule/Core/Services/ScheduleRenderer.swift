@@ -162,7 +162,9 @@ final class ScheduleRenderer {
     private func shouldSwapLunchAndPeriod(dayIndex: Int, isSecondLunch: [Bool]) -> Bool {
         let goldDays  = [0, 2, 4, 5, 6, 7, 8, 9]
         let brownDays = [1, 3]
-        return (isSecondLunch[0] && goldDays.contains(dayIndex))
-            || (isSecondLunch[1] && brownDays.contains(dayIndex))
+        let goldSecondLunch = isSecondLunch.indices.contains(0) ? isSecondLunch[0] : false
+        let brownSecondLunch = isSecondLunch.indices.contains(1) ? isSecondLunch[1] : false
+        return (goldSecondLunch && goldDays.contains(dayIndex))
+            || (brownSecondLunch && brownDays.contains(dayIndex))
     }
 }

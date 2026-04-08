@@ -197,9 +197,16 @@ class NotificationManager {
         triggerComps.second = 0
 
         let center = UNUserNotificationCenter.current()
-        let shouldScheduleEvening = (Calendar.current.date(from: triggerComps) ?? .distantPast) > Date()
 
         center.getPendingNotificationRequests { requests in
+            let selectedTime = NotificationSettings.time
+            let timeComps = Calendar.current.dateComponents([.hour, .minute], from: selectedTime)
+            var currentTriggerComps = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+            currentTriggerComps.hour = timeComps.hour
+            currentTriggerComps.minute = timeComps.minute
+            currentTriggerComps.second = 0
+            let shouldScheduleEvening = (Calendar.current.date(from: currentTriggerComps) ?? .distantPast) > Date()
+
             let nightlyIDs = requests
                 .filter { $0.identifier.hasPrefix("nightly-") }
                 .map(\.identifier)
@@ -213,7 +220,7 @@ class NotificationManager {
             let eveningRequest = UNNotificationRequest(
                 identifier: eveningID,
                 content:    eveningContent,
-                trigger:    UNCalendarNotificationTrigger(dateMatching: triggerComps, repeats: false)
+                trigger:    UNCalendarNotificationTrigger(dateMatching: currentTriggerComps, repeats: false)
             )
 
             center.add(eveningRequest) { err in

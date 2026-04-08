@@ -22,6 +22,9 @@ final class WidgetManager: ObservableObject {
         data: ScheduleData?,
         dayCode: String
     ) {
+        SharedGroup.defaults.set(Date(), forKey: "LastAppDataUpdate")
+        SharedGroup.defaults.set(dayCode, forKey: "CurrentDayCode")
+
         if let scheduleDict,
            let dictData = try? JSONEncoder().encode(scheduleDict) {
             SharedGroup.defaults.set(dictData, forKey: "ScheduleDict")
@@ -37,8 +40,6 @@ final class WidgetManager: ObservableObject {
         }
 
         SharedGroup.defaults.set(data.isSecondLunch, forKey: "IsSecondLunch")
-        SharedGroup.defaults.set(Date(), forKey: "LastAppDataUpdate")
-        SharedGroup.defaults.set(dayCode, forKey: "CurrentDayCode")
 
         WidgetCenter.shared.reloadTimelines(ofKind: "ScheduleWidget")
     }

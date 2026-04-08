@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import AuthenticationServices
 
 struct SignInView: View {
     @ObservedObject var authManager: AuthenticationManager
@@ -89,6 +90,18 @@ struct SignInView: View {
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 10))
             }
+            .padding(.horizontal, 24)
+            .disabled(authManager.isLoading)
+            
+            SignInWithAppleButton(.signIn) { request in
+                let nonce = authManager.prepareSignInWithApple()
+                request.requestedScopes = [.fullName, .email]
+                request.nonce = nonce
+            } onCompletion: { result in
+                Task { await authManager.signInWithApple(result: result) }
+            }
+            .signInWithAppleButtonStyle(.black)
+            .frame(maxWidth: .infinity, minHeight: 50)
             .padding(.horizontal, 24)
             .disabled(authManager.isLoading)
 

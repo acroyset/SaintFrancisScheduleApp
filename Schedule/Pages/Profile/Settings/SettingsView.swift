@@ -387,7 +387,6 @@ struct Settings: View {
             Menu {
                 ForEach(AppFontChoice.allCases) { choice in
                     Button {
-                        AppFeatureBadge.fontPicker.markSeen()
                         selection.wrappedValue = choice
                     } label: {
                         HStack {
@@ -419,12 +418,6 @@ struct Settings: View {
                 .background(SecondaryColor.opacity(0.75))
                 .clipShape(RoundedRectangle(cornerRadius: 10))
             }
-            .newBadge(AppFeatureBadge.fontPicker.isVisible)
-            .simultaneousGesture(
-                TapGesture().onEnded {
-                    AppFeatureBadge.fontPicker.markSeen()
-                }
-            )
             .tint(PrimaryColor)
             .padding(.trailing, 16)
         }

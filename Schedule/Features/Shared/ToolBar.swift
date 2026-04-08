@@ -14,16 +14,6 @@ enum AppFeatureBadge: String {
     case settings
     case fontPicker
     case whatIfCalculator
-
-    private var key: String { "featureBadgeSeen.\(rawValue)" }
-
-    var isVisible: Bool {
-        !UserDefaults.standard.bool(forKey: key)
-    }
-
-    func markSeen() {
-        UserDefaults.standard.set(true, forKey: key)
-    }
 }
 
 struct NewBadge: ViewModifier {
@@ -100,23 +90,10 @@ struct ToolButton: View {
     
     var body: some View {
         let active = window.rawValue == index
-        let isNew = switch Window(rawValue: index) {
-        case .Profile: AppFeatureBadge.profileTab.isVisible
-        case .ClassesView: AppFeatureBadge.classesTab.isVisible
-        default: false
-        }
         
         let content = Button {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                 if let w = Window(rawValue: index) {
-                    switch w {
-                    case .Profile:
-                        AppFeatureBadge.profileTab.markSeen()
-                    case .ClassesView:
-                        AppFeatureBadge.classesTab.markSeen()
-                    default:
-                        break
-                    }
                     window = w
                 }
             }
@@ -152,7 +129,6 @@ struct ToolButton: View {
             }
 
         }
-        .newBadge(isNew)
         
         if #available(iOS 26.1, *), AppAvailability.liquidGlass {
             content.buttonStyle(GlassButtonStyle(.regular.tint(active ? PrimaryColor.opacity(0.9) : .clear)))

@@ -7,6 +7,8 @@ import Firebase
 import FirebaseAuth
 import SwiftUI
 import GoogleSignIn
+import AuthenticationServices
+import CryptoKit
 
 @MainActor
 class AuthenticationManager: ObservableObject {
@@ -22,10 +24,12 @@ class AuthenticationManager: ObservableObject {
 
     private var pendingPolicyUserId: String? = nil
     private var pendingPolicyIsNewUser: Bool = false
-    let policyVersion = "2026-03-24"
+    let policyVersion = "2026-04-07"
     private let dataManager = DataManager()
     private var authStateHandle: AuthStateDidChangeListenerHandle?
     private var isHandlingSignUp = false
+    
+    private var currentNonce: String?
 
     init() {
         setupAuthStateListener()
@@ -144,6 +148,122 @@ class AuthenticationManager: ObservableObject {
             errorMessage = error.localizedDescription
         }
         isLoading = false
+    }
+    
+    func signInWithApple(result: Result<ASAuthorization, Error>) async {
+        isLoading = true
+        errorMessage = ""
+        isHandlingSignUp = true
+        defer { isHandlingSignUp = false }
+
+        switch result {
+        case .success(let authorization):
+            guard let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential,
+                  let nonce = currentNonce,
+                  let appleIDToken = appleIDCredential.identityToken,
+                  let idTokenString = String(data: appleIDToken, encoding: .utf8) else {
+                errorMessage = "Unable to fetch identity token."
+                isLoading = false
+                return
+            }
+
+            let credential = OAuthProvider.appleCredential(
+                withIDToken: idTokenString,
+                rawNonce: nonce,
+                fullName: appleIDCredential.fullName
+            )
+
+            do {
+                let authResult = try await Auth.auth().signIn(with: credential)
+
+                if authResult.additionalUserInfo?.isNewUser == true {
+                    // Update display name if provided
+                    if let fullName = appleIDCredential.fullName {
+                        let displayName = [fullName.givenName, fullName.familyName]
+                            .compactMap { $0 }
+                            .joined(separator: " ")
+                        if !displayName.isEmpty {
+                            let changeRequest = authResult.user.createProfileChangeRequest()
+                            changeRequest.displayName = displayName
+                            try? await changeRequest.commitChanges()
+                        }
+                    }
+                    pendingPolicyUserId = authResult.user.uid
+                    pendingPolicyIsNewUser = true
+                    needsPolicyAcceptance = true
+                } else {
+                    UserDefaults.standard.set(true, forKey: "HasCompletedOnboarding")
+                    user = User(from: authResult.user)
+                    await checkPolicyVersionForExistingUser(userId: authResult.user.uid)
+                }
+            } catch {
+                errorMessage = handleAppleSignInError(error)
+            }
+
+        case .failure(let error):
+            errorMessage = handleAppleSignInError(error)
+        }
+        isLoading = false
+    }
+
+    func prepareSignInWithApple() -> String {
+        let nonce = randomNonceString()
+        currentNonce = nonce
+        return sha256(nonce)
+    }
+
+    private func randomNonceString(length: Int = 32) -> String {
+        let charset: [Character] = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
+        var result = ""
+        var remainingLength = length
+        while remainingLength > 0 {
+            let randoms: [UInt8] = (0 ..< 16).map { _ in
+                var random: UInt8 = 0
+                let errorCode = SecRandomCopyBytes(kSecRandomDefault, 1, &random)
+                if errorCode != errSecSuccess { fatalError("Unable to generate nonce.") }
+                return random
+            }
+            randoms.forEach { random in
+                if remainingLength == 0 { return }
+                if random < charset.count {
+                    result.append(charset[Int(random)])
+                    remainingLength -= 1
+                }
+            }
+        }
+        return result
+    }
+
+    private func sha256(_ input: String) -> String {
+        let inputData = Data(input.utf8)
+        let hashedData = SHA256.hash(data: inputData)
+        return hashedData.compactMap { String(format: "%02x", $0) }.joined()
+    }
+
+    private func handleAppleSignInError(_ error: Error) -> String {
+        if let authorizationError = error as? ASAuthorizationError {
+            switch authorizationError.code {
+            case .canceled:
+                return "Apple Sign In was canceled."
+            case .failed, .unknown:
+                return "Apple Sign In failed. Make sure the app target has the Sign in with Apple capability, the App ID for \(Bundle.main.bundleIdentifier ?? "this app") has Sign in with Apple enabled in Apple Developer, and the device or simulator is signed into iCloud."
+            case .invalidResponse:
+                return "Apple Sign In returned an invalid response. Please try again."
+            case .notHandled:
+                return "Apple Sign In could not be completed. Please try again."
+            case .notInteractive:
+                return "Apple Sign In is not available right now. Try again from an active app screen."
+            @unknown default:
+                return authorizationError.localizedDescription
+            }
+        }
+
+        let nsError = error as NSError
+        if nsError.domain == AuthErrorDomain {
+            return "Apple Sign In succeeded with Apple but Firebase rejected it: \(nsError.localizedDescription)"
+        }
+
+        return error.localizedDescription
     }
 
     // MARK: - Accept / Deny Policy

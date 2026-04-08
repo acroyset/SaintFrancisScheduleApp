@@ -136,6 +136,8 @@ struct ScheduleWidgetEntryView: View {
                 Text(dayCode.uppercased())
                     .font(.system(size: 12, weight: .bold))
                     .foregroundColor(PrimaryColor.opacity(0.7))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
                 
                 Image(systemName: "calendar.badge.clock")
                     .foregroundColor(PrimaryColor)
@@ -144,6 +146,9 @@ struct ScheduleWidgetEntryView: View {
                 Text("No Classes")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(PrimaryColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .allowsTightening(true)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding()
@@ -189,6 +194,8 @@ struct ScheduleWidgetEntryView: View {
                     .font(.system(size: 12, weight: .bold))
                     .foregroundColor(PrimaryColor.opacity(0.7))
                     .padding(.bottom, 2)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
             
             Image(systemName: "calendar.badge.clock")
@@ -197,6 +204,9 @@ struct ScheduleWidgetEntryView: View {
             Text("No Classes Today")
                 .font(.system(size: 14, weight: .medium))
                 .foregroundColor(PrimaryColor)
+                .lineLimit(1)
+                .minimumScaleFactor(0.55)
+                .allowsTightening(true)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

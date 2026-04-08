@@ -14,28 +14,29 @@ struct DayTypeEntry: TimelineEntry {
     let dayName: String
     let schoolStartTime: String
     let isTomorrow: Bool
+    let hasClasses: Bool
     let themeColors: ThemeColors?
 }
 
 struct DayTypeProvider: TimelineProvider {
     func placeholder(in context: Context) -> DayTypeEntry {
-        DayTypeEntry(date: Date(), dayCode: "G1", dayName: "Gold 1", schoolStartTime: "9:00 AM", isTomorrow: false, themeColors: nil)
+        DayTypeEntry(date: Date(), dayCode: "G1", dayName: "Gold 1", schoolStartTime: "9:00 AM", isTomorrow: false, hasClasses: true, themeColors: nil)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (DayTypeEntry) -> Void) {
-        let (dayCode, dayName, startTime, isTomorrow) = getDayInfo()
+        let (dayCode, dayName, startTime, isTomorrow, hasClasses) = getDayInfo()
         completion(DayTypeEntry(date: Date(), dayCode: dayCode, dayName: dayName,
-                                schoolStartTime: startTime, isTomorrow: isTomorrow,
+                                schoolStartTime: startTime, isTomorrow: isTomorrow, hasClasses: hasClasses,
                                 themeColors: loadThemeColors()))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<DayTypeEntry>) -> Void) {
         let now = Date()
-        let (dayCode, dayName, startTime, isTomorrow) = getDayInfo()
+        let (dayCode, dayName, startTime, isTomorrow, hasClasses) = getDayInfo()
         let theme = loadThemeColors()   // ← capture once at generation time
 
         let entry = DayTypeEntry(date: now, dayCode: dayCode, dayName: dayName,
-                                 schoolStartTime: startTime, isTomorrow: isTomorrow,
+                                 schoolStartTime: startTime, isTomorrow: isTomorrow, hasClasses: hasClasses,
                                  themeColors: theme)
 
         var nextMidnight = Calendar.current.startOfDay(for: now)
@@ -45,13 +46,13 @@ struct DayTypeProvider: TimelineProvider {
         completion(timeline)
     }
     
-    private func getDayInfo() -> (String, String, String, Bool) {
+    private func getDayInfo() -> (String, String, String, Bool, Bool) {
         let now = Date()
         let nowSec = secondsSinceMidnight(now)
         
         guard let scheduleDict = loadScheduleDict(),
               let data = loadScheduleData() else {
-            return ("", "No Schedule", "--:--", false)
+            return ("", "No Schedule", "--:--", false, false)
         }
         
         // Check if there are any classes left today
@@ -65,14 +66,15 @@ struct DayTypeProvider: TimelineProvider {
         
         guard let dayInfo = scheduleDict[dateKey],
               dayInfo.count >= 1 else {
-            return ("", "No Classes", "--:--", isTomorrow)
+            return ("", "No Classes", "--:--", isTomorrow, false)
         }
         
         let dayCode = dayInfo[0]
         let dayName = getDayName(dayCode)
         let startTime = getSchoolStartTime(dayCode: dayCode, data: data)
+        let hasClasses = startTime != "--:--"
         
-        return (dayCode, dayName, startTime, isTomorrow)
+        return (dayCode, dayName, startTime, isTomorrow, hasClasses)
     }
     
     private func hasRemainingClasses(dateKey: String, scheduleDict: [String: [String]], data: ScheduleData, nowSec: Int) -> Bool {
@@ -155,30 +157,61 @@ struct DayTypeEntryView: View {
         let TertiaryColor = Color(hex: entry.themeColors?.tertiary ?? "#FFFFFFFF")
         
         VStack(spacing: 8) {
-            Text(entry.isTomorrow ? "Tomorrow is" : "Today is")
-                .font(.system(size: 14, weight: .regular))
-                .foregroundColor(TertiaryColor.opacity(0.8))
-            
-            Text(entry.dayName)
-                .font(.system(size: 28, weight: .bold))
-                .foregroundColor(TertiaryColor)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-            
-            Text(entry.dayCode.uppercased())
-                .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                .foregroundColor(TertiaryColor.opacity(0.6))
-            
-            Divider()
-                .background(TertiaryColor.opacity(0.3))
-            
-            Text("Starting at")
-                .font(.system(size: 12, weight: .regular))
-                .foregroundColor(TertiaryColor.opacity(0.8))
-            
-            Text(entry.schoolStartTime)
-                .font(.system(size: 18, weight: .semibold, design: .monospaced))
-                .foregroundColor(TertiaryColor)
+            if entry.isTomorrow && !entry.hasClasses {
+                Spacer()
+                Image(systemName: "moon.zzz.fill")
+                    .font(.system(size: 26, weight: .semibold))
+                    .foregroundColor(TertiaryColor.opacity(0.9))
+                Text("No Classes")
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundColor(TertiaryColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.55)
+                    .allowsTightening(true)
+                Text("Tomorrow")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(TertiaryColor.opacity(0.8))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .allowsTightening(true)
+                Spacer()
+            } else {
+                Text(entry.isTomorrow ? "Tomorrow is" : "Today is")
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundColor(TertiaryColor.opacity(0.8))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .allowsTightening(true)
+                
+                Text(entry.dayName)
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundColor(TertiaryColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.55)
+                    .allowsTightening(true)
+                
+                Text(entry.dayCode.uppercased())
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .foregroundColor(TertiaryColor.opacity(0.6))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                
+                Divider()
+                    .background(TertiaryColor.opacity(0.3))
+                
+                Text("Starting at")
+                    .font(.system(size: 12, weight: .regular))
+                    .foregroundColor(TertiaryColor.opacity(0.8))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .allowsTightening(true)
+                
+                Text(entry.schoolStartTime)
+                    .font(.system(size: 18, weight: .semibold, design: .monospaced))
+                    .foregroundColor(TertiaryColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()

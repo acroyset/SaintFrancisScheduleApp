@@ -63,14 +63,12 @@ struct ProfileMenu: View {
                             
                             VStack {
                                 Button {
-                                    AppFeatureBadge.settings.markSeen()
                                     showSettings.toggle()
                                 } label: {
                                     Label(iPad ? "Settings" : "", systemImage: "gearshape.fill")
                                         .appThemeFont(.primary, style: .title)
                                         .foregroundStyle(PrimaryColor)
                                 }
-                                .newBadge(AppFeatureBadge.settings.isVisible)
                             }
                             .padding()
                         }
@@ -79,7 +77,7 @@ struct ProfileMenu: View {
                         .background(SecondaryColor)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
-                    
+
                     // Sync Status Message
                     if showSyncMessage {
                         HStack {

@@ -76,10 +76,8 @@ struct ClassesView: View {
                             }
                             menuDivider
                             menuButton(title: "What-If Calculator", systemImage: "wand.and.stars") {
-                                AppFeatureBadge.whatIfCalculator.markSeen()
                                 window = .WhatIfCalculator
                             }
-                            .newBadge(AppFeatureBadge.whatIfCalculator.isVisible)
                         }
                     }
                     

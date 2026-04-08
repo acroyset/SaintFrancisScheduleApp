@@ -59,55 +59,46 @@ final class SheetStore: ObservableObject {
             }
             updateTimestamp()
             
-            // Parse CSV properly to handle newlines inside quoted cells
-            var rows: [String] = []
-            var currentRow = ""
-            var insideQuotes = false
-            var i = csv.startIndex
-            
-            while i < csv.endIndex {
-                let char = csv[i]
-                
-                if char == "\"" {
-                    insideQuotes = !insideQuotes
-                } else if char == "\n" && !insideQuotes {
-                    rows.append(currentRow)
-                    currentRow = ""
-                    i = csv.index(after: i)
-                    continue
-                } else {
-                    currentRow.append(char)
-                }
-                
-                i = csv.index(after: i)
-            }
-            
-            if !currentRow.isEmpty {
-                rows.append(currentRow)
-            }
-            
-            guard rows.count >= 1 else {
-                htmlContent = "<p>Found \(rows.count) rows</p>"
+            guard let firstField = parseFirstCSVField(csv) else {
+                htmlContent = "<p>No news content found</p>"
                 return
             }
-            
-            // Get the second row (first data row after header) - A1 content
-            var html = rows[0].trimmingCharacters(in: .whitespaces)
-            
-            // Remove surrounding quotes
-            if html.hasPrefix("\"") {
-                html = String(html.dropFirst())
-            }
-            if html.hasSuffix("\"") {
-                html = String(html.dropLast())
-            }
-            
-            // Unescape double quotes
-            html = html.replacingOccurrences(of: "\"\"", with: "\"")
-            
-            htmlContent = html
+
+            htmlContent = firstField.trimmingCharacters(in: .whitespacesAndNewlines)
         } catch {
             htmlContent = "<p>Error loading: \(error)</p>"
         }
+    }
+
+    private func parseFirstCSVField(_ csv: String) -> String? {
+        var field = ""
+        var index = csv.startIndex
+        var insideQuotes = false
+
+        while index < csv.endIndex {
+            let character = csv[index]
+
+            if character == "\"" {
+                let nextIndex = csv.index(after: index)
+                if insideQuotes, nextIndex < csv.endIndex, csv[nextIndex] == "\"" {
+                    field.append("\"")
+                    index = csv.index(after: nextIndex)
+                    continue
+                }
+
+                insideQuotes.toggle()
+                index = nextIndex
+                continue
+            }
+
+            if !insideQuotes && (character == "," || character == "\n" || character == "\r") {
+                break
+            }
+
+            field.append(character)
+            index = csv.index(after: index)
+        }
+
+        return field.isEmpty ? nil : field
     }
 }

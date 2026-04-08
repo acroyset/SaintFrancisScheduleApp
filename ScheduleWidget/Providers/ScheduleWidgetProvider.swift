@@ -109,7 +109,7 @@ struct Provider: TimelineProvider {
         let dayCode = dayInfo[0]
         
         // 4. Load the class data
-        guard let data = loadScheduleData() else {
+        guard let data = loadScheduleData()?.normalized() else {
             print("❌ Widget: Failed to load schedule data")
             return ([], dayCode)
         }
@@ -275,6 +275,9 @@ struct Provider: TimelineProvider {
     private func shouldSwapLunchAndPeriod(dayIndex: Int, isSecondLunch: [Bool]) -> Bool {
         let daysWithLunchPeriodG = [0, 2, 4, 5, 6, 7, 8, 9]
         let daysWithLunchPeriodB = [1, 3]
-        return (isSecondLunch[0] && daysWithLunchPeriodG.contains(dayIndex)) || (isSecondLunch[1] && daysWithLunchPeriodB.contains(dayIndex))
+        let goldSecondLunch = isSecondLunch.indices.contains(0) ? isSecondLunch[0] : false
+        let brownSecondLunch = isSecondLunch.indices.contains(1) ? isSecondLunch[1] : false
+        return (goldSecondLunch && daysWithLunchPeriodG.contains(dayIndex))
+            || (brownSecondLunch && daysWithLunchPeriodB.contains(dayIndex))
     }
 }
