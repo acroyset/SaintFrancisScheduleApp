@@ -19,11 +19,11 @@ struct ScheduleWidget: Widget {
 #Preview(as: .systemSmall) {
     ScheduleWidget()
 } timeline: {
-    SimpleEntry(date: .now, lines: [], dayCode: "G1")
+    SimpleEntry(date: .now, lines: [], dayCode: "G1", nextClassText: "Next class on Monday April 13")
 }
 
 #Preview(as: .systemMedium) {
     ScheduleWidget()
 } timeline: {
-    SimpleEntry(date: .now, lines: [], dayCode: "G1")
+    SimpleEntry(date: .now, lines: [], dayCode: "G1", nextClassText: "Next class on Monday April 13")
 }

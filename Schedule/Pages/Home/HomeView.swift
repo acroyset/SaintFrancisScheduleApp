@@ -91,7 +91,8 @@ struct HomeView: View {
                             TertiaryColor: TertiaryColor,
                             note: note,
                             dayCode: dayCode,
-                            output: "",
+                            emptyTitle: nextClassEmptyTitle(),
+                            emptySubtitle: nextClassEmptySubtitle(),
                             isToday: isToday,
                             iPad: iPad,
                             scrollTarget: $scrollTarget,
@@ -274,6 +275,7 @@ struct HomeView: View {
         DayHeaderView(
             dayInfo: getDayInfo(for: dayCode),
             dayCode: dayCode,
+            isToday: isToday,
             PrimaryColor: PrimaryColor,
             SecondaryColor: SecondaryColor,
             TertiaryColor: TertiaryColor
@@ -393,5 +395,104 @@ struct HomeView: View {
 
     func getDayNumber(for currentDay: String) -> Int? {
         ["g1":0,"b1":1,"g2":2,"b2":3,"a1":4,"a2":5,"a3":6,"a4":7,"l1":8,"l2":9,"s1":10][currentDay.lowercased()]
+    }
+
+    private func nextClassEmptyTitle() -> String {
+        guard scheduleLines.isEmpty else {
+            return ""
+        }
+
+        guard let nextClassDate = nextClassDate(after: selectedDate) else {
+            return "No Classes"
+        }
+
+        return "Next class on \(formattedNextClassDate(nextClassDate, relativeTo: selectedDate))"
+    }
+
+    private func nextClassEmptySubtitle() -> String? {
+        guard scheduleLines.isEmpty,
+              let nextClassDate = nextClassDate(after: selectedDate) else {
+            return nil
+        }
+
+        return formattedNextClassDistance(nextClassDate, relativeTo: selectedDate)
+    }
+
+    private func nextClassDate(after date: Date) -> Date? {
+        guard let scheduleDict, data != nil else { return nil }
+
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: date)
+
+        for offset in 1...60 {
+            guard let candidate = calendar.date(byAdding: .day, value: offset, to: start) else { continue }
+            let key = scheduleKey(for: candidate)
+
+            guard let dayCode = scheduleDict[key]?[0],
+                  dayHasClasses(dayCode) else {
+                continue
+            }
+
+            return candidate
+        }
+
+        return nil
+    }
+
+    private func dayHasClasses(_ dayCode: String) -> Bool {
+        guard let day = getDayInfo(for: dayCode) else { return false }
+        return !day.names.isEmpty && !day.startTimes.isEmpty
+    }
+
+    private func formattedNextClassDate(_ date: Date, relativeTo referenceDate: Date) -> String {
+        let calendar = Calendar.current
+        let referenceStart = calendar.startOfDay(for: referenceDate)
+        let targetStart = calendar.startOfDay(for: date)
+        let dayDistance = calendar.dateComponents([.day], from: referenceStart, to: targetStart).day ?? 0
+
+        let formatter = DateFormatter()
+        formatter.locale = .current
+        formatter.dateFormat = dayDistance <= 6 ? "EEEE MMMM d" : "MMMM d"
+        return formatter.string(from: date)
+    }
+
+    private func formattedNextClassDistance(_ date: Date, relativeTo referenceDate: Date) -> String {
+        let calendar = Calendar.current
+        let referenceStart = calendar.startOfDay(for: referenceDate)
+        let targetStart = calendar.startOfDay(for: date)
+        let dayDistance = max(1, calendar.dateComponents([.day], from: referenceStart, to: targetStart).day ?? 1)
+
+        if dayDistance <= 6 {
+            return dayDistance == 1 ? "1 day away" : "\(dayDistance) days away"
+        }
+
+        if dayDistance <= 10 {
+            return "about a week away"
+        }
+
+        if dayDistance <= 24 {
+            let roundedWeeks = max(1.5, (Double(dayDistance) / 7.0 * 2).rounded() / 2)
+            if roundedWeeks == floor(roundedWeeks) {
+                return "\(Int(roundedWeeks)) weeks away"
+            }
+            return "\(roundedWeeks.formatted(.number.precision(.fractionLength(1)))) weeks away"
+        }
+
+        if dayDistance <= 34 {
+            return "less than a month away"
+        }
+
+        if dayDistance <= 44 {
+            return "more than a month away"
+        }
+
+        let monthsAway = max(2, Int((Double(dayDistance) / 30.0).rounded()))
+        return monthsAway == 1 ? "1 month away" : "\(monthsAway) months away"
+    }
+
+    private func scheduleKey(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MM-dd-yy"
+        return formatter.string(from: date)
     }
 }

@@ -7,7 +7,6 @@ import SwiftUI
 
 struct AuthenticationView: View {
     @StateObject private var authManager = AuthenticationManager()
-    @State private var isSignUp = false
     @State private var showOnboarding = false
     @State private var classesFromOnboarding: [ClassItem] = []
 
@@ -18,11 +17,7 @@ struct AuthenticationView: View {
                     .overlay(UpdatePromptView())
                     .environmentObject(authManager)
             } else {
-                if isSignUp {
-                    SignUpView(authManager: authManager, isSignUp: $isSignUp)
-                } else {
-                    SignInView(authManager: authManager, isSignUp: $isSignUp)
-                }
+                SignInView(authManager: authManager)
             }
         }
         // Privacy policy sheet

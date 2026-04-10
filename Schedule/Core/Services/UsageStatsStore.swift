@@ -9,6 +9,7 @@ import Combine
 struct UsageSessionRecord: Codable, Equatable, Hashable {
     let startedAt: Date
     let endedAt: Date
+    let appVersion: String
 
     var duration: TimeInterval {
         max(0, endedAt.timeIntervalSince(startedAt))
@@ -35,6 +36,6 @@ final class UsageStatsStore: ObservableObject {
 
         let endedAt = max(date, activeSessionStart)
         self.activeSessionStart = nil
-        return UsageSessionRecord(startedAt: activeSessionStart, endedAt: endedAt)
+        return UsageSessionRecord(startedAt: activeSessionStart, endedAt: endedAt, appVersion: version)
     }
 }

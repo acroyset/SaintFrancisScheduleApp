@@ -15,28 +15,31 @@ struct DayTypeEntry: TimelineEntry {
     let schoolStartTime: String
     let isTomorrow: Bool
     let hasClasses: Bool
+    let emptyMessage: String?
     let themeColors: ThemeColors?
 }
 
 struct DayTypeProvider: TimelineProvider {
     func placeholder(in context: Context) -> DayTypeEntry {
-        DayTypeEntry(date: Date(), dayCode: "G1", dayName: "Gold 1", schoolStartTime: "9:00 AM", isTomorrow: false, hasClasses: true, themeColors: nil)
+        DayTypeEntry(date: Date(), dayCode: "G1", dayName: "Gold 1", schoolStartTime: "9:00 AM", isTomorrow: false, hasClasses: true, emptyMessage: nil, themeColors: nil)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (DayTypeEntry) -> Void) {
-        let (dayCode, dayName, startTime, isTomorrow, hasClasses) = getDayInfo()
+        let (dayCode, dayName, startTime, isTomorrow, hasClasses, emptyMessage) = getDayInfo()
         completion(DayTypeEntry(date: Date(), dayCode: dayCode, dayName: dayName,
                                 schoolStartTime: startTime, isTomorrow: isTomorrow, hasClasses: hasClasses,
+                                emptyMessage: emptyMessage,
                                 themeColors: loadThemeColors()))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<DayTypeEntry>) -> Void) {
         let now = Date()
-        let (dayCode, dayName, startTime, isTomorrow, hasClasses) = getDayInfo()
+        let (dayCode, dayName, startTime, isTomorrow, hasClasses, emptyMessage) = getDayInfo()
         let theme = loadThemeColors()   // ← capture once at generation time
 
         let entry = DayTypeEntry(date: now, dayCode: dayCode, dayName: dayName,
                                  schoolStartTime: startTime, isTomorrow: isTomorrow, hasClasses: hasClasses,
+                                 emptyMessage: emptyMessage,
                                  themeColors: theme)
 
         var nextMidnight = Calendar.current.startOfDay(for: now)
@@ -46,13 +49,13 @@ struct DayTypeProvider: TimelineProvider {
         completion(timeline)
     }
     
-    private func getDayInfo() -> (String, String, String, Bool, Bool) {
+    private func getDayInfo() -> (String, String, String, Bool, Bool, String?) {
         let now = Date()
         let nowSec = secondsSinceMidnight(now)
         
         guard let scheduleDict = loadScheduleDict(),
               let data = loadScheduleData() else {
-            return ("", "No Schedule", "--:--", false, false)
+            return ("", "No Schedule", "--:--", false, false, nil)
         }
         
         // Check if there are any classes left today
@@ -66,15 +69,21 @@ struct DayTypeProvider: TimelineProvider {
         
         guard let dayInfo = scheduleDict[dateKey],
               dayInfo.count >= 1 else {
-            return ("", "No Classes", "--:--", isTomorrow, false)
+            let nextClassText = nextWidgetClassDate(after: targetDate, scheduleDict: scheduleDict, data: data)
+                .map { formattedWidgetNextClassText(for: $0, relativeTo: now) }
+            return ("", "No Classes", "--:--", isTomorrow, false, nextClassText)
         }
         
         let dayCode = dayInfo[0]
         let dayName = getDayName(dayCode)
         let startTime = getSchoolStartTime(dayCode: dayCode, data: data)
         let hasClasses = startTime != "--:--"
+        let emptyMessage = hasClasses
+            ? nil
+            : nextWidgetClassDate(after: targetDate, scheduleDict: scheduleDict, data: data)
+                .map { formattedWidgetNextClassText(for: $0, relativeTo: now) }
         
-        return (dayCode, dayName, startTime, isTomorrow, hasClasses)
+        return (dayCode, dayName, startTime, isTomorrow, hasClasses, emptyMessage)
     }
     
     private func hasRemainingClasses(dateKey: String, scheduleDict: [String: [String]], data: ScheduleData, nowSec: Int) -> Bool {
@@ -151,6 +160,10 @@ struct DayTypeProvider: TimelineProvider {
 struct DayTypeEntryView: View {
     var entry: DayTypeProvider.Entry
     @Environment(\.widgetFamily) var family
+
+    private var compactEmptyDateText: String? {
+        entry.emptyMessage?.replacingOccurrences(of: "Next class on ", with: "")
+    }
     
     var body: some View {
         let PrimaryColor  = Color(hex: entry.themeColors?.primary  ?? "#0A84FFFF")
@@ -159,19 +172,20 @@ struct DayTypeEntryView: View {
         VStack(spacing: 8) {
             if entry.isTomorrow && !entry.hasClasses {
                 Spacer()
-                Image(systemName: "moon.zzz.fill")
-                    .font(.system(size: 26, weight: .semibold))
+                Image(systemName: "calendar.badge.clock")
+                    .font(.system(size: 22, weight: .semibold))
                     .foregroundColor(TertiaryColor.opacity(0.9))
-                Text("No Classes")
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundColor(TertiaryColor)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.55)
-                    .allowsTightening(true)
-                Text("Tomorrow")
-                    .font(.system(size: 16, weight: .medium))
+                Text("Next Class")
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(TertiaryColor.opacity(0.8))
                     .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+
+                Text(compactEmptyDateText ?? "No Classes")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundColor(TertiaryColor)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
                     .minimumScaleFactor(0.7)
                     .allowsTightening(true)
                 Spacer()

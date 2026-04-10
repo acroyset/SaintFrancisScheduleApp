@@ -12,6 +12,7 @@ struct SimpleEntry: TimelineEntry, Hashable {
     let date: Date
     let lines: [ScheduleLine]
     let dayCode: String
+    let nextClassText: String?
     
     var isDataStale: Bool {
         let lastAppUpdate = SharedGroup.defaults.object(forKey: "LastAppDataUpdate") as? Date ?? Date.distantPast
@@ -22,9 +23,12 @@ struct SimpleEntry: TimelineEntry, Hashable {
     func hash(into hasher: inout Hasher) {
         hasher.combine(date)
         hasher.combine(dayCode)
+        hasher.combine(nextClassText)
     }
-    
+
     static func == (lhs: SimpleEntry, rhs: SimpleEntry) -> Bool {
-        return lhs.date == rhs.date && lhs.dayCode == rhs.dayCode
+        return lhs.date == rhs.date
+            && lhs.dayCode == rhs.dayCode
+            && lhs.nextClassText == rhs.nextClassText
     }
 }

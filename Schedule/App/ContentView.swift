@@ -8,14 +8,14 @@ import Foundation
 import UserNotifications
 
 let version = "1.17"
-let whatsNew = " - "
+let whatsNew = " - Bug Fixes"
 
 struct ContentView: View {
     @EnvironmentObject var authManager: AuthenticationManager
     @StateObject private var eventsManager = CustomEventsManager()
     @StateObject private var usageStats = UsageStatsStore.shared
 
-    private let persistence = ContentPersistenceService()
+    private let persistence = CloudService()
 
     @State private var themeDebounceTask: Task<Void, Never>?
     @State private var lastSavedTheme: ThemeColors?
@@ -697,6 +697,7 @@ struct ContentView: View {
         if scenePhase == .active {
             usageStats.beginSession()
         }
+        resetHomeDateToToday()
         loadData()
         if lastSeenVersion != version || isFirstLaunch {
             whatsNewPopup = true
@@ -708,6 +709,15 @@ struct ContentView: View {
             self.saveDataForWidget()
         }
         updateNightlyNotification()
+    }
+
+    private func resetHomeDateToToday() {
+        let today = Date()
+        selectedDate = today
+
+        if scheduleDict != nil {
+            applySelectedDate(today)
+        }
     }
 
     private func handleEventsChange(_: [CustomEvent], _: [CustomEvent]) {
@@ -726,6 +736,7 @@ struct ContentView: View {
         switch newPhase {
         case .active:
             usageStats.beginSession()
+            resetHomeDateToToday()
             saveDataForWidget()
             updateNightlyNotification()
             updateLiveActivity()

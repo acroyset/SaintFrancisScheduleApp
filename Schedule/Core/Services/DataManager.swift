@@ -100,7 +100,8 @@ class DataManager: ObservableObject {
     func appendUsageSessionToCloud(_ session: UsageSessionRecord, for userId: String) async throws {
         let sessionData: [String: Any] = [
             "startedAt": Timestamp(date: session.startedAt),
-            "endedAt": Timestamp(date: session.endedAt)
+            "endedAt": Timestamp(date: session.endedAt),
+            "appVersion": session.appVersion
         ]
 
         try await db.collection("users").document(userId).setData([

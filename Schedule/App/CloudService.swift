@@ -1,5 +1,5 @@
 //
-//  ContentPersistenceService.swift
+//  CloudService.swift
 //  Schedule
 //
 
@@ -33,7 +33,7 @@ struct PersistedScheduleState {
 }
 
 @MainActor
-final class ContentPersistenceService {
+final class CloudService {
     private let dataManager: DataManager
 
     init() {

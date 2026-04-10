@@ -423,6 +423,7 @@ struct Settings: View {
         }
         .padding(.vertical, 14)
     }
+
 }
 
 // MARK: - Dark mode toggle (kept for backward compat)

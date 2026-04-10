@@ -48,21 +48,6 @@ struct PolicyConsentSheet: View {
             }
             .foregroundColor(.blue)
 
-            // Warning for denial consequences
-            if !isRenewal {
-                Text("Declining will permanently delete your account.")
-                    .font(.caption)
-                    .foregroundColor(.red)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-            } else {
-                Text("Declining will sign you out of the app.")
-                    .font(.caption)
-                    .foregroundColor(.orange)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-            }
-
             // Action buttons
             HStack(spacing: 12) {
                 // Decline

@@ -11,12 +11,12 @@ import SwiftUI
 
 struct Provider: TimelineProvider {
     func placeholder(in context: Context) -> SimpleEntry {
-        SimpleEntry(date: Date(), lines: [], dayCode: "")
+        SimpleEntry(date: Date(), lines: [], dayCode: "", nextClassText: "Next class on Monday April 13")
     }
 
     func getSnapshot(in context: Context, completion: @escaping (SimpleEntry) -> Void) {
-        let (lines, dayCode) = loadTodaysSchedule()
-        completion(SimpleEntry(date: Date(), lines: lines, dayCode: dayCode))
+        let (lines, dayCode, nextClassText) = loadTodaysSchedule()
+        completion(SimpleEntry(date: Date(), lines: lines, dayCode: dayCode, nextClassText: nextClassText))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<SimpleEntry>) -> Void) {
@@ -24,12 +24,12 @@ struct Provider: TimelineProvider {
         let cal = Calendar.current
         
         // Get today's schedule
-        let (lines, dayCode) = loadTodaysSchedule()
+        let (lines, dayCode, nextClassText) = loadTodaysSchedule()
         
         var entries: [SimpleEntry] = []
         let nowSec = secondsSinceMidnight(now)
         
-        entries.append(SimpleEntry(date: now, lines: lines, dayCode: dayCode))
+        entries.append(SimpleEntry(date: now, lines: lines, dayCode: dayCode, nextClassText: nextClassText))
         
         let today = cal.startOfDay(for: now)
         
@@ -39,13 +39,13 @@ struct Provider: TimelineProvider {
             // Class start
             if startSec > nowSec {
                 let startTime = today.addingTimeInterval(TimeInterval(startSec))
-                entries.append(SimpleEntry(date: startTime, lines: lines, dayCode: dayCode))
+                entries.append(SimpleEntry(date: startTime, lines: lines, dayCode: dayCode, nextClassText: nextClassText))
             }
             
             // Class end
             if endSec > nowSec {
                 let endTime = today.addingTimeInterval(TimeInterval(endSec))
-                entries.append(SimpleEntry(date: endTime, lines: lines, dayCode: dayCode))
+                entries.append(SimpleEntry(date: endTime, lines: lines, dayCode: dayCode, nextClassText: nextClassText))
             }
             
             // During current class: add update every 1 minutes
@@ -54,7 +54,7 @@ struct Provider: TimelineProvider {
                 while nextMin < endSec {
                     let updateTime = today.addingTimeInterval(TimeInterval(nextMin))
                     if updateTime > now {
-                        entries.append(SimpleEntry(date: updateTime, lines: lines, dayCode: dayCode))
+                        entries.append(SimpleEntry(date: updateTime, lines: lines, dayCode: dayCode, nextClassText: nextClassText))
                     }
                     nextMin += 60 // Every 1 minutes
                 }
@@ -79,21 +79,21 @@ struct Provider: TimelineProvider {
         }
         
         // Create timeline with smart refresh policy
-        let timeline = Timeline(
-            entries: entries.isEmpty ? [SimpleEntry(date: now, lines: lines, dayCode: dayCode)] : entries,
+            let timeline = Timeline(
+            entries: entries.isEmpty ? [SimpleEntry(date: now, lines: lines, dayCode: dayCode, nextClassText: nextClassText)] : entries,
             policy: .after(nextMajorUpdate)
         )
         
         completion(timeline)
     }
     
-    private func loadTodaysSchedule() -> ([ScheduleLine], String) {
+    private func loadTodaysSchedule() -> ([ScheduleLine], String, String?) {
         let now = Date()
         
         // 1. Get the schedule dictionary from shared storage
         guard let scheduleDict = loadScheduleDict() else {
             print("❌ Widget: Failed to load schedule dictionary")
-            return ([], "")
+            return ([], "", nil)
         }
         
         // 2. Get today's date key
@@ -103,7 +103,11 @@ struct Provider: TimelineProvider {
         guard let dayInfo = scheduleDict[dateKey],
               dayInfo.count >= 1 else {
             print("❌ Widget: No schedule for \(dateKey)")
-            return ([], "")
+            let nextClassText = loadScheduleData().flatMap { data in
+                nextWidgetClassDate(after: now, scheduleDict: scheduleDict, data: data)
+                    .map { formattedWidgetNextClassText(for: $0, relativeTo: now) }
+            }
+            return ([], "", nextClassText)
         }
         
         let dayCode = dayInfo[0]
@@ -111,13 +115,17 @@ struct Provider: TimelineProvider {
         // 4. Load the class data
         guard let data = loadScheduleData()?.normalized() else {
             print("❌ Widget: Failed to load schedule data")
-            return ([], dayCode)
+            return ([], dayCode, nil)
         }
         
         // 5. Generate schedule lines for today
         let lines = generateScheduleLines(for: dayCode, data: data, date: now)
-        
-        return (lines, dayCode)
+        let nextClassText = lines.isEmpty
+            ? nextWidgetClassDate(after: now, scheduleDict: scheduleDict, data: data)
+                .map { formattedWidgetNextClassText(for: $0, relativeTo: now) }
+            : nil
+
+        return (lines, dayCode, nextClassText)
     }
     
     private func generateScheduleLines(for dayCode: String, data: ScheduleData, date: Date) -> [ScheduleLine] {

@@ -35,3 +35,53 @@ func loadThemeColors() -> ThemeColors? {
     guard let data = SharedGroup.defaults.data(forKey: "ThemeColors") else { return nil }
     return try? JSONDecoder().decode(ThemeColors.self, from: data)
 }
+
+func widgetDayCode(for date: Date, scheduleDict: [String: [String]]) -> String? {
+    scheduleDict[getKeyForDate(date)]?.first
+}
+
+func widgetDayHasClasses(on date: Date, scheduleDict: [String: [String]], data: ScheduleData) -> Bool {
+    guard let dayCode = widgetDayCode(for: date, scheduleDict: scheduleDict) else {
+        return false
+    }
+    return widgetDayHasClasses(dayCode: dayCode, data: data)
+}
+
+func widgetDayHasClasses(dayCode: String, data: ScheduleData) -> Bool {
+    let map = ["g1":0,"b1":1,"g2":2,"b2":3,"a1":4,"a2":5,"a3":6,"a4":7,"l1":8,"l2":9,"s1":10]
+
+    guard let index = map[dayCode.lowercased()],
+          data.days.indices.contains(index) else {
+        return false
+    }
+
+    let day = data.days[index]
+    return !day.names.isEmpty && !day.startTimes.isEmpty
+}
+
+func nextWidgetClassDate(after date: Date, scheduleDict: [String: [String]], data: ScheduleData) -> Date? {
+    let calendar = Calendar.current
+    let start = calendar.startOfDay(for: date)
+
+    for offset in 1...60 {
+        guard let candidate = calendar.date(byAdding: .day, value: offset, to: start) else { continue }
+        if widgetDayHasClasses(on: candidate, scheduleDict: scheduleDict, data: data) {
+            return candidate
+        }
+    }
+
+    return nil
+}
+
+func formattedWidgetNextClassText(for date: Date, relativeTo referenceDate: Date) -> String {
+    let calendar = Calendar.current
+    let referenceStart = calendar.startOfDay(for: referenceDate)
+    let targetStart = calendar.startOfDay(for: date)
+    let dayDistance = calendar.dateComponents([.day], from: referenceStart, to: targetStart).day ?? 0
+
+    let formatter = DateFormatter()
+    formatter.locale = .current
+    formatter.dateFormat = dayDistance <= 6 ? "EEEE MMMM d" : "MMMM d"
+
+    return "Next class on \(formatter.string(from: date))"
+}

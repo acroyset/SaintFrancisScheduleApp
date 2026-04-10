@@ -79,8 +79,9 @@ struct DateNavigator: View {
                         } label: {
                             Image(systemName: "chevron.left")
                                 .padding(.horizontal, 16)
-                                .padding(.vertical, 12)
+                                .padding(.vertical, 14)
                         }
+                        .frame(minWidth: 52, minHeight: 52)
                         .contentShape(Rectangle())
 
                         if iPad {
@@ -104,8 +105,9 @@ struct DateNavigator: View {
                         } label: {
                             Image(systemName: "chevron.right")
                                 .padding(.horizontal, 16)
-                                .padding(.vertical, 12)
+                                .padding(.vertical, 14)
                         }
+                        .frame(minWidth: 52, minHeight: 52)
                         .contentShape(Rectangle())
                     }
                     .padding(8)

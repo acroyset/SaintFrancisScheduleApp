@@ -12,7 +12,8 @@ struct ClassItemScroll: View {
     let TertiaryColor: Color
     let note: String
     let dayCode: String
-    let output: String
+    let emptyTitle: String
+    let emptySubtitle: String?
     let isToday: Bool
     let iPad: Bool
     
@@ -29,14 +30,15 @@ struct ClassItemScroll: View {
     
     let currentDate: Date
     
-    init(scheduleLines: [ScheduleLine], PrimaryColor: Color, SecondaryColor: Color, TertiaryColor: Color, note: String, dayCode: String, output: String, isToday: Bool, iPad: Bool, scrollTarget: Binding<Int?>, addEvent: Binding<Bool>, currentDate: Date = Date()) {
+    init(scheduleLines: [ScheduleLine], PrimaryColor: Color, SecondaryColor: Color, TertiaryColor: Color, note: String, dayCode: String, emptyTitle: String, emptySubtitle: String?, isToday: Bool, iPad: Bool, scrollTarget: Binding<Int?>, addEvent: Binding<Bool>, currentDate: Date = Date()) {
         self.scheduleLines = scheduleLines
         self.PrimaryColor = PrimaryColor
         self.SecondaryColor = SecondaryColor
         self.TertiaryColor = TertiaryColor
         self.note = note
         self.dayCode = dayCode
-        self.output = output
+        self.emptyTitle = emptyTitle
+        self.emptySubtitle = emptySubtitle
         self.isToday = isToday
         self.iPad = iPad
         self._scrollTarget = scrollTarget
@@ -68,14 +70,20 @@ struct ClassItemScroll: View {
             } else {
                 VStack {
                     Spacer()
-                    if output.isEmpty {
-                        Text("")
-                            .appThemeFont(.primary, style: .title2)
+                    VStack(spacing: 8) {
+                        Text(emptyTitle)
+                            .appThemeFont(.primary, size: iPad ? 32 : 24, weight: .bold)
                             .foregroundColor(PrimaryColor)
-                    } else {
-                        Text(output)
-                            .appThemeFont(.primary, style: .title2)
-                            .foregroundColor(PrimaryColor)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 24)
+
+                        if let emptySubtitle, !emptySubtitle.isEmpty {
+                            Text(emptySubtitle)
+                                .appThemeFont(.secondary, size: iPad ? 18 : 14, weight: .medium)
+                                .foregroundColor(PrimaryColor.opacity(0.65))
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 24)
+                        }
                     }
                     Spacer()
                 }

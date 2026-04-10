@@ -46,10 +46,10 @@ struct ScheduleWidgetEntryView: View {
             switch family {
             case .systemSmall:
                 let display = entry.lines.currentOrPrev(nowSec: nowSec)
-                smallWidgetView(display, dayCode: entry.dayCode, PrimaryColor: PrimaryColor, SecondaryColor: SecondaryColor, TertiaryColor: TertiaryColor)
+                smallWidgetView(display, dayCode: entry.dayCode, nextClassText: entry.nextClassText, PrimaryColor: PrimaryColor, SecondaryColor: SecondaryColor, TertiaryColor: TertiaryColor)
             default:
                 let display = entry.lines.currentAndNextOrPrev(nowSec: nowSec)
-                mediumLargeWidgetView(display, dayCode: entry.dayCode, date: entry.date, PrimaryColor: PrimaryColor, SecondaryColor: SecondaryColor, TertiaryColor: TertiaryColor)
+                mediumLargeWidgetView(display, dayCode: entry.dayCode, nextClassText: entry.nextClassText, date: entry.date, PrimaryColor: PrimaryColor, SecondaryColor: SecondaryColor, TertiaryColor: TertiaryColor)
             }
         }
         .modifier(WidgetBackground(background: TertiaryColor))
@@ -60,6 +60,7 @@ struct ScheduleWidgetEntryView: View {
     private func smallWidgetView(
         _ line: ScheduleLine?,
         dayCode: String,
+        nextClassText: String?,
         PrimaryColor: Color,
         SecondaryColor: Color,
         TertiaryColor: Color
@@ -143,10 +144,11 @@ struct ScheduleWidgetEntryView: View {
                     .foregroundColor(PrimaryColor)
                     .font(.system(size: 24))
                 
-                Text("No Classes")
-                    .font(.system(size: 13, weight: .semibold))
+                Text(nextClassText ?? "No Classes")
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(PrimaryColor)
-                    .lineLimit(1)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(3)
                     .minimumScaleFactor(0.6)
                     .allowsTightening(true)
             }
@@ -160,6 +162,7 @@ struct ScheduleWidgetEntryView: View {
     private func mediumLargeWidgetView(
         _ display: [ScheduleLine],
         dayCode: String,
+        nextClassText: String?,
         date: Date,
         PrimaryColor: Color,
         SecondaryColor: Color,
@@ -169,6 +172,7 @@ struct ScheduleWidgetEntryView: View {
             if display.isEmpty {
                 emptyScheduleView(
                     dayCode: dayCode,
+                    nextClassText: nextClassText,
                     PrimaryColor: PrimaryColor
                 )
             } else {
@@ -187,7 +191,7 @@ struct ScheduleWidgetEntryView: View {
     }
     
     @ViewBuilder
-    private func emptyScheduleView(dayCode: String, PrimaryColor: Color) -> some View {
+    private func emptyScheduleView(dayCode: String, nextClassText: String?, PrimaryColor: Color) -> some View {
         VStack {
             if !dayCode.isEmpty {
                 Text(dayCode.uppercased())
@@ -201,10 +205,11 @@ struct ScheduleWidgetEntryView: View {
             Image(systemName: "calendar.badge.clock")
                 .foregroundColor(PrimaryColor)
                 .font(.title2)
-            Text("No Classes Today")
+            Text(nextClassText ?? "No Classes Today")
                 .font(.system(size: 14, weight: .medium))
                 .foregroundColor(PrimaryColor)
-                .lineLimit(1)
+                .multilineTextAlignment(.center)
+                .lineLimit(3)
                 .minimumScaleFactor(0.55)
                 .allowsTightening(true)
         }
