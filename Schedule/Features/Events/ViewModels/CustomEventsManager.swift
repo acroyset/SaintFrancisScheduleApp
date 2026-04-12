@@ -21,6 +21,7 @@ class CustomEventsManager: ObservableObject {
     private let userDefaults = UserDefaults.standard
     private let eventsKey    = "CustomEvents"
     private var authManager: AuthenticationManager?
+    private var isPurgingExpiredReminders = false
 
     init() {
         loadEvents()
@@ -37,6 +38,7 @@ class CustomEventsManager: ObservableObject {
             let data = try JSONEncoder().encode(events)
             userDefaults.set(data, forKey: eventsKey)
             SharedGroup.defaults.set(data, forKey: "CustomEvents")
+            NotificationManager.shared.scheduleReminderNotifications(for: events)
 
             if authManager?.user != nil {
                 Task { await saveToCloudAsync() }
@@ -50,6 +52,8 @@ class CustomEventsManager: ObservableObject {
         guard let data = userDefaults.data(forKey: eventsKey) else { return }
         do {
             events = try JSONDecoder().decode([CustomEvent].self, from: data)
+            purgeExpiredReminders()
+            NotificationManager.shared.scheduleReminderNotifications(for: events)
         } catch {
             print("❌ Failed to load custom events: \(error)")
         }
@@ -78,7 +82,10 @@ class CustomEventsManager: ObservableObject {
                 let cloudEvents = try await CloudEventsDataManager().loadEvents(for: userId)
                 if !cloudEvents.isEmpty {
                     events = cloudEvents
+                    purgeExpiredReminders()
                     saveEvents()
+                } else {
+                    NotificationManager.shared.scheduleReminderNotifications(for: events)
                 }
             } catch {
                 print("❌ Failed to load events from cloud: \(error)")
@@ -123,7 +130,27 @@ class CustomEventsManager: ObservableObject {
     // MARK: - Event Filtering
 
     func eventsFor(dayCode: String, date: Date) -> [CustomEvent] {
-        events.filter { $0.appliesTo(dayCode: dayCode, date: date) }
+        purgeExpiredReminders()
+        return events.filter { $0.appliesTo(dayCode: dayCode, date: date) }
+    }
+
+    func purgeExpiredReminders(referenceDate: Date = Date()) {
+        guard !isPurgingExpiredReminders else { return }
+
+        let filteredEvents = events.filter { event in
+            guard event.isReminder,
+                  let reminderEndDate = event.reminderEndDate else {
+                return true
+            }
+            return reminderEndDate > referenceDate
+        }
+
+        guard filteredEvents.count != events.count else { return }
+
+        isPurgingExpiredReminders = true
+        events = filteredEvents
+        saveEvents()
+        isPurgingExpiredReminders = false
     }
 
     // MARK: - Conflict Detection

@@ -9,7 +9,8 @@ import FirebaseAuth
 
 struct ProfileMenu: View {
     @EnvironmentObject var authManager: AuthenticationManager
-    @StateObject private var dataManager = DataManager()
+    @EnvironmentObject private var eventsManager: CustomEventsManager
+    private let persistence = CloudService()
     @Binding var data: ScheduleData?
     @Binding var tutorial: TutorialState
     
@@ -22,11 +23,12 @@ struct ProfileMenu: View {
     var isPortrait: Bool
     
     @State private var showingDeleteAlert = false
-    @State private var isLoadingSync = false
-    @State private var isLoadingLoad = false
+    @State private var isSaving = false
+    @State private var isLoading = false
     @State private var syncMessage = ""
     @State private var showSyncMessage = false
     @State private var showSettings = false
+    @State private var showAllItems = false
     
     /// Detect Google accounts safely — only evaluated when the view
     /// is fully alive and authManager.user is already set.
@@ -92,17 +94,17 @@ struct ProfileMenu: View {
                         .transition(.opacity)
                     }
                     
-                    // Manual Sync Button
+                    // Manual Save Button
                     Button {
-                        sync()
+                        save()
                     } label: {
                         HStack {
-                            if isLoadingSync {
+                            if isSaving {
                                 ProgressView().scaleEffect(0.8)
                             } else {
-                                Image(systemName: "arrow.clockwise")
+                                Image(systemName: "square.and.arrow.down")
                             }
-                            Text("Sync to Cloud")
+                            Text("Save")
                         }
                         .frame(maxWidth: .infinity, minHeight: iPad ? 44 : 30)
                         .padding()
@@ -110,18 +112,18 @@ struct ProfileMenu: View {
                         .foregroundColor(PrimaryColor)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
-                    .disabled(isLoadingSync)
+                    .disabled(isSaving)
                     
                     Button {
                         load()
                     } label: {
                         HStack {
-                            if isLoadingLoad {
+                            if isLoading {
                                 ProgressView().scaleEffect(0.8)
                             } else {
-                                Image(systemName: "arrow.clockwise")
+                                Image(systemName: "arrow.down.circle")
                             }
-                            Text("Load from Cloud")
+                            Text("Load")
                         }
                         .frame(maxWidth: .infinity, minHeight: iPad ? 44 : 30)
                         .padding()
@@ -129,7 +131,7 @@ struct ProfileMenu: View {
                         .foregroundColor(PrimaryColor)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
-                    .disabled(isLoadingLoad)
+                    .disabled(isLoading)
                     
                     Divider()
                     
@@ -139,6 +141,22 @@ struct ProfileMenu: View {
                         HStack {
                             Image(systemName: "questionmark.circle")
                             Text("Start Tutorial")
+                                .appThemeFont(.secondary, size: iPad ? 28 : 18, weight: .bold)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                        }
+                        .padding(12)
+                        .foregroundStyle(PrimaryColor)
+                        .background(SecondaryColor)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
+
+                    Button {
+                        showAllItems = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "tray.full")
+                            Text("View Events & Reminders")
                                 .appThemeFont(.secondary, size: iPad ? 28 : 18, weight: .bold)
                             Spacer()
                             Image(systemName: "chevron.right")
@@ -230,6 +248,15 @@ struct ProfileMenu: View {
                 .background(TertiaryColor)
             }
         )
+        .sheet(isPresented: $showAllItems) {
+            AllItemsView(
+                scheduleDict: nil,
+                PrimaryColor: PrimaryColor,
+                SecondaryColor: SecondaryColor,
+                TertiaryColor: TertiaryColor
+            )
+            .environmentObject(eventsManager)
+        }
         .sheet(isPresented: $authManager.needsReauthForDeletion) {
             ReauthDeleteSheet(
                 authManager: authManager,
@@ -246,16 +273,15 @@ struct ProfileMenu: View {
         }
     }
     
-    // MARK: - Cloud sync
+    // MARK: - Save / Load
     
-    private func sync() {
-        guard let user = authManager.user,
-              let scheduleData = data else {
-            showMessage("❌ No data to sync")
+    private func save() {
+        guard let scheduleData = data else {
+            showMessage("❌ No data to save")
             return
         }
         
-        isLoadingSync = true
+        isSaving = true
         showSyncMessage = false
         
         Task {
@@ -263,65 +289,113 @@ struct ProfileMenu: View {
                 let theme = ThemeColors(
                     primary: PrimaryColor.toHex() ?? "#00A5FFFF",
                     secondary: SecondaryColor.toHex() ?? "#00A5FF19",
-                    tertiary: TertiaryColor.toHex() ?? "#FFFFFFFF"
+                    tertiary: TertiaryColor.toHex() ?? "#FFFFFFFF",
+                    primaryFont: primaryFontChoice,
+                    secondaryFont: secondaryFontChoice
                 )
-                try await dataManager.saveToCloud(
+                try await persistence.saveAppState(
                     classes: scheduleData.classes,
                     theme: theme,
                     isSecondLunch: scheduleData.isSecondLunch,
-                    for: user.id
+                    events: eventsManager.events,
+                    userId: authManager.user?.id
                 )
                 await MainActor.run {
-                    showMessage("✅ Synced successfully")
-                    isLoadingSync = false
+                    let message = authManager.user == nil
+                        ? "✅ Saved on this device"
+                        : "✅ Saved on this device and the cloud"
+                    showMessage(message)
+                    isSaving = false
                 }
             } catch {
                 await MainActor.run {
-                    showMessage(" Sync failed: \(error.localizedDescription)")
-                    isLoadingSync = false
+                    showMessage(" Save failed: \(error.localizedDescription)")
+                    isSaving = false
                 }
             }
         }
     }
     
     private func load() {
-        guard let user = authManager.user else {
-            showMessage("❌ Not signed in")
-            return
-        }
-        
-        isLoadingLoad = true
+        isLoading = true
         showSyncMessage = false
         
         Task {
             do {
-                let (cloudClasses, theme, isSecondLunch) = try await dataManager.loadFromCloud(for: user.id)
-                await MainActor.run {
-                    if !cloudClasses.isEmpty {
-                        if var currentData = self.data {
-                            currentData.classes = cloudClasses
-                            currentData.isSecondLunch = isSecondLunch
-                            self.data = currentData
-                        }
-                        overwriteClassesFile(with: cloudClasses)
+                guard let appState = try await persistence.loadAppState(
+                    userId: authManager.user?.id,
+                    parseClass: parseClass,
+                    parseDays: parseDays
+                ) else {
+                    await MainActor.run {
+                        showMessage("❌ No saved data found")
+                        isLoading = false
                     }
+                    return
+                }
+
+                await MainActor.run {
+                    self.data = appState.schedule.normalizedData
+                    let theme = ThemeColors(
+                        primary: appState.schedule.theme.primary,
+                        secondary: appState.schedule.theme.secondary,
+                        tertiary: appState.schedule.theme.tertiary,
+                        primaryFont: appState.schedule.theme.primaryFontChoice,
+                        secondaryFont: appState.schedule.theme.secondaryFontChoice
+                    )
                     self.PrimaryColor = Color(hex: theme.primary)
                     self.SecondaryColor = Color(hex: theme.secondary)
                     self.TertiaryColor = Color(hex: theme.tertiary)
-                    if let themeData = try? JSONEncoder().encode(theme) {
-                        UserDefaults.standard.set(themeData, forKey: "LocalTheme")
-                        SharedGroup.defaults.set(themeData, forKey: "ThemeColors")
-                    }
-                    showMessage("✅ Loaded successfully")
-                    isLoadingLoad = false
+                    self.primaryFontChoice = theme.primaryFontChoice
+                    self.secondaryFontChoice = theme.secondaryFontChoice
+                    self.eventsManager.events = appState.events
+                    self.eventsManager.saveEvents()
+
+                    let message = authManager.user == nil
+                        ? "✅ Loaded from this device"
+                        : "✅ Loaded from cloud or local backup"
+                    showMessage(message)
+                    isLoading = false
                 }
             } catch {
                 await MainActor.run {
                     showMessage(" Load failed: \(error.localizedDescription)")
-                    isLoadingLoad = false
+                    isLoading = false
                 }
             }
         }
+    }
+
+    private func parseClass(_ line: String) -> ClassItem {
+        let parts = line.split(separator: "-").map { $0.trimmingCharacters(in: .whitespaces) }
+        if parts.count == 4 { return ClassItem(name: parts[3], teacher: parts[1], room: parts[2]) }
+        if parts.count == 3 { return ClassItem(name: parts[0], teacher: parts[1], room: parts[2]) }
+        return ClassItem(name: "None", teacher: "None", room: "None")
+    }
+
+    private func parseDays(_ contents: String) -> [Day] {
+        var days: [Day] = []
+        var currentDay = Day()
+
+        for raw in contents.split(whereSeparator: \.isNewline) {
+            let line = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            if line == "$end" {
+                days.append(currentDay)
+                currentDay = Day()
+                continue
+            }
+
+            let parts = line.split(separator: "-").map { String($0).trimmingCharacters(in: .whitespaces) }
+            if parts.count == 3 {
+                currentDay.names.append(parts[0])
+                currentDay.startTimes.append(Time(parts[1]))
+                currentDay.endTimes.append(Time(parts[2]))
+            } else if let first = parts.first {
+                currentDay.name = first
+            }
+        }
+
+        return days
     }
     
     private func showMessage(_ message: String) {

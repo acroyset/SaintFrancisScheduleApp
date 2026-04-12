@@ -12,57 +12,35 @@ let whatsNew = " - Bug Fixes"
 
 struct ContentView: View {
     @EnvironmentObject var authManager: AuthenticationManager
+    @StateObject private var appStore = GlobalDataStore()
     @StateObject private var eventsManager = CustomEventsManager()
     @StateObject private var usageStats = UsageStatsStore.shared
 
-    private let persistence = CloudService()
-
-    @State private var themeDebounceTask: Task<Void, Never>?
-    @State private var lastSavedTheme: ThemeColors?
-
-    @State private var output = "Loading…"
-    @State private var dayCode = ""
-    @State private var note = ""
-    @State var scheduleDict: [String: [String]]? = nil
-    @State private var hasTriedFetchingSchedule = false
-    @State private var scheduleLines: [ScheduleLine] = []
-    @State private var data: ScheduleData? = nil
     var onboardingClasses: [ClassItem] = []
-    @State private var selectedDate = Date()
+
     @State private var scrollTarget: Int? = nil
     @State private var showCalendarGrid = false
     @State private var whatsNewPopup = false
     @State private var lastSeenVersion: String = UserDefaults.standard.string(forKey: "LastSeenVersion") ?? ""
     @State private var isFirstLaunch: Bool = !UserDefaults.standard.bool(forKey: "HasLaunchedBefore")
-    @State private var scheduleLoadError: String? = nil
-    @State private var scheduleRetryAttempt: Int = 0
 
     @State private var addEvent = false
-    @State private var window: Window = Window.Home
-
-    @State private var PrimaryColor: Color = .blue
-    @State private var SecondaryColor: Color = .blue.opacity(0.1)
-    @State private var TertiaryColor: Color = .primary
-    @State private var primaryFontChoice: AppFontChoice = .rounded
-    @State private var secondaryFontChoice: AppFontChoice = .rounded
-
+    @State private var addReminder = false
+    @State private var window: Window = .Home
     @State private var isPortrait: Bool = !iPad
-    @State private var hasLoadedFromCloud = false
     @State private var tutorial = TutorialState.Hidden
 
     let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     @Environment(\.scenePhase) private var scenePhase
 
-    // MARK: - Body
-
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottom) {
                 Background(
-                    PrimaryColor: PrimaryColor,
-                    SecondaryColor: SecondaryColor,
-                    TertiaryColor: TertiaryColor
+                    PrimaryColor: appStore.primaryColor,
+                    SecondaryColor: appStore.secondaryColor,
+                    TertiaryColor: appStore.tertiaryColor
                 )
                 .onTapGesture(perform: handleBackgroundTap)
 
@@ -75,9 +53,9 @@ struct ContentView: View {
 
                 ToolBar(
                     window: $window,
-                    PrimaryColor: PrimaryColor,
-                    SecondaryColor: SecondaryColor,
-                    TertiaryColor: TertiaryColor
+                    PrimaryColor: appStore.primaryColor,
+                    SecondaryColor: appStore.secondaryColor,
+                    TertiaryColor: appStore.tertiaryColor
                 )
                 .zIndex(1000)
 
@@ -85,47 +63,44 @@ struct ContentView: View {
             }
             .padding(.top)
             .padding(.horizontal)
-            .background(TertiaryColor.ignoresSafeArea())
+            .background(appStore.tertiaryColor.ignoresSafeArea())
             .background(orientationReader)
-            .animation(.easeInOut(duration: 0.1), value: dayCode)
+            .animation(.easeInOut(duration: 0.1), value: appStore.dayCode)
             .onAppear(perform: handleAppear)
             .onChange(of: eventsManager.events, handleEventsChange)
-            .onChange(of: dayCode, handleDayCodeChange)
+            .onChange(of: appStore.dayCode, handleDayCodeChange)
             .onChange(of: scenePhase, handleScenePhaseChange)
             .onChange(of: window, handleWindowChange)
             .onChange(of: onboardingClasses, handleOnboardingClassesChange)
-            .onChange(of: PrimaryColor)  { _, _ in saveTheme() }
-            .onChange(of: SecondaryColor){ _, _ in saveTheme() }
-            .onChange(of: TertiaryColor) { _, _ in saveTheme() }
-            .onChange(of: primaryFontChoice) { _, _ in saveTheme() }
-            .onChange(of: secondaryFontChoice) { _, _ in saveTheme() }
-            .onChange(of: NotificationSettings.isEnabled) { _, _ in updateNightlyNotification() }
-            .onChange(of: NotificationSettings.time)      { _, _ in updateNightlyNotification() }
+            .onChange(of: appStore.primaryColor) { _, _ in appStore.saveTheme(authManager: authManager) }
+            .onChange(of: appStore.secondaryColor) { _, _ in appStore.saveTheme(authManager: authManager) }
+            .onChange(of: appStore.tertiaryColor) { _, _ in appStore.saveTheme(authManager: authManager) }
+            .onChange(of: appStore.primaryFontChoice) { _, _ in appStore.saveTheme(authManager: authManager) }
+            .onChange(of: appStore.secondaryFontChoice) { _, _ in appStore.saveTheme(authManager: authManager) }
+            .onChange(of: NotificationSettings.isEnabled) { _, _ in appStore.updateNightlyNotification() }
+            .onChange(of: NotificationSettings.time) { _, _ in appStore.updateNightlyNotification() }
             .onChange(of: authManager.user?.id, handleUserChange)
             .onReceive(ticker) { _ in
-                render()
-                saveScheduleLinesWithEvents()
-                saveDataForWidget()
-                updateLiveActivity()
+                eventsManager.purgeExpiredReminders()
+                appStore.syncDerivedOutputs(events: eventsManager.events)
+                scrollTarget = appStore.scrollTargetForCurrentSchedule()
 
                 let now = Date()
-                let lastWidgetCheck = SharedGroup.defaults.object(forKey: "LastWidgetCheck") as? Date ?? Date.distantPast
+                let lastWidgetCheck = SharedGroup.defaults.object(forKey: "LastWidgetCheck") as? Date ?? .distantPast
                 if now.timeIntervalSince(lastWidgetCheck) > 30 {
                     SharedGroup.defaults.set(now, forKey: "LastWidgetCheck")
                     handleWidgetRefreshRequest()
                 }
             }
         }
-        .environment(\.appTheme, currentTheme)
+        .environment(\.appTheme, appStore.currentTheme)
     }
-
-    // MARK: - Top Header
 
     @ViewBuilder
     private var topHeader: some View {
         Text("Version - \(version)\nBugs / Ideas - Email acroyset@gmail.com")
-            .font(currentTheme.font(.secondary, size: iPad ? 12 : 10, weight: .regular))
-            .foregroundStyle(TertiaryColor.highContrastTextColor())
+            .font(appStore.currentTheme.font(.secondary, size: iPad ? 12 : 10, weight: .regular))
+            .foregroundStyle(appStore.tertiaryColor.highContrastTextColor())
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 16)
             .onTapGesture {
@@ -137,15 +112,13 @@ struct ContentView: View {
             }
     }
 
-    // MARK: - Overlays
-
     @ViewBuilder
     private var overlays: some View {
-        if tutorial != TutorialState.Hidden {
+        if tutorial != .Hidden {
             TutorialView(
                 tutorial: $tutorial,
-                PrimaryColor: PrimaryColor,
-                TertiaryColor: TertiaryColor,
+                PrimaryColor: appStore.primaryColor,
+                TertiaryColor: appStore.tertiaryColor,
                 onStart: { window = .Home }
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -163,12 +136,13 @@ struct ContentView: View {
                         UserDefaults.standard.set(version, forKey: "LastSeenVersion")
                     }
                 }
+
             WhatsNewView(
                 whatsNewPopup: $whatsNewPopup,
                 tutorial: $tutorial,
-                PrimaryColor: PrimaryColor,
-                SecondaryColor: SecondaryColor,
-                TertiaryColor: TertiaryColor,
+                PrimaryColor: appStore.primaryColor,
+                SecondaryColor: appStore.secondaryColor,
+                TertiaryColor: appStore.tertiaryColor,
                 isFirstLaunch: isFirstLaunch,
                 whatsNew: whatsNew
             )
@@ -176,22 +150,22 @@ struct ContentView: View {
             .zIndex(3000)
         }
 
-        if scheduleRetryAttempt > 0 {
+        if appStore.scheduleRetryAttempt > 0 {
             VStack(spacing: 8) {
-                SpinningGear(color: PrimaryColor)
+                SpinningGear(color: appStore.primaryColor)
                 Text("Loading...")
                     .appThemeFont(.secondary, size: 13, weight: .medium)
-                    .foregroundStyle(PrimaryColor.opacity(0.8))
+                    .foregroundStyle(appStore.primaryColor.opacity(0.8))
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let error = scheduleLoadError {
+        } else if let error = appStore.scheduleLoadError {
             VStack(spacing: 8) {
                 Image(systemName: "wifi.exclamationmark")
                     .appThemeFont(.primary, size: 32)
-                    .foregroundStyle(PrimaryColor.opacity(0.6))
+                    .foregroundStyle(appStore.primaryColor.opacity(0.6))
                 Text(error)
                     .appThemeFont(.secondary, size: 14, weight: .medium)
-                    .foregroundStyle(PrimaryColor.opacity(0.8))
+                    .foregroundStyle(appStore.primaryColor.opacity(0.8))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
             }
@@ -205,27 +179,30 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - Main Content
-
     @ViewBuilder
     private var mainContentView: some View {
         switch window {
         case .Home:
             HomeView(
-                selectedDate: $selectedDate,
+                selectedDate: selectedDateBinding,
                 showCalendarGrid: $showCalendarGrid,
                 scrollTarget: $scrollTarget,
                 addEvent: $addEvent,
-                dayCode: dayCode,
-                note: note,
-                scheduleLines: scheduleLines,
-                scheduleDict: scheduleDict,
-                data: data,
-                PrimaryColor: PrimaryColor,
-                SecondaryColor: SecondaryColor,
-                TertiaryColor: TertiaryColor,
+                addReminder: $addReminder,
+                dayCode: appStore.dayCode,
+                note: appStore.note,
+                scheduleLines: appStore.scheduleLines,
+                scheduleDict: appStore.scheduleDict,
+                data: appStore.data,
+                PrimaryColor: appStore.primaryColor,
+                SecondaryColor: appStore.secondaryColor,
+                TertiaryColor: appStore.tertiaryColor,
                 isPortrait: isPortrait,
-                onDatePick: applySelectedDate(_:))
+                onDatePick: { date in
+                    appStore.applySelectedDate(date, events: eventsManager.events)
+                    scrollTarget = appStore.scrollTargetForCurrentSchedule()
+                }
+            )
             .onTapGesture {
                 withAnimation(.snappy) {
                     showCalendarGrid = false
@@ -237,138 +214,64 @@ struct ContentView: View {
 
         case .News:
             NewsMenu(
-                PrimaryColor: PrimaryColor,
-                SecondaryColor: SecondaryColor,
-                TertiaryColor: TertiaryColor
+                PrimaryColor: appStore.primaryColor,
+                SecondaryColor: appStore.secondaryColor,
+                TertiaryColor: appStore.tertiaryColor
             )
 
         case .ClassesView:
             ClassesView(
                 data: Binding(
-                    get: { (data ?? ScheduleData(classes: [], days: [])).normalized() },
+                    get: { (appStore.data ?? ScheduleData(classes: [], days: [])).normalized() },
                     set: { newValue in
-                        data = newValue.normalized()
-                        saveSchedule()
+                        appStore.data = newValue.normalized()
+                        appStore.saveSchedule(authManager: authManager)
                     }
                 ),
-                PrimaryColor: PrimaryColor,
-                SecondaryColor: SecondaryColor,
-                TertiaryColor: TertiaryColor,
+                PrimaryColor: appStore.primaryColor,
+                SecondaryColor: appStore.secondaryColor,
+                TertiaryColor: appStore.tertiaryColor,
                 isPortrait: isPortrait
             )
 
         case .Profile:
             ProfileMenu(
-                data: $data,
+                data: Binding(
+                    get: { appStore.data },
+                    set: { appStore.data = $0 }
+                ),
                 tutorial: $tutorial,
-                PrimaryColor: $PrimaryColor,
-                SecondaryColor: $SecondaryColor,
-                TertiaryColor: $TertiaryColor,
-                primaryFontChoice: $primaryFontChoice,
-                secondaryFontChoice: $secondaryFontChoice,
+                PrimaryColor: Binding(
+                    get: { appStore.primaryColor },
+                    set: { appStore.primaryColor = $0 }
+                ),
+                SecondaryColor: Binding(
+                    get: { appStore.secondaryColor },
+                    set: { appStore.secondaryColor = $0 }
+                ),
+                TertiaryColor: Binding(
+                    get: { appStore.tertiaryColor },
+                    set: { appStore.tertiaryColor = $0 }
+                ),
+                primaryFontChoice: Binding(
+                    get: { appStore.primaryFontChoice },
+                    set: { appStore.primaryFontChoice = $0 }
+                ),
+                secondaryFontChoice: Binding(
+                    get: { appStore.secondaryFontChoice },
+                    set: { appStore.secondaryFontChoice = $0 }
+                ),
                 iPad: iPad,
                 isPortrait: isPortrait
             )
         }
     }
 
-    // MARK: - Firebase / Cloud
-
-    private func loadData() {
-        guard data == nil else { return }
-        applyLocalData()
-        syncCloudData()
-        eventsManager.setAuthManager(authManager)
-        loadEventsFromCloud()
-        if !hasTriedFetchingSchedule {
-            hasTriedFetchingSchedule = true
-            fetchScheduleFromGoogleSheets()
-        }
-    }
-
-    private func saveThemeLocally(_ theme: ThemeColors) {
-        persistence.saveThemeLocally(theme)
-    }
-
-    private func saveTheme() {
-        let theme = ThemeColors(
-            primary: PrimaryColor.toHex() ?? "#00A5FFFF",
-            secondary: SecondaryColor.toHex() ?? "#00A5FF19",
-            tertiary: TertiaryColor.toHex() ?? "#FFFFFFFF",
-            primaryFont: primaryFontChoice,
-            secondaryFont: secondaryFontChoice
+    private var selectedDateBinding: Binding<Date> {
+        Binding(
+            get: { appStore.selectedDate },
+            set: { appStore.selectedDate = $0 }
         )
-        saveThemeLocally(theme)
-        if authManager.user != nil { debouncedCloudSave(theme: theme) }
-    }
-
-    private func debouncedCloudSave(theme: ThemeColors) {
-        themeDebounceTask?.cancel()
-        if let lastTheme = lastSavedTheme,
-           lastTheme.primary == theme.primary,
-           lastTheme.secondary == theme.secondary,
-           lastTheme.tertiary == theme.tertiary,
-           lastTheme.primaryFont == theme.primaryFont,
-           lastTheme.secondaryFont == theme.secondaryFont { return }
-        themeDebounceTask = Task {
-            do {
-                try await Task.sleep(nanoseconds: 2_000_000_000)
-                if !Task.isCancelled, authManager.user != nil {
-                    saveSchedule()
-                    await MainActor.run { lastSavedTheme = theme }
-                }
-            } catch {}
-        }
-    }
-
-    private func applyLocalData() {
-        guard let localState = persistence.loadLocalSchedule(
-            parseClass: parseClass,
-            parseDays: parseDays
-        ) else {
-            output = "Days.txt not found in bundle."; return
-        }
-        applyScheduleState(localState, overwriteClasses: false)
-        applyOnboardingClassesIfNeeded()
-    }
-
-    private func syncCloudData() {
-        guard let user = authManager.user, !hasLoadedFromCloud else { return }
-        Task {
-            do {
-                guard let days = data?.days else { return }
-                let cloudState = try await persistence.loadCloudScheduleState(for: user.id, days: days)
-                await MainActor.run {
-                    if !cloudState.classes.isEmpty {
-                        self.applyScheduleState(cloudState)
-                    } else {
-                        self.applyThemeState(cloudState.theme)
-                    }
-                    self.saveDataForWidget()
-                    self.hasLoadedFromCloud = true
-                }
-            } catch {
-                print("❌ Failed to load from cloud: \(error)")
-            }
-        }
-    }
-
-    private func saveSchedule() {
-        guard let user = authManager.user, let data = data else { return }
-        Task {
-            do {
-                let theme = currentTheme
-                try await persistence.saveScheduleToCloud(
-                    classes: data.classes,
-                    theme: theme,
-                    isSecondLunch: data.isSecondLunch,
-                    userId: user.id
-                )
-                DispatchQueue.main.async { overwriteClassesFile(with: data.classes) }
-            } catch {
-                print("❌ Failed to save classes to cloud: \(error)")
-            }
-        }
     }
 
     private func appendEndedUsageSession() {
@@ -377,136 +280,11 @@ struct ContentView: View {
 
         Task {
             do {
-                try await persistence.appendUsageSessionToCloud(session, for: userId)
+                try await CloudService().appendUsageSessionToCloud(session, for: userId)
             } catch {
                 print("❌ Failed to append usage session: \(error)")
             }
         }
-    }
-
-    private func touchLastUpdated() {
-        guard let userId = authManager.user?.id else { return }
-        Task {
-            do {
-                try await persistence.touchCloudLastUpdated(for: userId)
-            } catch {
-                print("❌ Failed to update lastUpdated: \(error)")
-            }
-        }
-    }
-
-    // MARK: - Helpers
-
-    func getDayInfo(for currentDay: String) -> Day? {
-        let di = getDayNumber(for: currentDay) ?? 0
-        return data?.days[di]
-    }
-
-    private func applyThemeState(_ themeState: PersistedThemeState) {
-        PrimaryColor = Color(hex: themeState.primary)
-        SecondaryColor = Color(hex: themeState.secondary)
-        TertiaryColor = Color(hex: themeState.tertiary)
-        primaryFontChoice = themeState.primaryFontChoice
-        secondaryFontChoice = themeState.secondaryFontChoice
-    }
-
-    private func applyScheduleState(_ scheduleState: PersistedScheduleState, overwriteClasses: Bool = true) {
-        data = scheduleState.normalizedData
-        applyThemeState(scheduleState.theme)
-        saveThemeLocally(currentTheme)
-        if overwriteClasses {
-            overwriteClassesFile(with: scheduleState.normalizedData.classes)
-        }
-    }
-
-    func getTomorrowsDayCode() -> String {
-        guard let scheduleDict = scheduleDict else { return "Unknown" }
-        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date())!
-        let formatter = DateFormatter()
-        formatter.timeZone = .current
-        formatter.dateFormat = "MM-dd-yy"
-        return scheduleDict[formatter.string(from: tomorrow)]?[0] ?? "Unknown"
-    }
-
-    private func getDayNumber(for currentDay: String) -> Int? {
-        let map = ["g1":0,"b1":1,"g2":2,"b2":3,"a1":4,"a2":5,"a3":6,"a4":7,"l1":8,"l2":9,"s1":10]
-        guard let di = map[currentDay.lowercased()],
-              let data = data,
-              data.days.indices.contains(di) else { return nil }
-        return di
-    }
-
-    private func applySelectedDate(_ date: Date) {
-        selectedDate = date
-        let key = getKeyToday()
-        if let day = scheduleDict?[key] {
-            dayCode = day[0]
-            note = day[1]
-            SharedGroup.defaults.set(dayCode, forKey: "CurrentDayCode")
-            render()
-            DispatchQueue.main.async { self.scrollTarget = ScheduleRenderer.shared.currentClassIndex(in: self.scheduleLines) ?? 0 }
-            output = ""
-        } else {
-            output = "No schedule found for \(key)"
-            dayCode = "None"
-            SharedGroup.defaults.set("", forKey: "CurrentDayCode")
-            render()
-        }
-    }
-
-    private func getKeyToday() -> String {
-        let f = DateFormatter()
-        f.calendar = .current
-        f.timeZone = .current
-        f.dateFormat = "MM-dd-yy"
-        return f.string(from: selectedDate)
-    }
-
-    private func parseClass(_ line: String) -> ClassItem {
-        let parts = line.split(separator: "-").map { $0.trimmingCharacters(in: .whitespaces) }
-        if parts.count == 4 { return ClassItem(name: parts[3], teacher: parts[1], room: parts[2]) }
-        if parts.count == 3 { return ClassItem(name: parts[0], teacher: parts[1], room: parts[2]) }
-        return ClassItem(name: "None", teacher: "None", room: "None")
-    }
-
-    private func parseDays(_ contents: String) -> [Day] {
-        var days: [Day] = []; var cur = Day()
-        for raw in contents.split(whereSeparator: \.isNewline) {
-            let line = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-            if line == "$end" { days.append(cur); cur = Day(); continue }
-            let parts = line.split(separator: "-").map { String($0).trimmingCharacters(in: .whitespaces) }
-            if parts.count == 3 {
-                cur.names.append(parts[0])
-                cur.startTimes.append(Time(parts[1]))
-                cur.endTimes.append(Time(parts[2]))
-            } else { cur.name = parts[0] }
-        }
-        return days
-    }
-
-    private func parseCSV(_ csvString: String) {
-        guard let tempDict = CSVParser.parseScheduleCSV(csvString) else {
-            DispatchQueue.main.async { self.output = "Failed to load schedule." }
-            return
-        }
-        DispatchQueue.main.async {
-            self.scheduleDict = tempDict
-            self.applySelectedDate(self.selectedDate)
-            if let dictData = try? JSONEncoder().encode(tempDict) {
-                SharedGroup.defaults.set(dictData, forKey: "ScheduleDict")
-            }
-            self.updateNightlyNotification()
-            self.saveDataForWidget()
-        }
-    }
-    
-    private func render() {
-        scheduleLines = ScheduleRenderer.shared.render(
-            dayCode: dayCode,
-            selectedDate: selectedDate,
-            data: data ?? ScheduleData(classes: [], days: []),
-            events: eventsManager.events
-        )
     }
 
     private func updateOrientation(for size: CGSize) {
@@ -514,174 +292,17 @@ struct ContentView: View {
         isPortrait = size.height > size.width
     }
 
-    private func refreshAllData() async {
-        await fetchScheduleFromGoogleSheetsAsync()
-        if let user = authManager.user {
-            do {
-                let (cloudClasses, theme, _) = try await persistence.loadScheduleFromCloud(for: user.id)
-                DispatchQueue.main.async {
-                    if !cloudClasses.isEmpty, var currentData = self.data {
-                        currentData.classes = cloudClasses
-                        self.data = currentData.normalized()
-                        overwriteClassesFile(with: self.data?.classes ?? cloudClasses)
-                    }
-                    self.PrimaryColor = Color(hex: theme.primary)
-                    self.SecondaryColor = Color(hex: theme.secondary)
-                    self.TertiaryColor = Color(hex: theme.tertiary)
-                    self.primaryFontChoice = theme.primaryFontChoice
-                    self.secondaryFontChoice = theme.secondaryFontChoice
-                    SharedGroup.defaults.set(Date(), forKey: "LastAppDataUpdate")
-                    self.render()
-                    self.saveScheduleLinesWithEvents()
-                    self.saveThemeLocally(theme)
-                }
-            } catch { print("❌ Failed to refresh from cloud: \(error)") }
-        }
-    }
-
-    private func fetchScheduleFromGoogleSheets() {
-        Task { await fetchWithRetry(attempt: 1) }
-    }
-
-    private func fetchWithRetry(attempt: Int, maxAttempts: Int = 10) async {
-        let csvURL = "https://docs.google.com/spreadsheets/d/1vrodfGZP7wNooj8VYgpNejPaLvOl8PUyg82hwWz_uU4/export?format=csv&gid=0"
-        guard let url = URL(string: csvURL) else { return }
-        do {
-            let (data, response) = try await URLSession.shared.data(from: url)
-            if let http = response as? HTTPURLResponse, http.statusCode != 200 {
-                throw URLError(.badServerResponse)
-            }
-            guard let csv = String(data: data, encoding: .utf8) else {
-                throw URLError(.cannotDecodeContentData)
-            }
-            DispatchQueue.main.async {
-                self.scheduleRetryAttempt = 0
-                self.scheduleLoadError = nil
-                self.parseCSV(csv)
-                self.applySelectedDate(self.selectedDate)
-                self.saveDataForWidget()
-            }
-        } catch {
-            if attempt < maxAttempts {
-                DispatchQueue.main.async {
-                    self.scheduleRetryAttempt = attempt
-                }
-                try? await Task.sleep(nanoseconds: 2 * 1_000_000_000)
-                await fetchWithRetry(attempt: attempt + 1, maxAttempts: maxAttempts)
-            } else {
-                DispatchQueue.main.async {
-                    self.scheduleRetryAttempt = 0
-                    self.scheduleLoadError = "Could not load schedule. Close and reopen the app to try again."
-                }
-            }
-        }
-    }
-
-    private func fetchScheduleFromGoogleSheetsAsync() async {
-        await fetchWithRetry(attempt: 1)
-    }
-
-    private func saveEventsToCloud() { eventsManager.saveToCloud(using: authManager) }
-    private func loadEventsFromCloud() { eventsManager.loadFromCloud(using: authManager) }
-
-    func updateNightlyNotification() {
-        // Get tomorrow's day code
-        let tomorrow  = Calendar.current.date(byAdding: .day, value: 1, to: Date())!
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MM-dd-yy"
-        let key     = formatter.string(from: tomorrow)
-        let rawCode = (scheduleDict?[key] ?? ["", ""])[0]
- 
-        // Extract first period class info from tomorrow's schedule
-        var firstName = ""
-        var firstTime = ""
-        var firstRoom = ""
- 
-        if let scheduleData = data, !rawCode.isEmpty {
-            let dayMap = ["g1":0,"b1":1,"g2":2,"b2":3,
-                          "a1":4,"a2":5,"a3":6,"a4":7,
-                          "l1":8,"l2":9,"s1":10]
-            if let di = dayMap[rawCode.lowercased()],
-               scheduleData.days.indices.contains(di) {
-                let day = scheduleData.days[di]
-                // Find first numbered period ($1–$7)
-                for i in day.names.indices {
-                    let nameRaw = day.names[i]
-                    if nameRaw.hasPrefix("$"),
-                       let idx = Int(nameRaw.dropFirst()),
-                       (1...7).contains(idx),
-                       idx <= scheduleData.classes.count {
-                        let c = scheduleData.classes[idx - 1]
-                        if c.name != "Period \(idx)" && c.name != "None" {
-                            firstName = c.name
-                            firstTime = day.startTimes[i].string()
-                            firstRoom = (c.room == "N" || c.room.isEmpty) ? "" : c.room
-                            break
-                        }
-                    }
-                }
-            }
-        }
- 
-        NotificationManager.shared.scheduleNightly(
-            dayCode:        rawCode,
-            firstClassName: firstName,
-            firstClassTime: firstTime,
-            firstClassRoom: firstRoom
-        )
-    }
-    
-    private func applyOnboardingClassesIfNeeded() {
-        guard !onboardingClasses.isEmpty else { return }
-        guard var currentData = data else { return }
-        for (i, item) in onboardingClasses.enumerated() {
-            guard i < currentData.classes.count else { break }
-            // Only overwrite fields the user actually filled in
-            let name = item.name.trimmingCharacters(in: .whitespaces)
-            let teacher = item.teacher.trimmingCharacters(in: .whitespaces)
-            let room = item.room.trimmingCharacters(in: .whitespaces)
-            if !name.isEmpty    { currentData.classes[i].name    = name }
-            if !teacher.isEmpty { currentData.classes[i].teacher = teacher }
-            if !room.isEmpty    { currentData.classes[i].room    = room }
-        }
-
-        data = currentData
-        overwriteClassesFile(with: currentData.classes)
-        saveDataForWidget()
-    }
-    
-    private func saveDataForWidget() {
-        WidgetManager.shared.saveData(
-            scheduleDict: scheduleDict,
-            data: data,
-            dayCode: dayCode
-        )
-    }
-
-    private func saveScheduleLinesWithEvents() {
-        WidgetManager.shared.saveScheduleLinesWithEvents(
-            scheduleLines: scheduleLines,
-            events: eventsManager.events,
-            dayCode: dayCode,
-            selectedDate: selectedDate
-        )
+    private func saveEventsToCloud() {
+        eventsManager.saveToCloud(using: authManager)
     }
 
     private func handleWidgetRefreshRequest() {
         WidgetManager.shared.handleRefreshRequestIfNeeded {
-            await self.refreshAllData()
+            await appStore.refreshAllData(
+                authManager: authManager,
+                events: eventsManager.events
+            )
         }
-    }
-
-    private func updateLiveActivity() {
-        let isToday = Calendar.current.isDateInToday(selectedDate)
-        let dayName = getDayInfo(for: dayCode)?.name ?? dayCode
-        WidgetManager.shared.updateLiveActivity(
-            scheduleLines: scheduleLines,
-            dayCode: dayCode,
-            dayName: dayName,
-            isToday: isToday
-        )
     }
 
     private func handleBackgroundTap() {
@@ -697,54 +318,53 @@ struct ContentView: View {
         if scenePhase == .active {
             usageStats.beginSession()
         }
-        resetHomeDateToToday()
-        loadData()
+
+        appStore.resetHomeDateToToday(events: eventsManager.events)
+        appStore.loadData(
+            authManager: authManager,
+            eventsManager: eventsManager,
+            onboardingClasses: onboardingClasses
+        )
+        scrollTarget = appStore.scrollTargetForCurrentSchedule()
+
         if lastSeenVersion != version || isFirstLaunch {
             whatsNewPopup = true
         }
         if isFirstLaunch {
             UserDefaults.standard.set(true, forKey: "HasLaunchedBefore")
         }
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            self.saveDataForWidget()
+            appStore.syncDerivedOutputs(events: eventsManager.events)
         }
-        updateNightlyNotification()
-    }
 
-    private func resetHomeDateToToday() {
-        let today = Date()
-        selectedDate = today
-
-        if scheduleDict != nil {
-            applySelectedDate(today)
-        }
+        eventsManager.purgeExpiredReminders()
+        appStore.updateNightlyNotification()
     }
 
     private func handleEventsChange(_: [CustomEvent], _: [CustomEvent]) {
-        render()
-        saveScheduleLinesWithEvents()
-        saveDataForWidget()
+        appStore.syncDerivedOutputs(events: eventsManager.events)
+        scrollTarget = appStore.scrollTargetForCurrentSchedule()
         saveEventsToCloud()
     }
 
     private func handleDayCodeChange(oldDay: String, newDay: String) {
         guard oldDay != newDay else { return }
-        updateLiveActivity()
+        appStore.syncDerivedOutputs(events: eventsManager.events)
     }
 
     private func handleScenePhaseChange(oldPhase: ScenePhase, newPhase: ScenePhase) {
         switch newPhase {
         case .active:
             usageStats.beginSession()
-            resetHomeDateToToday()
-            saveDataForWidget()
-            updateNightlyNotification()
-            updateLiveActivity()
-            touchLastUpdated()
+            appStore.resetHomeDateToToday(events: eventsManager.events)
+            appStore.syncDerivedOutputs(events: eventsManager.events)
+            appStore.updateNightlyNotification()
+            appStore.touchLastUpdated(authManager: authManager)
         case .background:
             appendEndedUsageSession()
-            saveDataForWidget()
-            updateNightlyNotification()
+            appStore.syncDerivedOutputs(events: eventsManager.events)
+            appStore.updateNightlyNotification()
         case .inactive:
             appendEndedUsageSession()
         default:
@@ -761,16 +381,16 @@ struct ContentView: View {
 
     private func handleOnboardingClassesChange(_: [ClassItem], newClasses: [ClassItem]) {
         guard !newClasses.isEmpty else { return }
-        applyOnboardingClassesIfNeeded()
-        saveSchedule()
+        appStore.applyOnboardingClassesIfNeeded(newClasses)
+        appStore.saveSchedule(authManager: authManager)
     }
 
     private func handleUserChange(_: String?, userId: String?) {
-        themeDebounceTask?.cancel()
+        appStore.handleUserChange(userId)
         usageStats.setUserScope(userId)
-        touchLastUpdated()
+        appStore.touchLastUpdated(authManager: authManager)
     }
-    
+
     private struct SpinningGear: View {
         let color: Color
         @State private var rotation: Double = 0
@@ -781,10 +401,7 @@ struct ContentView: View {
                 .foregroundStyle(color.opacity(0.6))
                 .rotationEffect(.degrees(rotation))
                 .onAppear {
-                    withAnimation(
-                        .linear(duration: 1.5)
-                        .repeatForever(autoreverses: false)
-                    ) {
+                    withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
                         rotation = 360
                     }
                 }
@@ -804,17 +421,5 @@ struct ContentView: View {
                     onChange(newSize)
                 }
         }
-    }
-}
-
-private extension ContentView {
-    var currentTheme: ThemeColors {
-        ThemeColors(
-            primary: PrimaryColor.toHex() ?? "#00A5FFFF",
-            secondary: SecondaryColor.toHex() ?? "#00A5FF19",
-            tertiary: TertiaryColor.toHex() ?? "#FFFFFFFF",
-            primaryFont: primaryFontChoice,
-            secondaryFont: secondaryFontChoice
-        )
     }
 }

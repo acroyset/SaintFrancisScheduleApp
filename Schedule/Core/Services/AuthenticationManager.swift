@@ -242,18 +242,29 @@ class AuthenticationManager: ObservableObject {
 
     private func handleAppleSignInError(_ error: Error) -> String {
         if let authorizationError = error as? ASAuthorizationError {
-            switch authorizationError.code {
-            case .canceled:
+            switch authorizationError.code.rawValue {
+            case ASAuthorizationError.canceled.rawValue:
                 return "Apple Sign In was canceled."
-            case .failed, .unknown:
+            case ASAuthorizationError.failed.rawValue,
+                 ASAuthorizationError.unknown.rawValue:
                 return "Apple Sign In failed. Make sure the app target has the Sign in with Apple capability, the App ID for \(Bundle.main.bundleIdentifier ?? "this app") has Sign in with Apple enabled in Apple Developer, and the device or simulator is signed into iCloud."
-            case .invalidResponse:
+            case ASAuthorizationError.invalidResponse.rawValue:
                 return "Apple Sign In returned an invalid response. Please try again."
-            case .notHandled:
+            case ASAuthorizationError.notHandled.rawValue:
                 return "Apple Sign In could not be completed. Please try again."
-            case .notInteractive:
+            case ASAuthorizationError.notInteractive.rawValue:
                 return "Apple Sign In is not available right now. Try again from an active app screen."
-            @unknown default:
+            case 1006:
+                return "This Apple account is excluded for the requested sign-in. Try a different account or remove the excluded credential."
+            case 1007:
+                return "Apple credential import failed. Please try again."
+            case 1008:
+                return "Apple credential export failed. Please try again."
+            case 1009:
+                return "Use Sign in with Apple to continue with this account."
+            case 1010:
+                return "This device is not configured for passkey creation. Check your Apple account and passkey settings, then try again."
+            default:
                 return authorizationError.localizedDescription
             }
         }

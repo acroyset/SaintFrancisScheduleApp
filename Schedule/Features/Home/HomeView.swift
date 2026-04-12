@@ -19,6 +19,7 @@ struct HomeView: View {
     @Binding var showCalendarGrid: Bool
     @Binding var scrollTarget: Int?
     @Binding var addEvent: Bool
+    @Binding var addReminder: Bool
 
     let dayCode: String
     let note: String
@@ -56,7 +57,7 @@ struct HomeView: View {
                 .offset(x: dragX)
 
             if isPortrait && scheduleDict != nil {
-                addEventFAB
+                actionButtonsFAB
             }
         }
         .clipped()
@@ -97,6 +98,7 @@ struct HomeView: View {
                             iPad: iPad,
                             scrollTarget: $scrollTarget,
                             addEvent: $addEvent,
+                            addReminder: $addReminder,
                             currentDate: selectedDate
                         )
                         .id(pageID)
@@ -199,7 +201,7 @@ struct HomeView: View {
                                 nowNextSection
                             }
                             VStack { dateNav }
-                            VStack { addEventInline }
+                            reminderButtonStack
                         }
                     } else {
                         VStack(spacing: 6) {
@@ -220,7 +222,7 @@ struct HomeView: View {
                                 nowNextSection
                             }
                             VStack { dateNav }
-                            VStack { addEventInline }
+                            reminderButtonStack
                         }
                     } else {
                         VStack(spacing: 6) {
@@ -324,13 +326,21 @@ struct HomeView: View {
     }
 
     @ViewBuilder
+    private var reminderButtonStack: some View {
+        VStack(spacing: 12) {
+            addEventInline
+            addReminderInline
+        }
+    }
+
+    @ViewBuilder
     private var addEventInline: some View {
         if #available(iOS 26.0, *), AppAvailability.liquidGlass {
             Button { addEvent = true } label: {
                 HStack(spacing: 12) {
                     Image(systemName: "plus.circle.fill")
                         .appThemeFont(.primary, size: iPad ? 24 : 20, weight: .semibold)
-                    if iPad { Text("Add Personal Event").appThemeFont(.primary, size: 20, weight: .semibold) }
+                    if iPad { Text("Event").appThemeFont(.primary, size: 20, weight: .semibold) }
                 }
                 .foregroundColor(TertiaryColor).padding(12)
             }
@@ -342,45 +352,123 @@ struct HomeView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "plus.circle.fill")
                         .appThemeFont(.primary, size: iPad ? 24 : 20, weight: .semibold)
-                    if iPad { Text("Add Personal Event").appThemeFont(.primary, size: 20, weight: .semibold) }
+                    if iPad { Text("Event").appThemeFont(.primary, size: 20, weight: .semibold) }
                 }
                 .padding(8).foregroundColor(TertiaryColor).frame(maxWidth: .infinity)
                 .padding(16).background(PrimaryColor).cornerRadius(16).shadow(radius: 8)
             }
-            .padding(.horizontal, iPad ? 40 : 24).padding(.bottom, 80)
+            .padding(.horizontal, iPad ? 40 : 24)
         }
     }
 
     @ViewBuilder
-    private var addEventFAB: some View {
+    private var addReminderInline: some View {
         if #available(iOS 26.0, *), AppAvailability.liquidGlass {
-            Button { addEvent = true } label: {
+            Button { addReminder = true } label: {
                 HStack(spacing: 12) {
-                    Image(systemName: "plus.circle.fill")
+                    Image(systemName: "bell.badge.fill")
                         .appThemeFont(.primary, size: iPad ? 24 : 20, weight: .semibold)
-                    Text("Add Personal Event")
-                        .appThemeFont(.primary, size: iPad ? 20 : 16, weight: .semibold)
+                    if iPad { Text("Reminder").appThemeFont(.primary, size: 20, weight: .semibold) }
                 }
-                .foregroundColor(TertiaryColor).frame(maxWidth: .infinity)
-                .padding(.vertical, iPad ? 18 : 14)
-                .padding(.horizontal, iPad ? 28 : 20)
+                .foregroundColor(TertiaryColor)
+                .padding(12)
             }
+            .padding(iPad ? 16 : 8)
             .glassEffect(.regular.tint(PrimaryColor.opacity(headerGlassTintOpacity)))
+            .padding(.horizontal, iPad ? 40 : 24)
+        } else {
+            Button { addReminder = true } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "bell.badge.fill")
+                        .appThemeFont(.primary, size: iPad ? 24 : 20, weight: .semibold)
+                    if iPad { Text("Reminder").appThemeFont(.primary, size: 20, weight: .semibold) }
+                }
+                .padding(8)
+                .foregroundColor(TertiaryColor)
+                .frame(maxWidth: .infinity)
+                .padding(16)
+                .background(PrimaryColor)
+                .cornerRadius(16)
+                .shadow(radius: 8)
+            }
+            .padding(.horizontal, iPad ? 40 : 24)
+        }
+    }
+
+    @ViewBuilder
+    private var actionButtonsFAB: some View {
+        if #available(iOS 26.0, *), AppAvailability.liquidGlass {
+            HStack(spacing: 12) {
+                Button { addEvent = true } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "plus.circle.fill")
+                            .appThemeFont(.primary, size: iPad ? 24 : 20, weight: .semibold)
+                        Text("Event")
+                            .appThemeFont(.primary, size: iPad ? 20 : 16, weight: .semibold)
+                            .lineLimit(1)
+                    }
+                    .foregroundColor(TertiaryColor)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, iPad ? 18 : 14)
+                    .padding(.horizontal, iPad ? 28 : 16)
+                }
+                .glassEffect(.regular.tint(PrimaryColor.opacity(headerGlassTintOpacity)))
+
+                Button { addReminder = true } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "bell.badge.fill")
+                            .appThemeFont(.primary, size: iPad ? 24 : 20, weight: .semibold)
+                        Text("Reminder")
+                            .appThemeFont(.primary, size: iPad ? 20 : 16, weight: .semibold)
+                            .lineLimit(1)
+                    }
+                    .foregroundColor(TertiaryColor)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, iPad ? 18 : 14)
+                    .padding(.horizontal, iPad ? 28 : 16)
+                }
+                .glassEffect(.regular.tint(PrimaryColor.opacity(headerGlassTintOpacity)))
+            }
             .padding(.horizontal, iPad ? 40 : 24)
             .padding(.bottom, iPad ? 80 : 70)
             .zIndex(5)
         } else {
-            Button { addEvent = true } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: "plus.circle.fill")
-                        .appThemeFont(.primary, size: iPad ? 24 : 20, weight: .semibold)
-                    Text("Add Personal Event")
-                        .appThemeFont(.primary, size: iPad ? 20 : 16, weight: .semibold)
+            HStack(spacing: 12) {
+                Button { addEvent = true } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "plus.circle.fill")
+                            .appThemeFont(.primary, size: iPad ? 24 : 20, weight: .semibold)
+                        Text("Event")
+                            .appThemeFont(.primary, size: iPad ? 20 : 16, weight: .semibold)
+                            .lineLimit(1)
+                    }
+                    .foregroundColor(TertiaryColor)
+                    .frame(maxWidth: .infinity)
+                    .padding(16)
+                    .background(PrimaryColor)
+                    .cornerRadius(16)
+                    .shadow(radius: 8)
                 }
-                .foregroundColor(TertiaryColor).frame(maxWidth: .infinity)
-                .padding(16).background(PrimaryColor).cornerRadius(16).shadow(radius: 8)
+
+                Button { addReminder = true } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "bell.badge.fill")
+                            .appThemeFont(.primary, size: iPad ? 24 : 20, weight: .semibold)
+                        Text("Reminder")
+                            .appThemeFont(.primary, size: iPad ? 20 : 16, weight: .semibold)
+                            .lineLimit(1)
+                    }
+                    .foregroundColor(TertiaryColor)
+                    .frame(maxWidth: .infinity)
+                    .padding(16)
+                    .background(PrimaryColor)
+                    .cornerRadius(16)
+                    .shadow(radius: 8)
+                }
             }
-            .padding(.horizontal, iPad ? 40 : 24).padding(.bottom, 80).zIndex(5)
+            .padding(.horizontal, iPad ? 40 : 24)
+            .padding(.bottom, 80)
+            .zIndex(5)
         }
     }
 
@@ -404,6 +492,10 @@ struct HomeView: View {
 
         guard let nextClassDate = nextClassDate(after: selectedDate) else {
             return "No Classes"
+        }
+
+        if isTomorrow(nextClassDate, relativeTo: selectedDate) {
+            return "Next class tomorrow \(formattedNextClassDate(nextClassDate, relativeTo: selectedDate))"
         }
 
         return "Next class on \(formattedNextClassDate(nextClassDate, relativeTo: selectedDate))"
@@ -463,7 +555,7 @@ struct HomeView: View {
         let dayDistance = max(1, calendar.dateComponents([.day], from: referenceStart, to: targetStart).day ?? 1)
 
         if dayDistance <= 6 {
-            return dayDistance == 1 ? "1 day away" : "\(dayDistance) days away"
+            return dayDistance == 1 ? "" : "\(dayDistance) days away"
         }
 
         if dayDistance <= 10 {
@@ -488,6 +580,14 @@ struct HomeView: View {
 
         let monthsAway = max(2, Int((Double(dayDistance) / 30.0).rounded()))
         return monthsAway == 1 ? "1 month away" : "\(monthsAway) months away"
+    }
+
+    private func isTomorrow(_ date: Date, relativeTo referenceDate: Date) -> Bool {
+        let calendar = Calendar.current
+        let referenceStart = calendar.startOfDay(for: referenceDate)
+        let targetStart = calendar.startOfDay(for: date)
+        let dayDistance = calendar.dateComponents([.day], from: referenceStart, to: targetStart).day ?? 0
+        return dayDistance == 1
     }
 
     private func scheduleKey(for date: Date) -> String {

@@ -32,6 +32,8 @@ func fancyDayName(_ code: String) -> String {
 
 class NotificationManager {
     static let shared = NotificationManager()
+    private let reminderPrefix = "custom-reminder-"
+    private let schedulePrefixes = ["nightly-", "morning-"]
 
     // Track last successfully scheduled values so we only reschedule
     // when something meaningful has actually changed.
@@ -88,20 +90,52 @@ class NotificationManager {
     // MARK: - Cancel
 
     func cancelAllNotifications() {
+        cancelScheduleNotifications()
+    }
+
+    func cancelScheduleNotifications() {
         let center = UNUserNotificationCenter.current()
-        center.removeAllPendingNotificationRequests()
-        center.removeAllDeliveredNotifications()
+        center.getPendingNotificationRequests { requests in
+            let ids = requests
+                .map(\.identifier)
+                .filter { id in
+                    self.schedulePrefixes.contains(where: { id.hasPrefix($0) })
+                }
+
+            if !ids.isEmpty {
+                center.removePendingNotificationRequests(withIdentifiers: ids)
+            }
+        }
         // Reset tracking so next enable reschedules immediately
         lastScheduledDayCode = ""
         lastScheduledTime    = .distantPast
     }
 
+    func scheduleReminderNotifications(for events: [CustomEvent]) {
+        let center = UNUserNotificationCenter.current()
+
+        center.getPendingNotificationRequests { requests in
+            let existingReminderIDs = requests
+                .map(\.identifier)
+                .filter { $0.hasPrefix(self.reminderPrefix) }
+
+            if !existingReminderIDs.isEmpty {
+                center.removePendingNotificationRequests(withIdentifiers: existingReminderIDs)
+            }
+
+            let reminderEvents = events.filter { $0.isReminder && !$0.reminderOffsets.isEmpty }
+            for event in reminderEvents {
+                self.scheduleReminderNotifications(for: event, using: center)
+            }
+        }
+    }
+
     func cleanupExpiredNotifications() {
-        let prefixes = ["nightly-", "morning-"]
         UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
             let now = Date()
             let expired = requests.compactMap { req -> String? in
-                guard prefixes.contains(where: { req.identifier.hasPrefix($0) }),
+                guard self.schedulePrefixes.contains(where: { req.identifier.hasPrefix($0) }) ||
+                        req.identifier.hasPrefix(self.reminderPrefix),
                       let trigger = req.trigger as? UNCalendarNotificationTrigger,
                       let next = trigger.nextTriggerDate(),
                       next < now
@@ -284,6 +318,77 @@ class NotificationManager {
         UNUserNotificationCenter.current().add(request) { err in
             if let err { print("❌ Morning notification error: \(err)") }
         }
+    }
+
+    private func scheduleReminderNotifications(
+        for event: CustomEvent,
+        using center: UNUserNotificationCenter
+    ) {
+        guard let eventDate = event.firstApplicableDate else { return }
+
+        let calendar = Calendar.current
+        var baseComponents = calendar.dateComponents([.year, .month, .day], from: eventDate)
+        baseComponents.hour = event.startTime.h
+        baseComponents.minute = event.startTime.m
+        baseComponents.second = event.startTime.s
+
+        guard let startDate = calendar.date(from: baseComponents) else { return }
+
+        for offset in event.reminderOffsets {
+            let triggerDate = startDate.addingTimeInterval(TimeInterval(-offset.secondsBefore))
+            guard triggerDate > Date() else { continue }
+
+            let content = UNMutableNotificationContent()
+            content.title = event.title
+            content.body = reminderBody(for: event, offset: offset, startDate: startDate)
+            content.sound = .default
+            content.interruptionLevel = .timeSensitive
+
+            let triggerComponents = calendar.dateComponents(
+                [.year, .month, .day, .hour, .minute, .second],
+                from: triggerDate
+            )
+
+            let request = UNNotificationRequest(
+                identifier: "\(reminderPrefix)\(event.id.uuidString)-\(offset.rawValue)",
+                content: content,
+                trigger: UNCalendarNotificationTrigger(dateMatching: triggerComponents, repeats: false)
+            )
+
+            center.add(request) { err in
+                if let err {
+                    print("❌ Reminder notification error: \(err)")
+                }
+            }
+        }
+    }
+
+    private func reminderBody(for event: CustomEvent, offset: ReminderOffset, startDate: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+
+        let whenText: String
+        switch offset {
+        case .atTime:
+            whenText = "Now"
+        case .tenMinutes:
+            whenText = "In 10 minutes"
+        case .thirtyMinutes:
+            whenText = "In 30 minutes"
+        case .oneHour:
+            whenText = "In 1 hour"
+        case .twoHours:
+            whenText = "In 2 hours"
+        case .oneDay:
+            whenText = "Day before"
+        }
+
+        var body = "\(whenText) • \(formatter.string(from: startDate))"
+        if !event.note.isEmpty {
+            body += " • \(event.note)"
+        }
+        return body
     }
 }
 

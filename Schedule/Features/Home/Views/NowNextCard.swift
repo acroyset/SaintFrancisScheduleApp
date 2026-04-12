@@ -74,7 +74,6 @@ struct NowNextCard: View {
     private func inClassCard(_ line: ScheduleLine) -> some View {
         let secsLeft   = max(0, (line.endSec ?? nowSec) - nowSec)
         let minsLeft   = secsLeft / 60
-        let isUrgent   = secsLeft < 300
         let progress   = line.progress ?? 0
 
         return VStack(spacing: 0) {

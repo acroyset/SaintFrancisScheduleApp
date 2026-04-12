@@ -21,16 +21,19 @@ struct ClassItemScroll: View {
     
     @Binding var scrollTarget: Int?
     @Binding var addEvent: Bool
+    @Binding var addReminder: Bool
     
     // Custom events integration
     @State private var showingAddEvent = false
+    @State private var showingAddReminder = false
     @State private var editingEvent: CustomEvent?
+    @State private var editingReminder: CustomEvent?
     @State private var showingConflictAlert = false
     @State private var conflictingEvents: [CustomEvent] = []
     
     let currentDate: Date
     
-    init(scheduleLines: [ScheduleLine], PrimaryColor: Color, SecondaryColor: Color, TertiaryColor: Color, note: String, dayCode: String, emptyTitle: String, emptySubtitle: String?, isToday: Bool, iPad: Bool, scrollTarget: Binding<Int?>, addEvent: Binding<Bool>, currentDate: Date = Date()) {
+    init(scheduleLines: [ScheduleLine], PrimaryColor: Color, SecondaryColor: Color, TertiaryColor: Color, note: String, dayCode: String, emptyTitle: String, emptySubtitle: String?, isToday: Bool, iPad: Bool, scrollTarget: Binding<Int?>, addEvent: Binding<Bool>, addReminder: Binding<Bool>, currentDate: Date = Date()) {
         self.scheduleLines = scheduleLines
         self.PrimaryColor = PrimaryColor
         self.SecondaryColor = SecondaryColor
@@ -43,6 +46,7 @@ struct ClassItemScroll: View {
         self.iPad = iPad
         self._scrollTarget = scrollTarget
         self._addEvent = addEvent
+        self._addReminder = addReminder
         self.currentDate = currentDate
     }
     
@@ -105,6 +109,17 @@ struct ClassItemScroll: View {
                 TertiaryColor: TertiaryColor
             )
         }
+        .sheet(isPresented: $showingAddReminder) {
+            AddReminderView(
+                isPresented: $showingAddReminder,
+                editingReminder: nil,
+                eventsManager: eventsManager,
+                currentDate: currentDate,
+                PrimaryColor: PrimaryColor,
+                SecondaryColor: SecondaryColor,
+                TertiaryColor: TertiaryColor
+            )
+        }
         .sheet(item: $editingEvent) { event in
             AddEventView(
                 isPresented: Binding(
@@ -121,10 +136,30 @@ struct ClassItemScroll: View {
                 TertiaryColor: TertiaryColor
             )
         }
+        .sheet(item: $editingReminder) { reminder in
+            AddReminderView(
+                isPresented: Binding(
+                    get: { editingReminder != nil },
+                    set: { if !$0 { editingReminder = nil } }
+                ),
+                editingReminder: reminder,
+                eventsManager: eventsManager,
+                currentDate: currentDate,
+                PrimaryColor: PrimaryColor,
+                SecondaryColor: SecondaryColor,
+                TertiaryColor: TertiaryColor
+            )
+        }
         .onChange(of: addEvent) { _, shouldAdd in
             if shouldAdd {
                 showingAddEvent = true
                 addEvent = false
+            }
+        }
+        .onChange(of: addReminder) { _, shouldAdd in
+            if shouldAdd {
+                showingAddReminder = true
+                addReminder = false
             }
         }
         .onAppear {
@@ -239,130 +274,230 @@ struct ClassItemScroll: View {
     @ViewBuilder
     private func customEventRowView(event: CustomEvent) -> some View {
         let eventColor = Color(hex: event.color)
-        let now = Time.now().seconds
-        let isCurrentEvent = isToday && now >= event.startTime.seconds && now < event.endTime.seconds
-        
-        let p = progressValue(start: event.startTime.seconds, end: event.endTime.seconds, now: now)
-        
-        // Check for conflicts with this event
-        let eventConflicts = getEventConflicts(for: event)
-        let hasConflicts = !eventConflicts.isEmpty
-        
-        HStack(spacing: 12) {
-            ClassProgressBar(
-                progress: p,
-                active: isCurrentEvent,
-                PrimaryColor: eventColor,
-                SecondaryColor: SecondaryColor,
-                TertiaryColor: TertiaryColor
-            )
-            .frame(width: 6)
-            
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text("\(event.startTime.string()) to \(event.endTime.string())")
-                        .appThemeFont(.secondary, size: iPad ? 16 : 14, weight: .medium)
-                        .foregroundColor(isCurrentEvent ? TertiaryColor : eventColor.opacity(0.8))
-                    
-                    // Conflict warning indicator
-                    if hasConflicts {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 12))
-                            .foregroundColor(.orange)
-                    }
-                }
-                
-                HStack(spacing: 8) {
-                    Text(event.title)
-                        .appThemeFont(.primary, size: iPad ? 20 : 17, weight: .bold)
-                        .foregroundColor(isCurrentEvent ? TertiaryColor : eventColor)
-                    
-                    if isCurrentEvent {
-                        let remainingSeconds = max(0, (event.endTime.seconds - now))
-                        if remainingSeconds > 60 {
-                            let remainingMinutes = floor(Double(remainingSeconds)/60.0)
-                            Text("• \(Int(remainingMinutes))m left")
-                                .appThemeFont(.primary, size: iPad ? 16 : 14, weight: .medium)
-                                .foregroundColor(TertiaryColor.opacity(0.8))
-                        } else if (remainingSeconds > 0){
-                            Text("• \(Int(remainingSeconds))s left")
-                                .appThemeFont(.primary, size: iPad ? 16 : 14, weight: .medium)
-                                .foregroundColor(TertiaryColor.opacity(0.8))
-                        }
-                    }
-                    
-                    // Event type indicator
-                    Image(systemName: "person.fill")
-                        .font(.system(size: 12))
-                        .foregroundColor(isCurrentEvent ? TertiaryColor : eventColor)
-                }
-                
-                if !event.location.isEmpty || !event.note.isEmpty {
-                    HStack(spacing: 8) {
-                        if !event.location.isEmpty {
-                            Text(event.location)
-                                .appThemeFont(.primary, size: iPad ? 16 : 14, weight: .medium)
-                                .foregroundColor(isCurrentEvent ? TertiaryColor.opacity(0.9) : eventColor.opacity(0.7))
-                        }
-                        if !event.note.isEmpty {
-                            Text("• \(event.note)")
-                                .appThemeFont(.primary, size: iPad ? 16 : 14, weight: .medium)
-                                .foregroundColor(isCurrentEvent ? TertiaryColor.opacity(0.9) : eventColor.opacity(0.7))
-                        }
-                    }
-                }
-                
-                // Show repeat pattern
-                if event.repeatPattern != .none {
-                    Text(event.repeatPattern.description)
-                        .appThemeFont(.primary, size: iPad ? 14 : 12, weight: .medium)
-                        .foregroundColor(isCurrentEvent ? TertiaryColor.opacity(0.7) : eventColor.opacity(0.5))
-                }
-                
-                // Show conflicts if any
-                if hasConflicts {
+        if event.isReminder {
+            reminderRowView(event: event, eventColor: eventColor)
+        } else {
+            let now = Time.now().seconds
+            let isCurrentEvent = isToday && now >= event.startTime.seconds && now < event.endTime.seconds
+
+            let p = progressValue(start: event.startTime.seconds, end: event.endTime.seconds, now: now)
+
+            // Check for conflicts with this event
+            let eventConflicts = getEventConflicts(for: event)
+            let hasConflicts = !eventConflicts.isEmpty
+
+            HStack(spacing: 12) {
+                ClassProgressBar(
+                    progress: p,
+                    active: isCurrentEvent,
+                    PrimaryColor: eventColor,
+                    SecondaryColor: SecondaryColor,
+                    TertiaryColor: TertiaryColor
+                )
+                .frame(width: 6)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    itemTypeBadge(title: "EVENT", systemImage: "calendar", tint: eventColor)
+
                     HStack {
-                        Image(systemName: "exclamationmark.triangle")
-                            .font(.system(size: 10))
-                        Text("\(eventConflicts.count) conflict(s)")
-                            .appThemeFont(.secondary, size: 10)
+                        Text("\(event.startTime.string()) to \(event.endTime.string())")
+                            .appThemeFont(.secondary, size: iPad ? 16 : 14, weight: .medium)
+                            .foregroundColor(eventColor.opacity(0.8))
+
+                        if hasConflicts {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 12))
+                                .foregroundColor(.orange)
+                        }
                     }
-                    .foregroundColor(.orange)
+
+                    HStack(spacing: 8) {
+                        Text(event.title)
+                            .appThemeFont(.primary, size: iPad ? 20 : 17, weight: .bold)
+                            .foregroundColor(eventColor)
+
+                        if isCurrentEvent {
+                            let remainingSeconds = max(0, (event.endTime.seconds - now))
+                            if remainingSeconds > 60 {
+                                let remainingMinutes = floor(Double(remainingSeconds) / 60.0)
+                                Text("• \(Int(remainingMinutes))m left")
+                                    .appThemeFont(.primary, size: iPad ? 16 : 14, weight: .medium)
+                                    .foregroundColor(eventColor.opacity(0.8))
+                            } else if remainingSeconds > 0 {
+                                Text("• \(Int(remainingSeconds))s left")
+                                    .appThemeFont(.primary, size: iPad ? 16 : 14, weight: .medium)
+                                    .foregroundColor(eventColor.opacity(0.8))
+                            }
+                        }
+
+                        Image(systemName: "person.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(eventColor)
+                    }
+
+                    if !event.location.isEmpty || !event.note.isEmpty {
+                        HStack(spacing: 8) {
+                            if !event.location.isEmpty {
+                                Text(event.location)
+                                    .appThemeFont(.primary, size: iPad ? 16 : 14, weight: .medium)
+                                    .foregroundColor(PrimaryColor.opacity(0.72))
+                            }
+                            if !event.note.isEmpty {
+                                Text("• \(event.note)")
+                                    .appThemeFont(.primary, size: iPad ? 16 : 14, weight: .medium)
+                                    .foregroundColor(PrimaryColor.opacity(0.72))
+                            }
+                        }
+                    }
+
+                    if event.repeatPattern != .none {
+                        Text(event.repeatPattern.description)
+                            .appThemeFont(.primary, size: iPad ? 14 : 12, weight: .medium)
+                            .foregroundColor(eventColor.opacity(0.65))
+                    }
+
+                    if hasConflicts {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle")
+                                .font(.system(size: 10))
+                            Text("\(eventConflicts.count) conflict(s)")
+                                .appThemeFont(.secondary, size: 10)
+                        }
+                        .foregroundColor(.orange)
+                    }
+                }
+
+                Spacer()
+
+                Menu {
+                    Button(action: {
+                        editingEvent = event
+                    }) {
+                        Label("Edit", systemImage: "pencil")
+                    }
+
+                    Button(role: .destructive, action: {
+                        eventsManager.deleteEvent(event)
+                    }) {
+                        Label("Delete", systemImage: "trash")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .foregroundColor(eventColor.opacity(0.55))
                 }
             }
-            
-            Spacer()
-            
-            // Event options menu
+            .padding(iPad ? 16 : 12)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(eventColor.opacity(isCurrentEvent ? 0.18 : 0.10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(eventColor.opacity(isCurrentEvent ? 0.45 : 0.24), lineWidth: iPad ? 5 : 3)
+                    )
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func reminderRowView(event: CustomEvent, eventColor: Color) -> some View {
+        HStack(spacing: 12) {
+            VStack(spacing: 0) {
+                Circle()
+                    .fill(eventColor)
+                    .frame(width: 12, height: 12)
+
+                Rectangle()
+                    .fill(eventColor.opacity(0.45))
+                    .frame(width: 2)
+            }
+            .padding(.vertical, 2)
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Text(event.startTime.string())
+                        .appThemeFont(.secondary, size: iPad ? 15 : 13, weight: .bold)
+                        .foregroundColor(eventColor)
+
+                    Text("Reminder")
+                        .appThemeFont(.secondary, size: iPad ? 13 : 11, weight: .bold)
+                        .foregroundColor(eventColor.opacity(0.8))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(eventColor.opacity(0.12))
+                        .clipShape(Capsule())
+
+                    if !event.reminderSummary.isEmpty {
+                        Text(event.reminderSummary)
+                            .appThemeFont(.secondary, size: iPad ? 13 : 11, weight: .medium)
+                            .foregroundColor(eventColor.opacity(0.65))
+                            .lineLimit(1)
+                    }
+                }
+
+                Text(event.title)
+                    .appThemeFont(.primary, size: iPad ? 18 : 15, weight: .semibold)
+                    .foregroundColor(eventColor)
+
+                if !event.note.isEmpty {
+                    Text(event.note)
+                        .appThemeFont(.secondary, size: iPad ? 14 : 12, weight: .medium)
+                        .foregroundColor(eventColor.opacity(0.6))
+                        .lineLimit(2)
+                }
+            }
+
+            Spacer(minLength: 8)
+
             Menu {
                 Button(action: {
-                    editingEvent = event
+                    editingReminder = event
                 }) {
                     Label("Edit", systemImage: "pencil")
                 }
-                
+
                 Button(role: .destructive, action: {
                     eventsManager.deleteEvent(event)
                 }) {
                     Label("Delete", systemImage: "trash")
                 }
             } label: {
-                Image(systemName: "ellipsis.circle")
-                    .foregroundColor(isCurrentEvent ? TertiaryColor.opacity(0.7) : eventColor.opacity(0.5))
+                Image(systemName: "ellipsis")
+                    .appThemeFont(.primary, size: iPad ? 18 : 16, weight: .semibold)
+                    .foregroundColor(eventColor.opacity(0.45))
+                    .frame(width: 28, height: 28)
             }
         }
-        .padding(iPad ? 16 : 12)
+        .padding(.horizontal, iPad ? 16 : 12)
+        .padding(.vertical, iPad ? 10 : 8)
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(isCurrentEvent ? eventColor : SecondaryColor)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(eventColor, lineWidth: iPad ? 6 : 4)
-                )
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(eventColor.opacity(0.10))
         )
+        .overlay(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(eventColor.opacity(0.24), lineWidth: 1)
+        }
+    }
+
+    @ViewBuilder
+    private func itemTypeBadge(title: String, systemImage: String, tint: Color? = nil) -> some View {
+        let badgeTint = tint ?? PrimaryColor
+
+        HStack(spacing: 6) {
+            Image(systemName: systemImage)
+                .font(.system(size: 10, weight: .semibold))
+            Text(title)
+                .appThemeFont(.secondary, size: iPad ? 11 : 10, weight: .bold)
+        }
+        .foregroundColor(badgeTint)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(badgeTint.opacity(0.12))
+        .clipShape(Capsule())
     }
     
     private func getEventConflicts(for event: CustomEvent) -> [EventConflict] {
+        guard !event.isReminder else { return [] }
         var conflicts: [EventConflict] = []
         
         // Check conflicts with schedule lines
@@ -420,8 +555,9 @@ struct ClassItemScroll: View {
     private func checkAllConflicts() {
         let todaysEvents = eventsManager.eventsFor(dayCode: dayCode, date: currentDate)
         var hasAnyConflicts = false
-        
+
         for event in todaysEvents {
+            guard !event.isReminder else { continue }
             let conflicts = getEventConflicts(for: event)
             if !conflicts.isEmpty {
                 hasAnyConflicts = true

@@ -80,6 +80,10 @@ class CloudEventsDataManager {
             m: endTimeDict["m"] ?? 0,
             s: endTimeDict["s"] ?? 0
         )
+        let kindRaw = eventDict["kind"] as? String
+        let kind = CustomItemKind(rawValue: kindRaw ?? "") ?? .event
+        let reminderOffsetsRaw = eventDict["reminderOffsets"] as? [String] ?? []
+        let reminderOffsets = reminderOffsetsRaw.compactMap(ReminderOffset.init(rawValue:))
 
         return CustomEvent(
             id:              id,
@@ -90,6 +94,8 @@ class CloudEventsDataManager {
             note:            note,
             color:           color,
             repeatPattern:   repeatPattern,
+            kind:            kind,
+            reminderOffsets: reminderOffsets,
             applicableDays:  Set(applicableDaysArr)
         )
     }

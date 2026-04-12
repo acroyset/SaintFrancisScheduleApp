@@ -32,16 +32,26 @@ struct PersistedScheduleState {
     }
 }
 
+struct PersistedAppState {
+    let schedule: PersistedScheduleState
+    let events: [CustomEvent]
+}
+
 @MainActor
 final class CloudService {
     private let dataManager: DataManager
+    private let eventsDataManager: CloudEventsDataManager
+    private let userDefaults = UserDefaults.standard
+    private let customEventsKey = "CustomEvents"
 
     init() {
         self.dataManager = DataManager()
+        self.eventsDataManager = CloudEventsDataManager()
     }
 
     init(dataManager: DataManager) {
         self.dataManager = dataManager
+        self.eventsDataManager = CloudEventsDataManager()
     }
 
     func loadLocalClasses(parseClass: (String) -> ClassItem) -> [ClassItem] {
@@ -91,6 +101,86 @@ final class CloudService {
             return nil
         }
         return theme
+    }
+
+    func saveEventsLocally(_ events: [CustomEvent]) {
+        guard let data = try? JSONEncoder().encode(events) else { return }
+        userDefaults.set(data, forKey: customEventsKey)
+        SharedGroup.defaults.set(data, forKey: customEventsKey)
+    }
+
+    func loadEventsLocally() -> [CustomEvent] {
+        guard let data = userDefaults.data(forKey: customEventsKey),
+              let events = try? JSONDecoder().decode([CustomEvent].self, from: data) else {
+            return []
+        }
+        return events
+    }
+
+    func saveAppState(
+        classes: [ClassItem],
+        theme: ThemeColors,
+        isSecondLunch: [Bool],
+        events: [CustomEvent],
+        userId: String?
+    ) async throws {
+        overwriteClassesFile(with: classes)
+        saveThemeLocally(theme)
+        saveEventsLocally(events)
+
+        guard let userId else { return }
+
+        async let saveScheduleTask: Void = saveScheduleToCloud(
+            classes: classes,
+            theme: theme,
+            isSecondLunch: isSecondLunch,
+            userId: userId
+        )
+        async let saveEventsTask: Void = eventsDataManager.saveEvents(events, for: userId)
+        _ = try await (saveScheduleTask, saveEventsTask)
+    }
+
+    func loadAppState(
+        userId: String?,
+        parseClass: (String) -> ClassItem,
+        parseDays: (String) -> [Day]
+    ) async throws -> PersistedAppState? {
+        guard let localSchedule = loadLocalSchedule(parseClass: parseClass, parseDays: parseDays) else {
+            return nil
+        }
+
+        let localEvents = loadEventsLocally()
+
+        guard let userId else {
+            return PersistedAppState(schedule: localSchedule, events: localEvents)
+        }
+
+        do {
+            async let cloudScheduleTask = loadCloudScheduleState(for: userId, days: localSchedule.days)
+            async let cloudEventsTask = eventsDataManager.loadEvents(for: userId)
+            let (cloudSchedule, cloudEvents) = try await (cloudScheduleTask, cloudEventsTask)
+
+            let mergedSchedule = cloudSchedule.classes.isEmpty
+                ? localSchedule
+                : cloudSchedule
+            let mergedEvents = cloudEvents.isEmpty
+                ? localEvents
+                : cloudEvents
+
+            overwriteClassesFile(with: mergedSchedule.normalizedData.classes)
+            saveThemeLocally(ThemeColors(
+                primary: mergedSchedule.theme.primary,
+                secondary: mergedSchedule.theme.secondary,
+                tertiary: mergedSchedule.theme.tertiary,
+                primaryFont: mergedSchedule.theme.primaryFontChoice,
+                secondaryFont: mergedSchedule.theme.secondaryFontChoice
+            ))
+            saveEventsLocally(mergedEvents)
+
+            return PersistedAppState(schedule: mergedSchedule, events: mergedEvents)
+        } catch {
+            return PersistedAppState(schedule: localSchedule, events: localEvents)
+        }
     }
 
     func saveScheduleToCloud(
