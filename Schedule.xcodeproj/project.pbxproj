@@ -80,6 +80,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				App/AppAvailability.swift,
+				Features,
 				Core/Extensions/DateFormatterExtensions.swift,
 				Core/Models/ScheduleLine.swift,
 				Core/Models/Time.swift,

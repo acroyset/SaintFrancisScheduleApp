@@ -56,6 +56,7 @@ struct DirectionalScrollView<Content: View>: UIViewRepresentable {
 
         context.coordinator.hostController = host
         context.coordinator.scrollView = scrollView
+        context.coordinator.minHeightConstraint = minHeight
 
         let pan = UIPanGestureRecognizer(
             target: context.coordinator,
@@ -75,6 +76,7 @@ struct DirectionalScrollView<Content: View>: UIViewRepresentable {
         let inset = UIEdgeInsets(top: topInset, left: 0, bottom: bottomInset, right: 0)
         scrollView.contentInset = inset
         scrollView.scrollIndicatorInsets = inset
+        context.coordinator.minHeightConstraint?.constant = -(topInset + bottomInset)
 
         context.coordinator.hostController?.view.invalidateIntrinsicContentSize()
         context.coordinator.hostController?.view.setNeedsLayout()
@@ -98,6 +100,7 @@ struct DirectionalScrollView<Content: View>: UIViewRepresentable {
         weak var scrollView: UIScrollView?
         weak var horizontalPan: UIPanGestureRecognizer?
         var hostController: UIHostingController<Content>?
+        var minHeightConstraint: NSLayoutConstraint?
         private var isHorizontal: Bool? = nil
         var lastResetToken: Int = -1
 

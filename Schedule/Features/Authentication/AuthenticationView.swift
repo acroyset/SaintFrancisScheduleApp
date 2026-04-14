@@ -12,7 +12,7 @@ struct AuthenticationView: View {
 
     var body: some View {
         Group {
-            if authManager.user != nil {
+            if authManager.hasActiveSession {
                 ContentView(onboardingClasses: classesFromOnboarding)
                     .overlay(UpdatePromptView())
                     .environmentObject(authManager)

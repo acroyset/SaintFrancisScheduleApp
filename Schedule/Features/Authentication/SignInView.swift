@@ -185,6 +185,19 @@ struct SignInView: View {
 
             appleCanvaButton
 
+            #if DEBUG
+            Divider().padding(.top, 6)
+
+            canvaStyleButton(
+                icon: "hammer.fill",
+                label: "Continue in Debug Guest Mode",
+                style: .standard
+            ) {
+                authManager.continueInDebugGuestMode()
+            }
+            .disabled(authManager.isLoading)
+            #endif
+
             Divider().padding(.top, 6)
 
             Button {
@@ -434,3 +447,9 @@ private enum CanvaButtonStyle {
     case google
     case standard
 }
+
+#if DEBUG
+#Preview("Sign In Page") {
+    SignInView(authManager: AuthenticationManager())
+}
+#endif

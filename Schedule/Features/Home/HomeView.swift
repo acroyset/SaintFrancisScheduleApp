@@ -14,6 +14,20 @@ import SwiftUI
 
 struct HomeView: View {
     private let headerGlassTintOpacity: Double = 0.9
+    private var actionLabelPadding: CGFloat { isPortrait ? 12 : 10 }
+    private var actionOuterPadding: CGFloat {
+        if iPad { return isPortrait ? 16 : 12 }
+        return isPortrait ? 8 : 6
+    }
+    private var actionCardPadding: CGFloat { isPortrait ? 16 : 12 }
+    private var portraitActionBottomPadding: CGFloat { toolbarHeight + 12 }
+    private var scrollBottomInset: CGFloat {
+        let baseToolbarInset = toolbarHeight + (iPad ? 20 : 16)
+        if isPortrait && scheduleDict != nil {
+            return baseToolbarInset + portraitActionRowHeight + 12
+        }
+        return baseToolbarInset
+    }
 
     @Binding var selectedDate: Date
     @Binding var showCalendarGrid: Bool
@@ -29,15 +43,17 @@ struct HomeView: View {
     let PrimaryColor: Color
     let SecondaryColor: Color
     let TertiaryColor: Color
+    let toolbarHeight: CGFloat
     var isPortrait: Bool
     var onDatePick: (Date) -> Void
 
     // Header height tracking
     @State private var nowNextHeight: CGFloat = 0
     @State private var dateNavHeight: CGFloat = 0
-    @State private var floatingHeaderHeight: CGFloat = 0
+    @State private var collapsedHeaderHeight: CGFloat = 0
+    @State private var portraitActionRowHeight: CGFloat = 0
 
-    private var headerHeight: CGFloat { floatingHeaderHeight + 16 }
+    private var headerHeight: CGFloat { collapsedHeaderHeight + 16 }
     private var sharedHeaderRadius: CGFloat { max(dateNavHeight / 2, 16) }
     private var nowNextCornerRadius: CGFloat { sharedHeaderRadius + 4 }
 
@@ -57,7 +73,19 @@ struct HomeView: View {
                 .offset(x: dragX)
 
             if isPortrait && scheduleDict != nil {
-                actionButtonsFAB
+                reminderButtonStack
+                    .padding(.horizontal, iPad ? 40 : 24)
+                    .padding(.bottom, portraitActionBottomPadding)
+                    .background(
+                        GeometryReader { geo in
+                            Color.clear
+                                .onAppear { portraitActionRowHeight = geo.size.height }
+                                .onChange(of: geo.size.height) { _, newHeight in
+                                    portraitActionRowHeight = newHeight
+                                }
+                        }
+                    )
+                    .zIndex(20)
             }
         }
         .clipped()
@@ -72,7 +100,7 @@ struct HomeView: View {
         ZStack(alignment: .bottom) {
             DirectionalScrollView(
                 topInset: headerHeight,
-                bottomInset: iPad ? 160 : 130,
+                bottomInset: scrollBottomInset,
                 onHorizontalDrag: handleDrag,
                 onHorizontalEnd:  handleDragEnd,
                 resetToken: resetToken
@@ -200,8 +228,10 @@ struct HomeView: View {
                                 headerPill.glassEffect(.regular.tint(PrimaryColor.opacity(headerGlassTintOpacity)))
                                 nowNextSection
                             }
-                            VStack { dateNav }
-                            reminderButtonStack
+                            VStack {
+                                dateNav
+                                reminderButtonStack
+                            }
                         }
                     } else {
                         VStack(spacing: 6) {
@@ -221,8 +251,10 @@ struct HomeView: View {
                                 headerPill.padding(8).background(PrimaryColor).cornerRadius(16)
                                 nowNextSection
                             }
-                            VStack { dateNav }
-                            reminderButtonStack
+                            VStack {
+                                dateNav
+                                reminderButtonStack
+                            }
                         }
                     } else {
                         VStack(spacing: 6) {
@@ -288,8 +320,12 @@ struct HomeView: View {
         content.background(
             GeometryReader { geo in
                 Color.clear
-                    .onAppear { floatingHeaderHeight = geo.size.height }
-                    .onChange(of: geo.size.height) { _, h in floatingHeaderHeight = h }
+                    .onAppear {
+                        if !showCalendarGrid { collapsedHeaderHeight = geo.size.height }
+                    }
+                    .onChange(of: geo.size.height) { _, h in
+                        if !showCalendarGrid { collapsedHeaderHeight = h }
+                    }
             }
         )
     }
@@ -327,10 +363,11 @@ struct HomeView: View {
 
     @ViewBuilder
     private var reminderButtonStack: some View {
-        VStack(spacing: 12) {
+        HStack(spacing: 12) {
             addEventInline
             addReminderInline
         }
+        .padding(.horizontal, isPortrait ? 0 : 8)
     }
 
     @ViewBuilder
@@ -340,24 +377,31 @@ struct HomeView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "plus.circle.fill")
                         .appThemeFont(.primary, size: iPad ? 24 : 20, weight: .semibold)
-                    if iPad { Text("Event").appThemeFont(.primary, size: 20, weight: .semibold) }
+                    Text("Event").appThemeFont(.primary, size: 20, weight: .semibold)
                 }
-                .foregroundColor(TertiaryColor).padding(12)
+                .frame(maxWidth: .infinity)
+                .foregroundColor(TertiaryColor)
+                .padding(actionLabelPadding)
             }
-            .padding(iPad ? 16 : 8)
+            .padding(actionOuterPadding)
             .glassEffect(.regular.tint(PrimaryColor.opacity(headerGlassTintOpacity)))
-            .padding(.horizontal, iPad ? 40 : 24)
+            .frame(maxWidth: .infinity)
         } else {
             Button { addEvent = true } label: {
                 HStack(spacing: 12) {
                     Image(systemName: "plus.circle.fill")
                         .appThemeFont(.primary, size: iPad ? 24 : 20, weight: .semibold)
-                    if iPad { Text("Event").appThemeFont(.primary, size: 20, weight: .semibold) }
+                    Text("Event").appThemeFont(.primary, size: 20, weight: .semibold)
                 }
-                .padding(8).foregroundColor(TertiaryColor).frame(maxWidth: .infinity)
-                .padding(16).background(PrimaryColor).cornerRadius(16).shadow(radius: 8)
+                .frame(maxWidth: .infinity)
+                .padding(8)
+                .foregroundColor(TertiaryColor)
+                .padding(actionCardPadding)
+                .background(PrimaryColor)
+                .cornerRadius(16)
+                .shadow(radius: 8)
             }
-            .padding(.horizontal, iPad ? 40 : 24)
+            .frame(maxWidth: .infinity)
         }
     }
 
@@ -368,107 +412,32 @@ struct HomeView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "bell.badge.fill")
                         .appThemeFont(.primary, size: iPad ? 24 : 20, weight: .semibold)
-                    if iPad { Text("Reminder").appThemeFont(.primary, size: 20, weight: .semibold) }
+                    Text("Reminder").appThemeFont(.primary, size: 20, weight: .semibold)
                 }
+                .frame(maxWidth: .infinity)
                 .foregroundColor(TertiaryColor)
-                .padding(12)
+                .padding(actionLabelPadding)
             }
-            .padding(iPad ? 16 : 8)
+            .padding(actionOuterPadding)
             .glassEffect(.regular.tint(PrimaryColor.opacity(headerGlassTintOpacity)))
-            .padding(.horizontal, iPad ? 40 : 24)
+            .frame(maxWidth: .infinity)
         } else {
             Button { addReminder = true } label: {
                 HStack(spacing: 12) {
                     Image(systemName: "bell.badge.fill")
                         .appThemeFont(.primary, size: iPad ? 24 : 20, weight: .semibold)
-                    if iPad { Text("Reminder").appThemeFont(.primary, size: 20, weight: .semibold) }
+                    Text("Reminder").appThemeFont(.primary, size: 20, weight: .semibold)
                 }
+                .frame(maxWidth: .infinity)
                 .padding(8)
                 .foregroundColor(TertiaryColor)
                 .frame(maxWidth: .infinity)
-                .padding(16)
+                .padding(actionCardPadding)
                 .background(PrimaryColor)
                 .cornerRadius(16)
                 .shadow(radius: 8)
             }
-            .padding(.horizontal, iPad ? 40 : 24)
-        }
-    }
-
-    @ViewBuilder
-    private var actionButtonsFAB: some View {
-        if #available(iOS 26.0, *), AppAvailability.liquidGlass {
-            HStack(spacing: 12) {
-                Button { addEvent = true } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: "plus.circle.fill")
-                            .appThemeFont(.primary, size: iPad ? 24 : 20, weight: .semibold)
-                        Text("Event")
-                            .appThemeFont(.primary, size: iPad ? 20 : 16, weight: .semibold)
-                            .lineLimit(1)
-                    }
-                    .foregroundColor(TertiaryColor)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, iPad ? 18 : 14)
-                    .padding(.horizontal, iPad ? 28 : 16)
-                }
-                .glassEffect(.regular.tint(PrimaryColor.opacity(headerGlassTintOpacity)))
-
-                Button { addReminder = true } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "bell.badge.fill")
-                            .appThemeFont(.primary, size: iPad ? 24 : 20, weight: .semibold)
-                        Text("Reminder")
-                            .appThemeFont(.primary, size: iPad ? 20 : 16, weight: .semibold)
-                            .lineLimit(1)
-                    }
-                    .foregroundColor(TertiaryColor)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, iPad ? 18 : 14)
-                    .padding(.horizontal, iPad ? 28 : 16)
-                }
-                .glassEffect(.regular.tint(PrimaryColor.opacity(headerGlassTintOpacity)))
-            }
-            .padding(.horizontal, iPad ? 40 : 24)
-            .padding(.bottom, iPad ? 80 : 70)
-            .zIndex(5)
-        } else {
-            HStack(spacing: 12) {
-                Button { addEvent = true } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: "plus.circle.fill")
-                            .appThemeFont(.primary, size: iPad ? 24 : 20, weight: .semibold)
-                        Text("Event")
-                            .appThemeFont(.primary, size: iPad ? 20 : 16, weight: .semibold)
-                            .lineLimit(1)
-                    }
-                    .foregroundColor(TertiaryColor)
-                    .frame(maxWidth: .infinity)
-                    .padding(16)
-                    .background(PrimaryColor)
-                    .cornerRadius(16)
-                    .shadow(radius: 8)
-                }
-
-                Button { addReminder = true } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "bell.badge.fill")
-                            .appThemeFont(.primary, size: iPad ? 24 : 20, weight: .semibold)
-                        Text("Reminder")
-                            .appThemeFont(.primary, size: iPad ? 20 : 16, weight: .semibold)
-                            .lineLimit(1)
-                    }
-                    .foregroundColor(TertiaryColor)
-                    .frame(maxWidth: .infinity)
-                    .padding(16)
-                    .background(PrimaryColor)
-                    .cornerRadius(16)
-                    .shadow(radius: 8)
-                }
-            }
-            .padding(.horizontal, iPad ? 40 : 24)
-            .padding(.bottom, 80)
-            .zIndex(5)
+            .frame(maxWidth: .infinity)
         }
     }
 
@@ -482,7 +451,20 @@ struct HomeView: View {
     }
 
     func getDayNumber(for currentDay: String) -> Int? {
-        ["g1":0,"b1":1,"g2":2,"b2":3,"a1":4,"a2":5,"a3":6,"a4":7,"l1":8,"l2":9,"s1":10][currentDay.lowercased()]
+        switch currentDay.lowercased() {
+        case "g1": return 0
+        case "b1": return 1
+        case "g2": return 2
+        case "b2": return 3
+        case "a1": return 4
+        case "a2": return 5
+        case "a3": return 6
+        case "a4": return 7
+        case "l1": return 8
+        case "l2": return 9
+        case "s1": return 10
+        default: return nil
+        }
     }
 
     private func nextClassEmptyTitle() -> String {

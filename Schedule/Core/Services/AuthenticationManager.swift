@@ -17,6 +17,7 @@ class AuthenticationManager: ObservableObject {
     @Published var errorMessage = ""
     @Published var needsPolicyAcceptance = false
     @Published var policyDenied = false
+    @Published var isUsingDebugGuestSession = false
 
     // Delete-account re-auth flow
     @Published var needsReauthForDeletion = false
@@ -33,6 +34,10 @@ class AuthenticationManager: ObservableObject {
 
     init() {
         setupAuthStateListener()
+    }
+
+    var hasActiveSession: Bool {
+        user != nil || isUsingDebugGuestSession
     }
 
     deinit {
@@ -324,6 +329,7 @@ class AuthenticationManager: ObservableObject {
             try Auth.auth().signOut()
             GIDSignIn.sharedInstance.signOut()
             user = nil
+            isUsingDebugGuestSession = false
             policyDenied = false
             // Reset all first-launch / onboarding flags so tutorial shows on next account
             UserDefaults.standard.set(false, forKey: "HasCompletedOnboarding")
@@ -336,6 +342,17 @@ class AuthenticationManager: ObservableObject {
             errorMessage = error.localizedDescription
         }
     }
+
+    #if DEBUG
+    func continueInDebugGuestMode() {
+        errorMessage = ""
+        needsPolicyAcceptance = false
+        policyDenied = false
+        user = nil
+        isUsingDebugGuestSession = true
+        UserDefaults.standard.set(true, forKey: "HasCompletedOnboarding")
+    }
+    #endif
 
     // MARK: - Reset Password
 
@@ -353,6 +370,7 @@ class AuthenticationManager: ObservableObject {
     // MARK: - Delete Account
 
     func deleteAccount() async {
+        guard user != nil else { return }
         guard let userId = user?.id,
               let firebaseUser = Auth.auth().currentUser else { return }
 

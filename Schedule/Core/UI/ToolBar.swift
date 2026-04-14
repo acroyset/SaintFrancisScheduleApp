@@ -59,6 +59,8 @@ struct ToolBar: View {
         ("Classes", "pencil.and.list.clipboard"),
         ("Profile", "person.crop.circle.fill")
     ]
+
+    private var toolbarPadding: CGFloat { iPad ? 14 : 8 }
     
     var body: some View {
         HStack {
@@ -74,7 +76,7 @@ struct ToolBar: View {
                 )
             }
         }
-        .padding(8)
+        .padding(toolbarPadding)
     }
 }
 
@@ -90,6 +92,10 @@ struct ToolButton: View {
     
     var body: some View {
         let active = window.rawValue == index
+        let iconSize: CGFloat = iPad ? 28 : 18
+        let labelSize: CGFloat = iPad ? 18 : 16
+        let contentPadding: CGFloat = iPad ? 20 : 16
+        let glassPadding: CGFloat = iPad ? 10 : 6
         
         let content = Button {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
@@ -101,31 +107,31 @@ struct ToolButton: View {
             if #available(iOS 26.1, *), AppAvailability.liquidGlass {
                 HStack(spacing: 8) {
                     Image(systemName: icon)
-                        .appThemeFont(.primary, size: iPad ? 24 : 18, weight: .semibold)
+                        .appThemeFont(.primary, size: iconSize, weight: .semibold)
                         .foregroundColor(active ? TertiaryColor : PrimaryColor)
                         .scaleEffect(active ? 1.1 : 1.0)
                      
                     if iPad || active {
                         Text(label)
-                            .appThemeFont(.primary, size: 16)
+                            .appThemeFont(.primary, size: labelSize)
                             .foregroundColor(active ? TertiaryColor : PrimaryColor)
                     }
                 }
-                .padding(6)
+                .padding(glassPadding)
             } else {
                 HStack(spacing: 8) {
                     Image(systemName: icon)
-                        .appThemeFont(.primary, size: iPad ? 24 : 18, weight: .semibold)
+                        .appThemeFont(.primary, size: iconSize, weight: .semibold)
                         .foregroundColor(active ? TertiaryColor : PrimaryColor)
                         .scaleEffect(active ? 1.1 : 1.0)
                     
                     if iPad || active {
                         Text(label)
-                            .appThemeFont(.primary, size: 16)
+                            .appThemeFont(.primary, size: labelSize)
                             .foregroundColor(active ? TertiaryColor : PrimaryColor)
                     }
                 }
-                .padding(16)
+                .padding(contentPadding)
             }
 
         }

@@ -29,6 +29,7 @@ struct ContentView: View {
     @State private var window: Window = .Home
     @State private var isPortrait: Bool = !iPad
     @State private var tutorial = TutorialState.Hidden
+    @State private var toolbarHeight: CGFloat = 0
 
     let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -56,6 +57,15 @@ struct ContentView: View {
                     PrimaryColor: appStore.primaryColor,
                     SecondaryColor: appStore.secondaryColor,
                     TertiaryColor: appStore.tertiaryColor
+                )
+                .background(
+                    GeometryReader { geo in
+                        Color.clear
+                            .onAppear { toolbarHeight = geo.size.height }
+                            .onChange(of: geo.size.height) { _, newHeight in
+                                toolbarHeight = newHeight
+                            }
+                    }
                 )
                 .zIndex(1000)
 
@@ -197,6 +207,7 @@ struct ContentView: View {
                 PrimaryColor: appStore.primaryColor,
                 SecondaryColor: appStore.secondaryColor,
                 TertiaryColor: appStore.tertiaryColor,
+                toolbarHeight: toolbarHeight,
                 isPortrait: isPortrait,
                 onDatePick: { date in
                     appStore.applySelectedDate(date, events: eventsManager.events)

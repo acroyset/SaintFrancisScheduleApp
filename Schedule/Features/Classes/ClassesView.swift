@@ -190,3 +190,35 @@ struct ClassesView: View {
         Divider().padding(.leading, 48)
     }
 }
+
+#if DEBUG
+private struct ClassesViewPreviewWrapper: View {
+    @State private var data = ScheduleData(
+        classes: [
+            ClassItem(name: "AP Biology", teacher: "Dr. Patel", room: "S201"),
+            ClassItem(name: "English 2 Honors", teacher: "Ms. Lopez", room: "B104"),
+            ClassItem(name: "Algebra 2", teacher: "Mr. Chen", room: "M301"),
+            ClassItem(name: "US History", teacher: "Mr. Grant", room: "H210"),
+            ClassItem(name: "Spanish 3", teacher: "Sra. Ruiz", room: "L112"),
+            ClassItem(name: "Chemistry", teacher: "Dr. Kim", room: "S115"),
+            ClassItem(name: "Design Lab", teacher: "Ms. Hart", room: "A008")
+        ] + Array(ScheduleData.defaultClasses.dropFirst(7)),
+        days: [],
+        isSecondLunch: [false, false]
+    ).normalized()
+
+    var body: some View {
+        ClassesView(
+            data: $data,
+            PrimaryColor: .blue,
+            SecondaryColor: Color.blue.opacity(0.12),
+            TertiaryColor: .white,
+            isPortrait: true
+        )
+    }
+}
+
+#Preview("Classes Page") {
+    ClassesViewPreviewWrapper()
+}
+#endif

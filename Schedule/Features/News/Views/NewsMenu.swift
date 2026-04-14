@@ -13,11 +13,26 @@ struct NewsMenu: View {
     var SecondaryColor: Color
     var TertiaryColor: Color
     
-    @StateObject var store = NewsStore()
+    @StateObject var store: NewsStore
+    private let startsPolling: Bool
     
     @State private var webHeight: CGFloat = 1
     @State private var fullscreenVideo: LancerLiveVideo?
     @State private var headerHeight: CGFloat = 0
+
+    init(
+        PrimaryColor: Color,
+        SecondaryColor: Color,
+        TertiaryColor: Color,
+        store: NewsStore? = nil,
+        startsPolling: Bool = true
+    ) {
+        self.PrimaryColor = PrimaryColor
+        self.SecondaryColor = SecondaryColor
+        self.TertiaryColor = TertiaryColor
+        _store = StateObject(wrappedValue: store ?? NewsStore())
+        self.startsPolling = startsPolling
+    }
     
     var body: some View {
         ZStack {
@@ -56,8 +71,14 @@ struct NewsMenu: View {
                 Spacer()
             }
         }
-        .task { await store.startPolling() }
-        .onDisappear { store.stopPolling() }
+        .task {
+            guard startsPolling else { return }
+            await store.startPolling()
+        }
+        .onDisappear {
+            guard startsPolling else { return }
+            store.stopPolling()
+        }
         .fullScreenCover(item: $fullscreenVideo) { video in
             FullscreenYouTubePlayerView(
                 video: video,
@@ -179,3 +200,33 @@ struct NewsMenu: View {
             .foregroundStyle(PrimaryColor)
     }
 }
+
+#if DEBUG
+@MainActor
+private func makePreviewNewsStore() -> NewsStore {
+    let store = NewsStore()
+    store.selectedSource = .lancerLive
+    store.lastUpdatedString = "10:15 AM"
+    store.isLoading = false
+    store.errorMessage = nil
+    store.htmlContent = ""
+    store.latestVideo = LancerLiveVideo(
+        id: "preview-video",
+        title: "Lancer Live: Campus Headlines",
+        watchURL: URL(string: "https://www.youtube.com/watch?v=dQw4w9WgXcQ")!,
+        thumbnailURL: URL(string: "https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg")!,
+        publishedAt: Calendar.current.date(from: DateComponents(year: 2026, month: 4, day: 13, hour: 10, minute: 15))
+    )
+    return store
+}
+
+#Preview("News Page") {
+    NewsMenu(
+        PrimaryColor: .blue,
+        SecondaryColor: Color.blue.opacity(0.12),
+        TertiaryColor: .white,
+        store: makePreviewNewsStore(),
+        startsPolling: false
+    )
+}
+#endif

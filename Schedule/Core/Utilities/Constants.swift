@@ -73,3 +73,4 @@ func copyText(from sourcePath: String, to destinationPath: String) {
         print("❌ Error copying text: \(error)")
     }
 }
+ 

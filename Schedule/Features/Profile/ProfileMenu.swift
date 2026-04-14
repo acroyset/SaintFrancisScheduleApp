@@ -5,7 +5,9 @@
 
 import SwiftUI
 import Foundation
+#if canImport(FirebaseAuth)
 import FirebaseAuth
+#endif
 
 struct ProfileMenu: View {
     @EnvironmentObject var authManager: AuthenticationManager
@@ -33,9 +35,13 @@ struct ProfileMenu: View {
     /// Detect Google accounts safely — only evaluated when the view
     /// is fully alive and authManager.user is already set.
     private var isGoogleAccount: Bool {
+#if canImport(FirebaseAuth)
         guard authManager.user != nil else { return false }
         return Auth.auth().currentUser?.providerData
             .contains(where: { $0.providerID == "google.com" }) ?? false
+#else
+        return false
+#endif
     }
     
     var body: some View {
@@ -45,9 +51,9 @@ struct ProfileMenu: View {
                     
                     Color.clear.frame(height: iPad ? 60 : 50)
                     
-                    if let user = authManager.user {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 8) {
+                            if let user = authManager.user {
                                 Text("Signed in as:")
                                     .appThemeFont(.secondary, style: .caption)
                                     .foregroundStyle(TertiaryColor.highContrastTextColor())
@@ -59,26 +65,34 @@ struct ProfileMenu: View {
                                 Text(user.email)
                                     .appThemeFont(.secondary, style: .caption)
                                     .foregroundStyle(TertiaryColor.highContrastTextColor())
+                            } else {
+                                Text("Debug Guest Mode")
+                                    .appThemeFont(.primary, style: .headline, weight: .semibold)
+                                    .foregroundColor(PrimaryColor)
+
+                                Text("Working locally on this device")
+                                    .appThemeFont(.secondary, style: .caption)
+                                    .foregroundStyle(TertiaryColor.highContrastTextColor())
                             }
-                            
-                            Spacer()
-                            
-                            VStack {
-                                Button {
-                                    showSettings.toggle()
-                                } label: {
-                                    Label(iPad ? "Settings" : "", systemImage: "gearshape.fill")
-                                        .appThemeFont(.primary, style: .title)
-                                        .foregroundStyle(PrimaryColor)
-                                }
-                            }
-                            .padding()
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        
+                        Spacer()
+                        
+                        VStack {
+                            Button {
+                                showSettings.toggle()
+                            } label: {
+                                Label(iPad ? "Settings" : "", systemImage: "gearshape.fill")
+                                    .appThemeFont(.primary, style: .title)
+                                    .foregroundStyle(PrimaryColor)
+                            }
+                        }
                         .padding()
-                        .background(SecondaryColor)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+                    .background(SecondaryColor)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
 
                     // Sync Status Message
                     if showSyncMessage {
@@ -170,21 +184,23 @@ struct ProfileMenu: View {
                     Spacer()
                     
                     // Danger Zone
-                    VStack(spacing: 8) {
-                        Text("Danger Zone")
-                            .appThemeFont(.secondary, style: .caption)
-                            .foregroundColor(.red)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        
-                        Button {
-                            showingDeleteAlert = true
-                        } label: {
-                            Text("Delete Account")
-                                .frame(maxWidth: .infinity, minHeight: iPad ? 44 : 30)
-                                .padding()
-                                .background(Color.red.opacity(0.1))
+                    if authManager.user != nil {
+                        VStack(spacing: 8) {
+                            Text("Danger Zone")
+                                .appThemeFont(.secondary, style: .caption)
                                 .foregroundColor(.red)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            
+                            Button {
+                                showingDeleteAlert = true
+                            } label: {
+                                Text("Delete Account")
+                                    .frame(maxWidth: .infinity, minHeight: iPad ? 44 : 30)
+                                    .padding()
+                                    .background(Color.red.opacity(0.1))
+                                    .foregroundColor(.red)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                            }
                         }
                     }
                     
@@ -218,15 +234,17 @@ struct ProfileMenu: View {
             VStack {
                 if #available(iOS 26.0, *), AppAvailability.liquidGlass {
                     Text("Profile")
-                        .appThemeFont(.secondary, size: iPad ? 34 : 22, weight: .bold)
-                        .padding(iPad ? 16 : 12)
+                        .appThemeFont(.secondary, size: iPad ? 40 : 26, weight: .bold)
+                        .padding(.vertical, iPad ? 20 : 14)
+                        .padding(.horizontal, iPad ? 18 : 12)
                         .frame(maxWidth: .infinity)
                         .foregroundStyle(PrimaryColor)
                         .glassEffect()
                 } else {
                     Text("Profile")
-                        .appThemeFont(.secondary, size: iPad ? 34 : 22, weight: .bold)
-                        .padding(12)
+                        .appThemeFont(.secondary, size: iPad ? 40 : 26, weight: .bold)
+                        .padding(.vertical, iPad ? 20 : 14)
+                        .padding(.horizontal, iPad ? 18 : 12)
                         .foregroundStyle(PrimaryColor)
                 }
                 Spacer()
@@ -406,3 +424,85 @@ struct ProfileMenu: View {
         }
     }
 }
+
+#if DEBUG
+@MainActor
+private func makePreviewAuthManager() -> AuthenticationManager {
+    let manager = AuthenticationManager()
+    manager.isUsingDebugGuestSession = true
+    return manager
+}
+
+@MainActor
+private func makePreviewEventsManager() -> CustomEventsManager {
+    let manager = CustomEventsManager()
+    manager.events = [
+        CustomEvent(
+            title: "Robotics Meeting",
+            startTime: .from(hour: 15, minute: 30),
+            endTime: .from(hour: 16, minute: 15),
+            location: "Innovation Lab",
+            note: "Bring prototype notes",
+            color: "#4A90E2",
+            repeatPattern: .none,
+            kind: .event,
+            applicableDays: ["04-13-26"]
+        ),
+        CustomEvent(
+            title: "Turn in Chemistry Lab",
+            startTime: .from(hour: 20, minute: 0),
+            endTime: .from(hour: 20, minute: 15),
+            note: "Upload PDF to Classroom",
+            color: "#F97316",
+            repeatPattern: .none,
+            kind: .reminder,
+            reminderOffsets: [.oneHour],
+            applicableDays: ["04-13-26"]
+        )
+    ]
+    return manager
+}
+
+private struct ProfileMenuPreviewWrapper: View {
+    @State private var data: ScheduleData? = ScheduleData(
+        classes: [
+            ClassItem(name: "AP Biology", teacher: "Dr. Patel", room: "S201"),
+            ClassItem(name: "English 2 Honors", teacher: "Ms. Lopez", room: "B104"),
+            ClassItem(name: "Algebra 2", teacher: "Mr. Chen", room: "M301"),
+            ClassItem(name: "US History", teacher: "Mr. Grant", room: "H210"),
+            ClassItem(name: "Spanish 3", teacher: "Sra. Ruiz", room: "L112"),
+            ClassItem(name: "Chemistry", teacher: "Dr. Kim", room: "S115"),
+            ClassItem(name: "Design Lab", teacher: "Ms. Hart", room: "A008")
+        ] + Array(ScheduleData.defaultClasses.dropFirst(7)),
+        days: [],
+        isSecondLunch: [false, false]
+    ).normalized()
+    @State private var tutorial: TutorialState = .Hidden
+    @State private var primaryColor = Color.blue
+    @State private var secondaryColor = Color.blue.opacity(0.12)
+    @State private var tertiaryColor = Color.white
+    @State private var primaryFontChoice: AppFontChoice = .rounded
+    @State private var secondaryFontChoice: AppFontChoice = .rounded
+
+    var body: some View {
+        ProfileMenu(
+            data: $data,
+            tutorial: $tutorial,
+            PrimaryColor: $primaryColor,
+            SecondaryColor: $secondaryColor,
+            TertiaryColor: $tertiaryColor,
+            primaryFontChoice: $primaryFontChoice,
+            secondaryFontChoice: $secondaryFontChoice,
+            iPad: false,
+            isPortrait: true
+        )
+        .environmentObject(makePreviewAuthManager())
+        .environmentObject(makePreviewEventsManager())
+        .background(tertiaryColor)
+    }
+}
+
+#Preview("Profile Page") {
+    ProfileMenuPreviewWrapper()
+}
+#endif
