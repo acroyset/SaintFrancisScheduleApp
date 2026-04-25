@@ -38,10 +38,8 @@ struct ClassesView: View {
     var isPortrait: Bool
     
     @State var window = classWindow.None
-    @State var gpaGrades: [String] = Array(repeating: "A", count: 7)
-    @State var gpaTypes: [String] = Array(repeating: "Normal", count: 7)
-    
     @StateObject private var courseViewModel = CourseViewModel()
+    @StateObject private var localGradeStore = LocalGradeStore.shared
     
     var body: some View {
         ZStack{
@@ -88,8 +86,7 @@ struct ClassesView: View {
                         SecondaryColor: SecondaryColor,
                         TertiaryColor: TertiaryColor,
                         window: $window,
-                        gpaGrades: $gpaGrades,
-                        gpaTypes: $gpaTypes
+                        localGradeStore: localGradeStore
                     )
                     
                 case .CoursesList:
@@ -107,7 +104,8 @@ struct ClassesView: View {
                         PrimaryColor: PrimaryColor,
                         SecondaryColor: SecondaryColor,
                         TertiaryColor: TertiaryColor,
-                        window: $window
+                        window: $window,
+                        localGradeStore: localGradeStore
                     )
 
                 case .WhatIfCalculator:
@@ -116,7 +114,8 @@ struct ClassesView: View {
                         PrimaryColor: PrimaryColor,
                         SecondaryColor: SecondaryColor,
                         TertiaryColor: TertiaryColor,
-                        window: $window
+                        window: $window,
+                        localGradeStore: localGradeStore
                     )
                     
                 case .ClassEditor:
@@ -145,8 +144,15 @@ struct ClassesView: View {
         }
         .onAppear(perform: {
             courseViewModel.allCourses = loadSFHSCourses()
-            gpaTypes = data.classes.prefix(7).map { inferClassLevel(from: $0.name) }
+            localGradeStore.seedClassTypes(from: data)
+            UsageStatsStore.shared.setCurrentFeature(feature(for: window))
         })
+        .onChange(of: window) { _, newWindow in
+            UsageStatsStore.shared.setCurrentFeature(feature(for: newWindow))
+        }
+        .onChange(of: data.classes.map(\.name)) { _, _ in
+            localGradeStore.seedClassTypes(from: data)
+        }
     }
 
     @ViewBuilder
@@ -188,6 +194,23 @@ struct ClassesView: View {
 
     private var menuDivider: some View {
         Divider().padding(.leading, 48)
+    }
+
+    private func feature(for window: classWindow) -> UsageFeature? {
+        switch window {
+        case .GPACalculator:
+            .gpaCalculator
+        case .CoursesList:
+            .courseBrowser
+        case .FinalGradeCalculator:
+            .finalGradeCalculator
+        case .ClassEditor:
+            .classEditor
+        case .WhatIfCalculator:
+            .whatIfCalculator
+        case .None:
+            nil
+        }
     }
 }
 

@@ -84,17 +84,6 @@ final class GlobalDataStore: ObservableObject {
         }
     }
 
-    func touchLastUpdated(authManager: AuthenticationManager) {
-        guard let userId = authManager.user?.id else { return }
-        Task {
-            do {
-                try await persistence.touchCloudLastUpdated(for: userId)
-            } catch {
-                print("❌ Failed to update lastUpdated: \(error)")
-            }
-        }
-    }
-
     func getDayInfo(for currentDay: String) -> Day? {
         let dayIndex = getDayNumber(for: currentDay) ?? 0
         return data?.days[dayIndex]

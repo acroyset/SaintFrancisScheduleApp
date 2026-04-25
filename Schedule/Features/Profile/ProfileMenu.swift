@@ -181,6 +181,14 @@ struct ProfileMenu: View {
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                     }
                     
+                    #if DEBUG
+                    Button {
+                        fatalError("Crashlytics test crash")
+                    } label: {
+                        Text("Crash")
+                    }
+                    #endif
+                    
                     Spacer()
                     
                     // Danger Zone
@@ -289,6 +297,15 @@ struct ProfileMenu: View {
         } message: {
             Text("This will permanently delete your account and all data. This action cannot be undone.")
         }
+        .onAppear {
+            syncTrackedFeature()
+        }
+        .onChange(of: showSettings) { _, _ in
+            syncTrackedFeature()
+        }
+        .onChange(of: showAllItems) { _, _ in
+            syncTrackedFeature()
+        }
     }
     
     // MARK: - Save / Load
@@ -381,6 +398,16 @@ struct ProfileMenu: View {
                     isLoading = false
                 }
             }
+        }
+    }
+
+    private func syncTrackedFeature() {
+        if showSettings {
+            UsageStatsStore.shared.setCurrentFeature(.settings)
+        } else if showAllItems {
+            UsageStatsStore.shared.setCurrentFeature(.eventsReminders)
+        } else {
+            UsageStatsStore.shared.setCurrentFeature(nil)
         }
     }
 

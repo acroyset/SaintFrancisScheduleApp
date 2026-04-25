@@ -211,10 +211,6 @@ final class CloudService {
         )
     }
 
-    func touchCloudLastUpdated(for userId: String) async throws {
-        try await dataManager.touchLastUpdated(for: userId)
-    }
-
     func appendUsageSessionToCloud(_ session: UsageSessionRecord, for userId: String) async throws {
         try await dataManager.appendUsageSessionToCloud(session, for: userId)
     }

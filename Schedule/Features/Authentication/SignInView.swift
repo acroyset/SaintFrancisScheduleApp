@@ -430,9 +430,8 @@ struct SignInView: View {
 
     private var appleCanvaButton: some View {
         SignInWithAppleButton(.continue) { request in
-            let nonce = authManager.prepareSignInWithApple()
             request.requestedScopes = [.fullName, .email]
-            request.nonce = nonce
+            request.nonce = authManager.prepareSignInWithApple()
         } onCompletion: { result in
             Task { await authManager.signInWithApple(result: result) }
         }

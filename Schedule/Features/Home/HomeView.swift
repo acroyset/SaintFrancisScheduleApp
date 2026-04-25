@@ -20,7 +20,7 @@ struct HomeView: View {
         return isPortrait ? 8 : 6
     }
     private var actionCardPadding: CGFloat { isPortrait ? 16 : 12 }
-    private var portraitActionBottomPadding: CGFloat { toolbarHeight + 12 }
+    private var portraitActionBottomPadding: CGFloat { toolbarHeight }
     private var scrollBottomInset: CGFloat {
         let baseToolbarInset = toolbarHeight + (iPad ? 20 : 16)
         if isPortrait && scheduleDict != nil {
@@ -53,7 +53,7 @@ struct HomeView: View {
     @State private var collapsedHeaderHeight: CGFloat = 0
     @State private var portraitActionRowHeight: CGFloat = 0
 
-    private var headerHeight: CGFloat { collapsedHeaderHeight + 16 }
+    private var headerHeight: CGFloat { collapsedHeaderHeight + (iPad ? 16 : 12) }
     private var sharedHeaderRadius: CGFloat { max(dateNavHeight / 2, 16) }
     private var nowNextCornerRadius: CGFloat { sharedHeaderRadius + 4 }
 
@@ -377,7 +377,7 @@ struct HomeView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "plus.circle.fill")
                         .appThemeFont(.primary, size: iPad ? 24 : 20, weight: .semibold)
-                    Text("Event").appThemeFont(.primary, size: 20, weight: .semibold)
+                    Text("Event").appThemeFont(.primary, size: iPad ? 20 : 16, weight: .semibold)
                 }
                 .frame(maxWidth: .infinity)
                 .foregroundColor(TertiaryColor)
@@ -391,7 +391,7 @@ struct HomeView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "plus.circle.fill")
                         .appThemeFont(.primary, size: iPad ? 24 : 20, weight: .semibold)
-                    Text("Event").appThemeFont(.primary, size: 20, weight: .semibold)
+                    Text("Event").appThemeFont(.primary, size: iPad ? 20 : 16, weight: .semibold)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(8)
@@ -412,7 +412,7 @@ struct HomeView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "bell.badge.fill")
                         .appThemeFont(.primary, size: iPad ? 24 : 20, weight: .semibold)
-                    Text("Reminder").appThemeFont(.primary, size: 20, weight: .semibold)
+                    Text("Reminder").appThemeFont(.primary, size: iPad ? 20 : 16, weight: .semibold)
                 }
                 .frame(maxWidth: .infinity)
                 .foregroundColor(TertiaryColor)
@@ -426,7 +426,7 @@ struct HomeView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "bell.badge.fill")
                         .appThemeFont(.primary, size: iPad ? 24 : 20, weight: .semibold)
-                    Text("Reminder").appThemeFont(.primary, size: 20, weight: .semibold)
+                    Text("Reminder").appThemeFont(.primary, size: iPad ? 20 : 16, weight: .semibold)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(8)

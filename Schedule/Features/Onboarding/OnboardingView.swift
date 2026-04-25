@@ -189,6 +189,7 @@ struct OnboardingView: View {
 
     private func markOnboardingDone() {
         UserDefaults.standard.set(true, forKey: "HasCompletedOnboarding")
+        NotificationSettings.requestAuthorizationAfterOnboardingIfNeeded()
     }
 }
 

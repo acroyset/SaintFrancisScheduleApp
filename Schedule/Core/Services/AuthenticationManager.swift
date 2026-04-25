@@ -211,21 +211,33 @@ class AuthenticationManager: ObservableObject {
         isLoading = false
     }
 
-    func prepareSignInWithApple() -> String {
-        let nonce = randomNonceString()
-        currentNonce = nonce
-        return sha256(nonce)
+    func prepareSignInWithApple() -> String? {
+        do {
+            let nonce = try randomNonceString()
+            currentNonce = nonce
+            return sha256(nonce)
+        } catch {
+            currentNonce = nil
+            errorMessage = error.localizedDescription
+            return nil
+        }
     }
 
-    private func randomNonceString(length: Int = 32) -> String {
+    private func randomNonceString(length: Int = 32) throws -> String {
         let charset: [Character] = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
         var result = ""
         var remainingLength = length
         while remainingLength > 0 {
-            let randoms: [UInt8] = (0 ..< 16).map { _ in
+            let randoms: [UInt8] = try (0 ..< 16).map { _ in
                 var random: UInt8 = 0
                 let errorCode = SecRandomCopyBytes(kSecRandomDefault, 1, &random)
-                if errorCode != errSecSuccess { fatalError("Unable to generate nonce.") }
+                if errorCode != errSecSuccess {
+                    throw NSError(
+                        domain: "AuthenticationManager",
+                        code: Int(errorCode),
+                        userInfo: [NSLocalizedDescriptionKey: "Unable to securely prepare Sign in with Apple. Please try again."]
+                    )
+                }
                 return random
             }
             randoms.forEach { random in

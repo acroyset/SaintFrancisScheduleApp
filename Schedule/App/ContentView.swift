@@ -8,7 +8,7 @@ import Foundation
 import UserNotifications
 
 let version = "1.17"
-let whatsNew = " - Bug Fixes"
+let whatsNew = " - Reminders\n - Lancer Live\n - Bug Fixes"
 
 struct ContentView: View {
     @EnvironmentObject var authManager: AuthenticationManager
@@ -45,8 +45,10 @@ struct ContentView: View {
                 )
                 .onTapGesture(perform: handleBackgroundTap)
 
-                VStack {
-                    topHeader
+                VStack(spacing: window == .Map ? 0 : nil) {
+                    if window != .Map {
+                        topHeader
+                    }
                     mainContentView
                         .environmentObject(eventsManager)
                 }
@@ -71,8 +73,8 @@ struct ContentView: View {
 
                 overlays
             }
-            .padding(.top)
-            .padding(.horizontal)
+            .padding(.top, window == .Map ? 0 : 16)
+            .padding(.horizontal, window == .Map ? 0 : 16)
             .background(appStore.tertiaryColor.ignoresSafeArea())
             .background(orientationReader)
             .animation(.easeInOut(duration: 0.1), value: appStore.dayCode)
@@ -245,6 +247,14 @@ struct ContentView: View {
                 isPortrait: isPortrait
             )
 
+        case .Map:
+            MapView(
+                data: appStore.data,
+                PrimaryColor: appStore.primaryColor,
+                SecondaryColor: appStore.secondaryColor,
+                TertiaryColor: appStore.tertiaryColor
+            )
+
         case .Profile:
             ProfileMenu(
                 data: Binding(
@@ -329,6 +339,8 @@ struct ContentView: View {
         if scenePhase == .active {
             usageStats.beginSession()
         }
+        usageStats.setCurrentPage(usagePage(for: window))
+        usageStats.setCurrentFeature(nil)
 
         appStore.resetHomeDateToToday(events: eventsManager.events)
         appStore.loadData(
@@ -368,10 +380,11 @@ struct ContentView: View {
         switch newPhase {
         case .active:
             usageStats.beginSession()
+            usageStats.setCurrentPage(usagePage(for: window))
+            usageStats.setCurrentFeature(nil)
             appStore.resetHomeDateToToday(events: eventsManager.events)
             appStore.syncDerivedOutputs(events: eventsManager.events)
             appStore.updateNightlyNotification()
-            appStore.touchLastUpdated(authManager: authManager)
         case .background:
             appendEndedUsageSession()
             appStore.syncDerivedOutputs(events: eventsManager.events)
@@ -385,6 +398,8 @@ struct ContentView: View {
 
     private func handleWindowChange(oldWindow: Window, newWindow: Window) {
         guard oldWindow != newWindow else { return }
+        usageStats.setCurrentPage(usagePage(for: newWindow))
+        usageStats.setCurrentFeature(nil)
         withAnimation(.snappy) {
             showCalendarGrid = false
         }
@@ -399,7 +414,23 @@ struct ContentView: View {
     private func handleUserChange(_: String?, userId: String?) {
         appStore.handleUserChange(userId)
         usageStats.setUserScope(userId)
-        appStore.touchLastUpdated(authManager: authManager)
+        usageStats.setCurrentPage(usagePage(for: window))
+        usageStats.setCurrentFeature(nil)
+    }
+
+    private func usagePage(for window: Window) -> UsagePage {
+        switch window {
+        case .Home:
+            .home
+        case .News:
+            .news
+        case .ClassesView:
+            .classes
+        case .Map:
+            .map
+        case .Profile:
+            .profile
+        }
     }
 
     private struct SpinningGear: View {

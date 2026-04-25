@@ -91,17 +91,19 @@ class DataManager: ObservableObject {
         return stored < currentVersion
     }
 
-    func touchLastUpdated(for userId: String) async throws {
-        try await db.collection("users").document(userId).setData([
-            "lastUpdated": FieldValue.serverTimestamp()
-        ], merge: true)
-    }
-
     func appendUsageSessionToCloud(_ session: UsageSessionRecord, for userId: String) async throws {
         let sessionData: [String: Any] = [
             "startedAt": Timestamp(date: session.startedAt),
             "endedAt": Timestamp(date: session.endedAt),
-            "appVersion": session.appVersion
+            "appVersion": session.appVersion,
+            "duration": session.duration,
+            "lastPage": session.lastPage as Any,
+            "pageDurations": session.pageDurations,
+            "featureDurations": session.featureDurations,
+            "featureCounts": session.featureCounts,
+            "notificationsEnabled": session.notificationsEnabled,
+            "liveActivitiesEnabled": session.liveActivitiesEnabled,
+            "liveActivityActive": session.liveActivityActive
         ]
 
         try await db.collection("users").document(userId).setData([

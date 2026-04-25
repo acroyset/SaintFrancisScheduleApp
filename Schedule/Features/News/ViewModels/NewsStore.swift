@@ -97,25 +97,40 @@ final class NewsStore: ObservableObject {
     }
 
     private func fetchLancerLive(loadID: UUID, source: NewsSource) async {
-        do {
-            let video = try await lancerLiveService.fetchLatestVideo()
+        var lastError: Error?
+
+        for attempt in 1...3 {
             guard shouldApply(loadID: loadID, source: source) else { return }
 
-            latestVideo = video
-            cachedLancerLiveVideo = video
-            isLoading = false
-            updateTimestamp()
-        } catch {
-            guard shouldApply(loadID: loadID, source: source) else { return }
+            do {
+                let video = try await lancerLiveService.fetchLatestVideo()
+                guard shouldApply(loadID: loadID, source: source) else { return }
 
-            isLoading = false
-            if let cachedLancerLiveVideo {
-                latestVideo = cachedLancerLiveVideo
-                errorMessage = "Showing the last loaded Lancer Live video."
-            } else {
-                latestVideo = nil
-                errorMessage = "Couldn’t load the latest Lancer Live video right now."
+                latestVideo = video
+                cachedLancerLiveVideo = video
+                isLoading = false
+                updateTimestamp()
+                return
+            } catch {
+                lastError = error
+                guard attempt < 3 else { break }
+                try? await Task.sleep(nanoseconds: UInt64(attempt) * 700_000_000)
             }
+        }
+
+        if let lastError {
+            print("⚠️ Lancer Live failed after retries: \(lastError)")
+        }
+
+        guard shouldApply(loadID: loadID, source: source) else { return }
+
+        isLoading = false
+        if let cachedLancerLiveVideo {
+            latestVideo = cachedLancerLiveVideo
+            errorMessage = "Showing the last loaded Lancer Live video."
+        } else {
+            latestVideo = nil
+            errorMessage = "Couldn’t load the latest Lancer Live video right now."
         }
     }
 

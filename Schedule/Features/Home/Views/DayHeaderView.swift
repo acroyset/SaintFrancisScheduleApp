@@ -31,7 +31,7 @@ struct DayHeaderView: View {
                 } else {
                     Text(dayName)
                         .appThemeFont(.primary, size: iPad ? 52 : 32, weight: .black)
-                        .foregroundColor(PrimaryColor)
+                        .foregroundColor(TertiaryColor)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                 }

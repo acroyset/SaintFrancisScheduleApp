@@ -397,6 +397,25 @@ class NotificationManager {
 class NotificationSettings {
     static let enabledKey = "NotificationsEnabled"
     static let timeKey    = "NotificationTime"
+    private static let onboardingAuthorizationPromptKey = "DidRequestNotificationsAfterOnboarding"
+
+    static func requestAuthorizationAfterOnboardingIfNeeded() {
+        guard UserDefaults.standard.bool(forKey: "HasCompletedOnboarding") else { return }
+        guard !UserDefaults.standard.bool(forKey: onboardingAuthorizationPromptKey) else { return }
+
+        let center = UNUserNotificationCenter.current()
+        center.getNotificationSettings { settings in
+            guard settings.authorizationStatus == .notDetermined else {
+                UserDefaults.standard.set(true, forKey: onboardingAuthorizationPromptKey)
+                return
+            }
+
+            center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+                UserDefaults.standard.set(true, forKey: onboardingAuthorizationPromptKey)
+                if !granted { print("❌ Notification Permission Denied") }
+            }
+        }
+    }
 
     static var isEnabled: Bool {
         get { UserDefaults.standard.bool(forKey: enabledKey) }

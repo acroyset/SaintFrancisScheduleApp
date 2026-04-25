@@ -57,6 +57,7 @@ struct ToolBar: View {
         ("Home", "house.fill"),
         ("News", "newspaper.fill"),
         ("Classes", "pencil.and.list.clipboard"),
+        ("Map", "map.fill"),
         ("Profile", "person.crop.circle.fill")
     ]
 
@@ -94,7 +95,7 @@ struct ToolButton: View {
         let active = window.rawValue == index
         let iconSize: CGFloat = iPad ? 28 : 18
         let labelSize: CGFloat = iPad ? 18 : 16
-        let contentPadding: CGFloat = iPad ? 20 : 16
+        let contentPadding: CGFloat = iPad ? 20 : 13
         let glassPadding: CGFloat = iPad ? 10 : 6
         
         let content = Button {
@@ -111,7 +112,7 @@ struct ToolButton: View {
                         .foregroundColor(active ? TertiaryColor : PrimaryColor)
                         .scaleEffect(active ? 1.1 : 1.0)
                      
-                    if iPad || active {
+                    if iPad {
                         Text(label)
                             .appThemeFont(.primary, size: labelSize)
                             .foregroundColor(active ? TertiaryColor : PrimaryColor)
@@ -125,7 +126,7 @@ struct ToolButton: View {
                         .foregroundColor(active ? TertiaryColor : PrimaryColor)
                         .scaleEffect(active ? 1.1 : 1.0)
                     
-                    if iPad || active {
+                    if iPad {
                         Text(label)
                             .appThemeFont(.primary, size: labelSize)
                             .foregroundColor(active ? TertiaryColor : PrimaryColor)

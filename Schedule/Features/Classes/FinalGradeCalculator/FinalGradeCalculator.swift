@@ -13,15 +13,42 @@ struct FinalGradeCalculatorModal: View {
     var SecondaryColor: Color
     var TertiaryColor: Color
     @Binding var window: classWindow
+    @ObservedObject var localGradeStore: LocalGradeStore
     
     @Environment(\.dismiss) private var dismiss
     
-    @State private var currentGrade: String = "90"
-    @State private var finalExamWeight: String = "15"
-    @State private var desiredGrade: String = "A"
+    @State private var selectedClassIndex: Int = 0
     @State private var requiredFinalGrade: Double? = nil
     
     let grades = ["A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D+", "D", "D-", "F"]
+
+    private var classOptions: [(index: Int, name: String)] {
+        data.classes.enumerated().compactMap { index, item in
+            let trimmed = item.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard index < 7, !trimmed.isEmpty, trimmed != "None", trimmed != "Period \(index + 1)" else { return nil }
+            return (index, trimmed)
+        }
+    }
+
+    private var selectedClassName: String {
+        classOptions.first(where: { $0.index == selectedClassIndex })?.name ?? ""
+    }
+
+    private var currentGradeBinding: Binding<String> {
+        localGradeStore.binding(for: selectedClassIndex, className: selectedClassName, keyPath: \.gpaPercentage)
+    }
+
+    private var finalExamWeightBinding: Binding<String> {
+        localGradeStore.binding(for: selectedClassIndex, className: selectedClassName, keyPath: \.finalExamWeight)
+    }
+
+    private var desiredGradeBinding: Binding<String> {
+        localGradeStore.binding(for: selectedClassIndex, className: selectedClassName, keyPath: \.desiredFinalGrade)
+    }
+
+    private var selectedRecord: LocalClassGradeRecord {
+        localGradeStore.record(for: selectedClassIndex, className: selectedClassName)
+    }
     
     var body: some View {
         ZStack {
@@ -32,13 +59,36 @@ struct FinalGradeCalculatorModal: View {
                     Color.clear.frame(height: iPad ? 90 : 80)
 
                     VStack(spacing: 8) {
+                        Text("Class")
+                            .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(PrimaryColor)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        Picker("Class", selection: $selectedClassIndex) {
+                            if classOptions.isEmpty {
+                                Text("No classes yet").tag(0)
+                            } else {
+                                ForEach(classOptions, id: \.index) { option in
+                                    Text(option.name).tag(option.index)
+                                }
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .tint(PrimaryColor)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding(12)
+                    .background(SecondaryColor)
+                    .cornerRadius(12)
+
+                    VStack(spacing: 8) {
                         Text("Current Grade")
                             .font(.system(size: 14, weight: .semibold, design: .monospaced))
                             .foregroundStyle(PrimaryColor)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         
                         HStack(spacing: 8) {
-                            TextField("Enter percentage", text: $currentGrade)
+                            TextField("Enter percentage", text: currentGradeBinding)
                                 .keyboardType(.decimalPad)
                                 .font(.system(size: iPad ? 18 : 14, weight: .semibold, design: .monospaced))
                                 .padding(12)
@@ -51,6 +101,11 @@ struct FinalGradeCalculatorModal: View {
                                 .foregroundStyle(PrimaryColor)
                                 .padding(.trailing, 8)
                         }
+
+                        Text("Shared with GPA Calculator and What-If Calculator.")
+                            .font(.system(size: 11, weight: .medium, design: .monospaced))
+                            .foregroundStyle(PrimaryColor.opacity(0.7))
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .padding(12)
                     .background(SecondaryColor)
@@ -63,7 +118,7 @@ struct FinalGradeCalculatorModal: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                         
                         HStack(spacing: 8) {
-                            TextField("Enter weight", text: $finalExamWeight)
+                            TextField("Enter weight", text: finalExamWeightBinding)
                                 .keyboardType(.decimalPad)
                                 .font(.system(size: iPad ? 18 : 14, weight: .semibold, design: .monospaced))
                                 .padding(12)
@@ -88,7 +143,7 @@ struct FinalGradeCalculatorModal: View {
                             .foregroundStyle(PrimaryColor)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         
-                        Picker("Desired Grade", selection: $desiredGrade) {
+                        Picker("Desired Grade", selection: desiredGradeBinding) {
                             ForEach(grades, id: \.self) { grade in
                                 Text(grade).tag(grade)
                             }
@@ -148,6 +203,10 @@ struct FinalGradeCalculatorModal: View {
                         .background(SecondaryColor)
                         .cornerRadius(12)
                     }
+
+                    Text("Your grade data is stored locally on this device. It is not sent to us, and we do not collect it.")
+                        .font(.system(size: 12, weight: .medium, design: .monospaced))
+                        .foregroundStyle(TertiaryColor.highContrastTextColor())
                 }
                 .padding(16)
                 
@@ -156,6 +215,7 @@ struct FinalGradeCalculatorModal: View {
             .onTapGesture {
                 hideKeyboard()
             }
+            .scrollDismissesKeyboard(.interactively)
             .mask{
                 LinearGradient(
                     gradient: Gradient(stops: [
@@ -217,12 +277,17 @@ struct FinalGradeCalculatorModal: View {
                 Spacer()
             }
         }
+        .onAppear {
+            if let first = classOptions.first {
+                selectedClassIndex = first.index
+            }
+        }
     }
     
     private func calculateRequiredFinalGrade() -> (percentage: Double, status: String)? {
         // Parse inputs
-        guard let currentGradeValue = Double(currentGrade),
-              let finalExamWeightValue = Double(finalExamWeight) else {
+        guard let currentGradeValue = Double(selectedRecord.gpaPercentage),
+              let finalExamWeightValue = Double(selectedRecord.finalExamWeight) else {
             return nil
         }
         
@@ -231,13 +296,13 @@ struct FinalGradeCalculatorModal: View {
         // Validate inputs
         guard currentGradeValue >= 0 && currentGradeValue <= 100,
               currentWeightValue >= 0 && currentWeightValue <= 100,
-              finalExamWeightValue >= 0 && finalExamWeightValue <= 100,
+              finalExamWeightValue > 0 && finalExamWeightValue <= 100,
               (currentWeightValue + finalExamWeightValue) <= 100 else {
             return nil
         }
         
         // Get desired grade as percentage
-        let desiredGradePercentage = gradeToPercentage(desiredGrade)
+        let desiredGradePercentage = gradeToPercentage(selectedRecord.desiredFinalGrade)
         
         // Calculate required final grade
         // Formula: (Desired - (Current × CurrentWeight/100)) / (FinalWeight/100)

@@ -81,7 +81,11 @@ func formattedWidgetNextClassText(for date: Date, relativeTo referenceDate: Date
 
     let formatter = DateFormatter()
     formatter.locale = .current
-    formatter.dateFormat = dayDistance <= 6 ? "EEEE MMMM d" : "MMMM d"
+    formatter.dateFormat = dayDistance <= 6 ? "EEE MMM d" : "MMM d"
+
+    if dayDistance == 1 {
+        return "Next class tomorrow \(formatter.string(from: date))"
+    }
 
     return "Next class on \(formatter.string(from: date))"
 }

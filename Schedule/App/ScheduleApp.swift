@@ -6,6 +6,8 @@
 import SwiftUI
 import FirebaseCore
 import FirebaseAnalytics
+import FirebaseCrashlytics
+import FirebasePerformance
 import GoogleSignIn
 
 class AppDelegate: NSObject, UIApplicationDelegate {
@@ -14,12 +16,35 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         
         FirebaseConfiguration.shared.setLoggerLevel(.min)
         FirebaseApp.configure()
+        Analytics.setAnalyticsCollectionEnabled(true)
+        Crashlytics.crashlytics().setCrashlyticsCollectionEnabled(true)
+        Performance.sharedInstance().isDataCollectionEnabled = true
+        logFirebaseDiagnostics()
         
         if let clientID = FirebaseApp.app()?.options.clientID {
             GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
         }
         
         return true
+    }
+
+    private func logFirebaseDiagnostics() {
+        let bundleID = Bundle.main.bundleIdentifier ?? "nil"
+        let app = FirebaseApp.app()
+        let googleAppID = app?.options.googleAppID ?? "nil"
+        let projectID = app?.options.projectID ?? "nil"
+        let analyticsEnabled = Analytics.appInstanceID() != nil
+        let performanceEnabled = Performance.sharedInstance().isDataCollectionEnabled
+
+        print(
+            """
+            [Firebase] bundleID=\(bundleID)
+            [Firebase] googleAppID=\(googleAppID)
+            [Firebase] projectID=\(projectID)
+            [Firebase] analyticsAppInstanceIDPresent=\(analyticsEnabled)
+            [Firebase] performanceCollectionEnabled=\(performanceEnabled)
+            """
+        )
     }
 }
 
@@ -30,14 +55,8 @@ struct ScheduleApp: App {
     let notificationDelegate = NotificationDelegate()
     
     init() {
-        let center = UNUserNotificationCenter.current()
-        center.delegate = notificationDelegate
-        center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-            if !granted {print("❌ Notification Permission Denied")}
-        }
-        
+        UNUserNotificationCenter.current().delegate = notificationDelegate
         ScheduleBackgroundManager.shared.registerBackgroundTasks()
-        ScheduleBackgroundManager.shared.scheduleNextNightlyRefresh()
     }
     
     var body: some Scene {

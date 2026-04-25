@@ -162,7 +162,12 @@ struct DayTypeEntryView: View {
     @Environment(\.widgetFamily) var family
 
     private var compactEmptyDateText: String? {
-        entry.emptyMessage?.replacingOccurrences(of: "Next class on ", with: "")
+        entry.emptyMessage
+            .map { message in
+                message
+                    .replacingOccurrences(of: "Next class on ", with: "")
+                    .replacingOccurrences(of: "Next class tomorrow ", with: "")
+            }
     }
     
     var body: some View {

@@ -18,7 +18,8 @@ enum Window: Int {
     case Home = 0
     case News = 1
     case ClassesView = 2
-    case Profile = 3
+    case Map = 3
+    case Profile = 4
 }
 
 enum TutorialState: Int {
