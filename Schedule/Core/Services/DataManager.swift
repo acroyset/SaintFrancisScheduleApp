@@ -91,8 +91,15 @@ class DataManager: ObservableObject {
         return stored < currentVersion
     }
 
+    func touchLastUpdated(for userId: String) async throws {
+        try await db.collection("users").document(userId).setData([
+            "lastUpdated": FieldValue.serverTimestamp()
+        ], merge: true)
+    }
+
     func appendUsageSessionToCloud(_ session: UsageSessionRecord, for userId: String) async throws {
         let sessionData: [String: Any] = [
+            "id": session.id,
             "startedAt": Timestamp(date: session.startedAt),
             "endedAt": Timestamp(date: session.endedAt),
             "appVersion": session.appVersion,
@@ -106,10 +113,56 @@ class DataManager: ObservableObject {
             "liveActivityActive": session.liveActivityActive
         ]
 
-        try await db.collection("users").document(userId).setData([
-            "usageStats.sessions": FieldValue.arrayUnion([sessionData]),
-            "usageStatsUpdatedAt": FieldValue.serverTimestamp()
-        ], merge: true)
+        let userRef = db.collection("users").document(userId)
+
+        try await db.runTransaction { transaction, errorPointer in
+            do {
+                let doc = try transaction.getDocument(userRef)
+                let data = doc.data()
+                let nestedUsageStats = data?["usageStats"] as? [String: Any]
+                let nestedSessions = nestedUsageStats?["sessions"] as? [[String: Any]] ?? []
+                var sessions = data?["usageStats.sessions"] as? [[String: Any]] ?? []
+
+                for nestedSession in nestedSessions {
+                    if let nestedId = nestedSession["id"] as? String,
+                       let index = sessions.firstIndex(where: { $0["id"] as? String == nestedId }) {
+                        let existingEndedAt = (sessions[index]["endedAt"] as? Timestamp)?.dateValue() ?? .distantPast
+                        let nestedEndedAt = (nestedSession["endedAt"] as? Timestamp)?.dateValue() ?? .distantPast
+                        if existingEndedAt <= nestedEndedAt {
+                            sessions[index] = nestedSession
+                        }
+                    } else {
+                        sessions.append(nestedSession)
+                    }
+                }
+
+                if let index = sessions.firstIndex(where: { $0["id"] as? String == session.id }) {
+                    let existingEndedAt = (sessions[index]["endedAt"] as? Timestamp)?.dateValue() ?? .distantPast
+                    if existingEndedAt <= session.endedAt {
+                        sessions[index] = sessionData
+                    }
+                } else {
+                    sessions.append(sessionData)
+                }
+
+                if doc.exists {
+                    transaction.updateData([
+                        FieldPath(["usageStats.sessions"]): sessions,
+                        "usageStats.sessions": FieldValue.delete(),
+                        "usageStatsUpdatedAt": FieldValue.serverTimestamp()
+                    ] as [AnyHashable: Any], forDocument: userRef)
+                } else {
+                    transaction.setData([
+                        "usageStats.sessions": sessions,
+                        "usageStatsUpdatedAt": FieldValue.serverTimestamp()
+                    ], forDocument: userRef, merge: true)
+                }
+            } catch {
+                errorPointer?.pointee = error as NSError
+            }
+
+            return nil
+        }
     }
 
     func clearUsageStats(for userId: String) async throws {

@@ -190,6 +190,7 @@ struct OnboardingView: View {
     private func markOnboardingDone() {
         UserDefaults.standard.set(true, forKey: "HasCompletedOnboarding")
         NotificationSettings.requestAuthorizationAfterOnboardingIfNeeded()
+        NotificationCenter.default.post(name: .backToSchoolPromptEligibilityChanged, object: nil)
     }
 }
 

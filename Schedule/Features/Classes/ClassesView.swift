@@ -36,6 +36,7 @@ struct ClassesView: View {
     var TertiaryColor: Color
     
     var isPortrait: Bool
+    var openClassEditor: Binding<Bool> = .constant(false)
     
     @State var window = classWindow.None
     @StateObject private var courseViewModel = CourseViewModel()
@@ -145,14 +146,25 @@ struct ClassesView: View {
         .onAppear(perform: {
             courseViewModel.allCourses = loadSFHSCourses()
             localGradeStore.seedClassTypes(from: data)
+            openRequestedClassEditor()
             UsageStatsStore.shared.setCurrentFeature(feature(for: window))
         })
+        .onChange(of: openClassEditor.wrappedValue) { _, _ in
+            openRequestedClassEditor()
+        }
         .onChange(of: window) { _, newWindow in
             UsageStatsStore.shared.setCurrentFeature(feature(for: newWindow))
         }
         .onChange(of: data.classes.map(\.name)) { _, _ in
             localGradeStore.seedClassTypes(from: data)
         }
+    }
+
+    private func openRequestedClassEditor() {
+        guard openClassEditor.wrappedValue else { return }
+
+        window = .ClassEditor
+        openClassEditor.wrappedValue = false
     }
 
     @ViewBuilder

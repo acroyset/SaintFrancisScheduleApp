@@ -7,8 +7,8 @@ import SwiftUI
 import Foundation
 import UserNotifications
 
-let version = "1.17"
-let whatsNew = " - Reminders\n - Lancer Live\n - Bug Fixes"
+let version = "1.18.1"
+let whatsNew = " - Map!!\n - Bug Fixes"
 
 struct ContentView: View {
     @EnvironmentObject var authManager: AuthenticationManager
@@ -27,11 +27,15 @@ struct ContentView: View {
     @State private var addEvent = false
     @State private var addReminder = false
     @State private var window: Window = .Home
+    @State private var openClassEditorFromMap = false
     @State private var isPortrait: Bool = !iPad
     @State private var tutorial = TutorialState.Hidden
     @State private var toolbarHeight: CGFloat = 0
+    @State private var showBackToSchoolReminderPrompt = false
+    @State private var backToSchoolPromptOpensSettings = false
 
     let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    private let backToSchoolPromptKey = "DidPromptBackToSchoolReminders2026"
 
     @Environment(\.scenePhase) private var scenePhase
 
@@ -103,6 +107,29 @@ struct ContentView: View {
                     SharedGroup.defaults.set(now, forKey: "LastWidgetCheck")
                     handleWidgetRefreshRequest()
                 }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .backToSchoolPromptEligibilityChanged)) { _ in
+                handleBackToSchoolReminders()
+            }
+            .alert("School starts August 13", isPresented: $showBackToSchoolReminderPrompt) {
+                if backToSchoolPromptOpensSettings {
+                    Button("Open Settings") {
+                        markBackToSchoolPromptShown()
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
+                    }
+                } else {
+                    Button("Turn On Reminders") {
+                        markBackToSchoolPromptShown()
+                        NotificationManager.shared.requestBackToSchoolAuthorizationAndSchedule()
+                    }
+                }
+                Button("Not Now", role: .cancel) {
+                    markBackToSchoolPromptShown()
+                }
+            } message: {
+                Text("Want a reminder a few days before school starts so you can input your classes when you get them?")
             }
         }
         .environment(\.appTheme, appStore.currentTheme)
@@ -244,7 +271,8 @@ struct ContentView: View {
                 PrimaryColor: appStore.primaryColor,
                 SecondaryColor: appStore.secondaryColor,
                 TertiaryColor: appStore.tertiaryColor,
-                isPortrait: isPortrait
+                isPortrait: isPortrait,
+                openClassEditor: $openClassEditorFromMap
             )
 
         case .Map:
@@ -252,7 +280,11 @@ struct ContentView: View {
                 data: appStore.data,
                 PrimaryColor: appStore.primaryColor,
                 SecondaryColor: appStore.secondaryColor,
-                TertiaryColor: appStore.tertiaryColor
+                TertiaryColor: appStore.tertiaryColor,
+                onEditClasses: {
+                    openClassEditorFromMap = true
+                    window = .ClassesView
+                }
             )
 
         case .Profile:
@@ -293,6 +325,19 @@ struct ContentView: View {
             get: { appStore.selectedDate },
             set: { appStore.selectedDate = $0 }
         )
+    }
+
+    private func syncCurrentUsageSession() {
+        guard let userId = authManager.user?.id,
+              let session = usageStats.currentSessionRecord() else { return }
+
+        Task {
+            do {
+                try await CloudService().appendUsageSessionToCloud(session, for: userId)
+            } catch {
+                print("❌ Failed to sync usage session: \(error)")
+            }
+        }
     }
 
     private func appendEndedUsageSession() {
@@ -341,6 +386,8 @@ struct ContentView: View {
         }
         usageStats.setCurrentPage(usagePage(for: window))
         usageStats.setCurrentFeature(nil)
+        appStore.touchLastUpdated(authManager: authManager)
+        syncCurrentUsageSession()
 
         appStore.resetHomeDateToToday(events: eventsManager.events)
         appStore.loadData(
@@ -363,6 +410,7 @@ struct ContentView: View {
 
         eventsManager.purgeExpiredReminders()
         appStore.updateNightlyNotification()
+        handleBackToSchoolReminders()
     }
 
     private func handleEventsChange(_: [CustomEvent], _: [CustomEvent]) {
@@ -382,9 +430,12 @@ struct ContentView: View {
             usageStats.beginSession()
             usageStats.setCurrentPage(usagePage(for: window))
             usageStats.setCurrentFeature(nil)
+            appStore.touchLastUpdated(authManager: authManager)
+            syncCurrentUsageSession()
             appStore.resetHomeDateToToday(events: eventsManager.events)
             appStore.syncDerivedOutputs(events: eventsManager.events)
             appStore.updateNightlyNotification()
+            handleBackToSchoolReminders()
         case .background:
             appendEndedUsageSession()
             appStore.syncDerivedOutputs(events: eventsManager.events)
@@ -394,6 +445,48 @@ struct ContentView: View {
         default:
             break
         }
+    }
+
+    private func handleBackToSchoolReminders() {
+        NotificationManager.shared.scheduleBackToSchoolNotificationsIfAuthorized()
+        NotificationManager.shared.cancelBackToSchoolFollowUpsAfterReturn()
+
+        guard shouldOfferBackToSchoolReminderPrompt else { return }
+
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            let canSchedule = NotificationManager.canScheduleBackToSchoolNotifications(with: settings.authorizationStatus)
+            guard !canSchedule else { return }
+
+            DispatchQueue.main.async {
+                backToSchoolPromptOpensSettings = settings.authorizationStatus == .denied
+                showBackToSchoolReminderPrompt = true
+            }
+        }
+    }
+
+    private var shouldOfferBackToSchoolReminderPrompt: Bool {
+        guard UserDefaults.standard.bool(forKey: "HasCompletedOnboarding") else { return false }
+        guard !UserDefaults.standard.bool(forKey: backToSchoolPromptKey) else { return false }
+        return Date() < backToSchoolFirstDay
+    }
+
+    private var backToSchoolFirstDay: Date {
+        Calendar.current.date(
+            from: DateComponents(
+                calendar: Calendar.current,
+                timeZone: TimeZone.current,
+                year: 2026,
+                month: 8,
+                day: 13,
+                hour: 23,
+                minute: 59,
+                second: 0
+            )
+        ) ?? .distantPast
+    }
+
+    private func markBackToSchoolPromptShown() {
+        UserDefaults.standard.set(true, forKey: backToSchoolPromptKey)
     }
 
     private func handleWindowChange(oldWindow: Window, newWindow: Window) {
@@ -414,8 +507,13 @@ struct ContentView: View {
     private func handleUserChange(_: String?, userId: String?) {
         appStore.handleUserChange(userId)
         usageStats.setUserScope(userId)
+        if scenePhase == .active {
+            usageStats.beginSession()
+        }
         usageStats.setCurrentPage(usagePage(for: window))
         usageStats.setCurrentFeature(nil)
+        appStore.touchLastUpdated(authManager: authManager)
+        syncCurrentUsageSession()
     }
 
     private func usagePage(for window: Window) -> UsagePage {

@@ -28,6 +28,7 @@ enum UsageFeature: String, Codable, CaseIterable {
 }
 
 struct UsageSessionRecord: Codable, Equatable, Hashable {
+    let id: String
     let startedAt: Date
     let endedAt: Date
     let appVersion: String
@@ -48,6 +49,7 @@ struct UsageSessionRecord: Codable, Equatable, Hashable {
 final class UsageStatsStore: ObservableObject {
     static let shared = UsageStatsStore()
 
+    private var activeSessionId: String?
     private var activeSessionStart: Date?
     private var currentPage: UsagePage?
     private var currentFeature: UsageFeature?
@@ -63,6 +65,7 @@ final class UsageStatsStore: ObservableObject {
 
     func beginSession(at date: Date = Date()) {
         if activeSessionStart == nil {
+            activeSessionId = UUID().uuidString
             activeSessionStart = date
         }
         if currentPageStartedAt == nil, currentPage != nil {
@@ -73,24 +76,25 @@ final class UsageStatsStore: ObservableObject {
         }
     }
 
+    func currentSessionRecord(at date: Date = Date()) -> UsageSessionRecord? {
+        guard let activeSessionStart,
+              let activeSessionId else { return nil }
+
+        return makeSession(
+            id: activeSessionId,
+            startedAt: activeSessionStart,
+            endedAt: max(date, activeSessionStart)
+        )
+    }
+
     func endSession(at date: Date = Date()) -> UsageSessionRecord? {
-        guard let activeSessionStart else { return nil }
+        guard let activeSessionStart,
+              let activeSessionId else { return nil }
         accumulatePageDuration(until: date)
         accumulateFeatureDuration(until: date)
 
         let endedAt = max(date, activeSessionStart)
-        let session = UsageSessionRecord(
-            startedAt: activeSessionStart,
-            endedAt: endedAt,
-            appVersion: version,
-            lastPage: currentPage?.rawValue,
-            pageDurations: pageDurations,
-            featureDurations: featureDurations,
-            featureCounts: featureCounts,
-            notificationsEnabled: NotificationSettings.isEnabled,
-            liveActivitiesEnabled: liveActivitiesEnabled,
-            liveActivityActive: liveActivityActive
-        )
+        let session = makeSession(id: activeSessionId, startedAt: activeSessionStart, endedAt: endedAt)
 
         resetSession()
         return session
@@ -134,6 +138,7 @@ final class UsageStatsStore: ObservableObject {
     }
 
     private func resetSession() {
+        activeSessionId = nil
         activeSessionStart = nil
         currentPage = nil
         currentFeature = nil
@@ -142,6 +147,22 @@ final class UsageStatsStore: ObservableObject {
         pageDurations = UsagePage.defaultDurations
         featureDurations = UsageFeature.defaultDurations
         featureCounts = UsageFeature.defaultCounts
+    }
+
+    private func makeSession(id: String, startedAt: Date, endedAt: Date) -> UsageSessionRecord {
+        UsageSessionRecord(
+            id: id,
+            startedAt: startedAt,
+            endedAt: endedAt,
+            appVersion: version,
+            lastPage: currentPage?.rawValue,
+            pageDurations: pageDurations,
+            featureDurations: featureDurations,
+            featureCounts: featureCounts,
+            notificationsEnabled: NotificationSettings.isEnabled,
+            liveActivitiesEnabled: liveActivitiesEnabled,
+            liveActivityActive: liveActivityActive
+        )
     }
 
     private var liveActivitiesEnabled: Bool {

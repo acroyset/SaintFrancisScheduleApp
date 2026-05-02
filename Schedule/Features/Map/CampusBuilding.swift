@@ -3,6 +3,7 @@
 //  Schedule
 //
 
+import CoreGraphics
 import Foundation
 
 struct CampusBuilding: Identifiable, Equatable {
@@ -10,6 +11,7 @@ struct CampusBuilding: Identifiable, Equatable {
     let title: String
     let normalizedX: Double
     let normalizedY: Double
+    let floorCount: Int
 }
 
 struct CampusClassLocation: Identifiable, Equatable {
@@ -20,88 +22,143 @@ struct CampusClassLocation: Identifiable, Equatable {
     let building: CampusBuilding
 }
 
+struct CampusRoomMarker: Identifiable, Equatable {
+    let room: String
+    let building: CampusBuilding
+    let normalizedX: Double
+    let normalizedY: Double
+    let layer: CampusMapLayer
+
+    var id: String { room }
+}
+
+enum CampusMapLayer: Int, CaseIterable, Identifiable {
+    case first = 1
+    case second = 2
+
+    var id: Int { rawValue }
+
+    var title: String {
+        switch self {
+        case .first:
+            return "1st Floor"
+        case .second:
+            return "2nd Floor"
+        }
+    }
+
+    var shortTitle: String {
+        switch self {
+        case .first:
+            return "1"
+        case .second:
+            return "2"
+        }
+    }
+}
+
 enum CampusMapData {
     static let innovationCenter = CampusBuilding(
         id: "innovationCenter",
         title: "Edgars Innovation Center 1100's 1200's",
         normalizedX: 0.26,
-        normalizedY: 0.09
+        normalizedY: 0.09,
+        floorCount: 2
     )
 
     static let cafeteria = CampusBuilding(
         id: "cafeteria",
         title: "Cafeteria",
         normalizedX: 0.13,
-        normalizedY: 0.22
+        normalizedY: 0.22,
+        floorCount: 1
     )
 
     static let sobratoCommons = CampusBuilding(
         id: "sobratoCommons",
         title: "Sobrato Commons 200's",
         normalizedX: 0.31,
-        normalizedY: 0.38
+        normalizedY: 0.38,
+        floorCount: 1
+    )
+
+    static let library = CampusBuilding(
+        id: "library",
+        title: "Library",
+        normalizedX: 0.21,
+        normalizedY: 0.36,
+        floorCount: 1
     )
 
     static let theater = CampusBuilding(
         id: "theater",
         title: "Theater",
         normalizedX: 0.46,
-        normalizedY: 0.08
+        normalizedY: 0.08,
+        floorCount: 1
     )
 
     static let alumniGym = CampusBuilding(
         id: "alumniGym",
         title: "Alumni Gym",
         normalizedX: 0.47,
-        normalizedY: 0.22
+        normalizedY: 0.22,
+        floorCount: 1
     )
 
     static let burnsGym = CampusBuilding(
         id: "burnsGym",
         title: "Burns Gym",
         normalizedX: 0.46,
-        normalizedY: 0.34
+        normalizedY: 0.34,
+        floorCount: 1
     )
 
     static let aquaticCenter = CampusBuilding(
         id: "aquaticCenter",
         title: "Aquatic Center",
         normalizedX: 0.63,
-        normalizedY: 0.18
+        normalizedY: 0.18,
+        floorCount: 1
     )
 
     static let fourHundreds = CampusBuilding(
         id: "fourHundreds",
         title: "400's",
         normalizedX: 0.43,
-        normalizedY: 0.46
+        normalizedY: 0.46,
+        floorCount: 2
     )
 
     static let fiveHundreds = CampusBuilding(
         id: "fiveHundreds",
         title: "500's",
         normalizedX: 0.43,
-        normalizedY: 0.57
+        normalizedY: 0.57,
+        floorCount: 2
     )
 
     static let sixHundreds = CampusBuilding(
         id: "sixHundreds",
         title: "600's",
         normalizedX: 0.33,
-        normalizedY: 0.64
+        normalizedY: 0.64,
+        floorCount: 2
     )
 
     static let andreHouse = CampusBuilding(
         id: "andreHouse",
         title: "Andre House",
         normalizedX: 0.35,
-        normalizedY: 0.50
+        normalizedY: 0.50,
+        floorCount: 1
     )
 
     static let allBuildings: [CampusBuilding] = [
         innovationCenter,
         cafeteria,
         sobratoCommons,
+        library,
         theater,
         alumniGym,
         burnsGym,
@@ -111,6 +168,118 @@ enum CampusMapData {
         sixHundreds,
         andreHouse
     ]
+
+    static let roomMarkers: [CampusRoomMarker] = [
+        roomRow(
+            building: innovationCenter,
+            prefix: 1100,
+            numbers: Array(1...8),
+            from: CGPoint(x: 0.185, y: 0.055),
+            to: CGPoint(x: 0.315, y: 0.055),
+            layer: .first
+        ),
+        roomRow(
+            building: innovationCenter,
+            prefix: 1100,
+            numbers: [14, 13, 12, 11],
+            from: CGPoint(x: 0.315, y: 0.132),
+            to: CGPoint(x: 0.225, y: 0.132),
+            layer: .first
+        ),
+        roomRow(
+            building: innovationCenter,
+            prefix: 1200,
+            numbers: Array(1...8),
+            from: CGPoint(x: 0.185, y: 0.055),
+            to: CGPoint(x: 0.315, y: 0.055),
+            layer: .second
+        ),
+        roomRow(
+            building: innovationCenter,
+            prefix: 1200,
+            numbers: [14, 13, 12, 11, 10],
+            from: CGPoint(x: 0.315, y: 0.132),
+            to: CGPoint(x: 0.205, y: 0.132),
+            layer: .second
+        ),
+        roomRow(
+            building: sobratoCommons,
+            prefix: 200,
+            numbers: [0, 2, 4, 6],
+            from: CGPoint(x: 0.265, y: 0.405),
+            to: CGPoint(x: 0.355, y: 0.405),
+            layer: .first
+        ),
+        roomRow(
+            building: sobratoCommons,
+            prefix: 200,
+            numbers: [1, 3, 5, 7],
+            from: CGPoint(x: 0.265, y: 0.355),
+            to: CGPoint(x: 0.355, y: 0.355),
+            layer: .first
+        ),
+        roomRow(
+            building: fourHundreds,
+            prefix: 400,
+            numbers: [1, 2, 3],
+            from: CGPoint(x: 0.405, y: 0.438),
+            to: CGPoint(x: 0.455, y: 0.438),
+            layer: .first
+        ),
+        roomRow(
+            building: fourHundreds,
+            prefix: 400,
+            numbers: [21, 22, 23],
+            from: CGPoint(x: 0.405, y: 0.438),
+            to: CGPoint(x: 0.455, y: 0.438),
+            layer: .second
+        ),
+        [
+            roomMarker(building: fiveHundreds, room: 501, x: 0.405, y: 0.462, layer: .first),
+            roomMarker(building: fiveHundreds, room: 502, x: 0.405, y: 0.486, layer: .first),
+            roomMarker(building: fiveHundreds, room: 503, x: 0.405, y: 0.510, layer: .first),
+            roomMarker(building: fiveHundreds, room: 504, x: 0.405, y: 0.534, layer: .first),
+            roomMarker(building: fiveHundreds, room: 505, x: 0.455, y: 0.534, layer: .first),
+            roomMarker(building: fiveHundreds, room: 506, x: 0.405, y: 0.558, layer: .first),
+            roomMarker(building: fiveHundreds, room: 507, x: 0.455, y: 0.558, layer: .first),
+            roomMarker(building: fiveHundreds, room: 521, x: 0.405, y: 0.462, layer: .second),
+            roomMarker(building: fiveHundreds, room: 522, x: 0.405, y: 0.486, layer: .second),
+            roomMarker(building: fiveHundreds, room: 523, x: 0.405, y: 0.510, layer: .second),
+            roomMarker(building: fiveHundreds, room: 524, x: 0.405, y: 0.534, layer: .second),
+            roomMarker(building: fiveHundreds, room: 525, x: 0.455, y: 0.534, layer: .second),
+            roomMarker(building: fiveHundreds, room: 526, x: 0.405, y: 0.558, layer: .second),
+            roomMarker(building: fiveHundreds, room: 527, x: 0.455, y: 0.558, layer: .second),
+            roomMarker(building: sixHundreds, room: 601, x: 0.285, y: 0.615, layer: .first),
+            roomMarker(building: sixHundreds, room: 602, x: 0.315, y: 0.615, layer: .first),
+            roomMarker(building: sixHundreds, room: 603, x: 0.345, y: 0.615, layer: .first),
+            roomMarker(building: sixHundreds, room: 604, x: 0.375, y: 0.615, layer: .first),
+            roomMarker(building: sixHundreds, room: 600, x: 0.285, y: 0.645, layer: .first),
+            roomMarker(building: sixHundreds, room: 620, x: 0.255, y: 0.615, layer: .second),
+            roomMarker(building: sixHundreds, room: 622, x: 0.285, y: 0.615, layer: .second),
+            roomMarker(building: sixHundreds, room: 623, x: 0.315, y: 0.615, layer: .second),
+            roomMarker(building: sixHundreds, room: 624, x: 0.345, y: 0.615, layer: .second),
+            roomMarker(building: sixHundreds, room: 625, x: 0.375, y: 0.615, layer: .second),
+            roomMarker(building: sixHundreds, room: 626, x: 0.405, y: 0.615, layer: .second),
+            roomMarker(building: sixHundreds, room: 621, x: 0.285, y: 0.645, layer: .second),
+            roomMarker(building: sixHundreds, room: 619, x: 0.315, y: 0.645, layer: .second)
+        ]
+    ].flatMap { $0 }
+
+    private static func roomMarker(
+        building: CampusBuilding,
+        room: Int,
+        x: Double,
+        y: Double,
+        layer: CampusMapLayer
+    ) -> CampusRoomMarker {
+        CampusRoomMarker(
+            room: "\(room)",
+            building: building,
+            normalizedX: x,
+            normalizedY: y,
+            layer: layer
+        )
+    }
 
     static func locations(for classes: [ClassItem]) -> [CampusClassLocation] {
         classes.enumerated().compactMap { index, classItem in
@@ -136,12 +305,7 @@ enum CampusMapData {
     }
 
     static func building(forRoom room: String) -> CampusBuilding? {
-        let normalized = room
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
-            .replacingOccurrences(of: "#", with: "")
-            .replacingOccurrences(of: "room", with: "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalized = normalizedRoomText(room)
 
         if normalized.contains("burns") {
             return burnsGym
@@ -165,7 +329,7 @@ enum CampusMapData {
             return cafeteria
         }
 
-        guard let roomNumber = Int(normalized.filter(\.isNumber)) else {
+        guard let roomNumber = roomNumber(from: normalized) else {
             return nil
         }
 
@@ -182,6 +346,53 @@ enum CampusMapData {
             return sixHundreds
         default:
             return nil
+        }
+    }
+
+    static func roomKey(for room: String) -> String {
+        let normalized = normalizedRoomText(room)
+        if let roomNumber = roomNumber(from: normalized) {
+            return "\(roomNumber)"
+        }
+
+        return normalized
+    }
+
+    private static func roomNumber(from room: String) -> Int? {
+        Int(room.filter(\.isNumber))
+    }
+
+    private static func normalizedRoomText(_ room: String) -> String {
+        room
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .replacingOccurrences(of: "#", with: "")
+            .replacingOccurrences(of: "room", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func roomRow(
+        building: CampusBuilding,
+        prefix: Int,
+        numbers: [Int],
+        from start: CGPoint,
+        to end: CGPoint,
+        layer: CampusMapLayer
+    ) -> [CampusRoomMarker] {
+        guard !numbers.isEmpty else { return [] }
+
+        return numbers.enumerated().map { index, number in
+            let progress = numbers.count == 1 ? 0 : Double(index) / Double(numbers.count - 1)
+            let x = start.x + ((end.x - start.x) * progress)
+            let y = start.y + ((end.y - start.y) * progress)
+
+            return CampusRoomMarker(
+                room: "\(prefix + number)",
+                building: building,
+                normalizedX: x,
+                normalizedY: y,
+                layer: layer
+            )
         }
     }
 

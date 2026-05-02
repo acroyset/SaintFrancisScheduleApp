@@ -18,6 +18,10 @@ import Foundation
 import UserNotifications
 import SwiftUI
 
+extension Notification.Name {
+    static let backToSchoolPromptEligibilityChanged = Notification.Name("BackToSchoolPromptEligibilityChanged")
+}
+
 func fancyDayName(_ code: String) -> String {
     let map: [String: String] = [
         "G1": "Gold 1",   "G2": "Gold 2",
@@ -33,6 +37,8 @@ func fancyDayName(_ code: String) -> String {
 class NotificationManager {
     static let shared = NotificationManager()
     private let reminderPrefix = "custom-reminder-"
+    private let backToSchoolPrefix = "back-to-school-"
+    private let backToSchoolDayOfID = "back-to-school-day-of"
     private let schedulePrefixes = ["nightly-", "morning-"]
 
     // Track last successfully scheduled values so we only reschedule
@@ -45,6 +51,15 @@ class NotificationManager {
     private let minRescheduleInterval: TimeInterval = 300   // 5 minutes
 
     private init() {}
+
+    static func canScheduleBackToSchoolNotifications(with status: UNAuthorizationStatus) -> Bool {
+        switch status {
+        case .authorized, .provisional, .ephemeral:
+            return true
+        default:
+            return false
+        }
+    }
 
     // MARK: - Public scheduling entry point
 
@@ -130,11 +145,62 @@ class NotificationManager {
         }
     }
 
+    func scheduleBackToSchoolNotificationsIfAuthorized() {
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            guard Self.canScheduleBackToSchoolNotifications(with: settings.authorizationStatus) else { return }
+            self.scheduleBackToSchoolNotifications()
+        }
+    }
+
+    func requestBackToSchoolAuthorizationAndSchedule(completion: ((Bool) -> Void)? = nil) {
+        let center = UNUserNotificationCenter.current()
+        center.getNotificationSettings { settings in
+            switch settings.authorizationStatus {
+            case .authorized, .provisional, .ephemeral:
+                self.scheduleBackToSchoolNotifications()
+                DispatchQueue.main.async { completion?(true) }
+            case .notDetermined:
+                center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+                    if granted {
+                        self.scheduleBackToSchoolNotifications()
+                    }
+                    DispatchQueue.main.async { completion?(granted) }
+                }
+            case .denied:
+                DispatchQueue.main.async { completion?(false) }
+            @unknown default:
+                DispatchQueue.main.async { completion?(false) }
+            }
+        }
+    }
+
+    func cancelBackToSchoolNotifications(keepingDayOfReminder: Bool = false) {
+        let center = UNUserNotificationCenter.current()
+        center.getPendingNotificationRequests { requests in
+            let ids = requests
+                .map(\.identifier)
+                .filter { id in
+                    id.hasPrefix(self.backToSchoolPrefix) &&
+                    (!keepingDayOfReminder || id != self.backToSchoolDayOfID)
+                }
+
+            if !ids.isEmpty {
+                center.removePendingNotificationRequests(withIdentifiers: ids)
+            }
+        }
+    }
+
+    func cancelBackToSchoolFollowUpsAfterReturn() {
+        guard Self.isInBackToSchoolReminderWindow else { return }
+        cancelBackToSchoolNotifications(keepingDayOfReminder: true)
+    }
+
     func cleanupExpiredNotifications() {
         UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
             let now = Date()
             let expired = requests.compactMap { req -> String? in
                 guard self.schedulePrefixes.contains(where: { req.identifier.hasPrefix($0) }) ||
+                        req.identifier.hasPrefix(self.backToSchoolPrefix) ||
                         req.identifier.hasPrefix(self.reminderPrefix),
                       let trigger = req.trigger as? UNCalendarNotificationTrigger,
                       let next = trigger.nextTriggerDate(),
@@ -320,6 +386,34 @@ class NotificationManager {
         }
     }
 
+    private func scheduleBackToSchoolNotifications() {
+        let center = UNUserNotificationCenter.current()
+        let reminders = Self.backToSchoolReminders
+        center.removePendingNotificationRequests(withIdentifiers: reminders.map(\.id))
+
+        for reminder in reminders {
+            guard let triggerDate = Calendar.current.date(from: reminder.components),
+                  triggerDate > Date() else { continue }
+
+            let content = UNMutableNotificationContent()
+            content.title = reminder.title
+            content.body = reminder.body
+            content.sound = .default
+
+            let request = UNNotificationRequest(
+                identifier: reminder.id,
+                content: content,
+                trigger: UNCalendarNotificationTrigger(dateMatching: reminder.components, repeats: false)
+            )
+
+            center.add(request) { err in
+                if let err {
+                    print("❌ Back-to-school notification error: \(err)")
+                }
+            }
+        }
+    }
+
     private func scheduleReminderNotifications(
         for event: CustomEvent,
         using center: UNUserNotificationCenter
@@ -392,6 +486,67 @@ class NotificationManager {
     }
 }
 
+private extension NotificationManager {
+    struct BackToSchoolReminder {
+        let id: String
+        let components: DateComponents
+        let title: String
+        let body: String
+    }
+
+    static var backToSchoolReminders: [BackToSchoolReminder] {
+        [
+            BackToSchoolReminder(
+                id: "back-to-school-week-before",
+                components: reminderComponents(month: 8, day: 6, hour: 18),
+                title: "School starts next week",
+                body: "Open Schedule when you get your classes so you can input them before the first day."
+            ),
+            BackToSchoolReminder(
+                id: "back-to-school-three-days",
+                components: reminderComponents(month: 8, day: 10, hour: 18),
+                title: "School starts in 3 days",
+                body: "Remember to input your classes in Schedule once you receive them."
+            ),
+            BackToSchoolReminder(
+                id: "back-to-school-day-before",
+                components: reminderComponents(month: 8, day: 12, hour: 18),
+                title: "School starts tomorrow",
+                body: "Add your classes today so your first-day schedule is easy to check."
+            ),
+            BackToSchoolReminder(
+                id: "back-to-school-day-of",
+                components: reminderComponents(month: 8, day: 13, hour: 7),
+                title: "First day of school",
+                body: "Check today's special schedule and make sure your classes are entered."
+            )
+        ]
+    }
+
+    static var isInBackToSchoolReminderWindow: Bool {
+        let calendar = Calendar.current
+        let now = Date()
+        guard let reminderWindowStart = calendar.date(from: reminderComponents(month: 8, day: 6, hour: 0)),
+              let firstDay = calendar.date(from: reminderComponents(month: 8, day: 13, hour: 23, minute: 59)) else {
+            return false
+        }
+        return now >= reminderWindowStart && now <= firstDay
+    }
+
+    static func reminderComponents(month: Int, day: Int, hour: Int, minute: Int = 0) -> DateComponents {
+        DateComponents(
+            calendar: Calendar.current,
+            timeZone: TimeZone.current,
+            year: 2026,
+            month: month,
+            day: day,
+            hour: hour,
+            minute: minute,
+            second: 0
+        )
+    }
+}
+
 // MARK: - NotificationSettings
 
 class NotificationSettings {
@@ -405,15 +560,10 @@ class NotificationSettings {
 
         let center = UNUserNotificationCenter.current()
         center.getNotificationSettings { settings in
-            guard settings.authorizationStatus == .notDetermined else {
-                UserDefaults.standard.set(true, forKey: onboardingAuthorizationPromptKey)
-                return
+            if NotificationManager.canScheduleBackToSchoolNotifications(with: settings.authorizationStatus) {
+                NotificationManager.shared.scheduleBackToSchoolNotificationsIfAuthorized()
             }
-
-            center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
-                UserDefaults.standard.set(true, forKey: onboardingAuthorizationPromptKey)
-                if !granted { print("❌ Notification Permission Denied") }
-            }
+            UserDefaults.standard.set(true, forKey: onboardingAuthorizationPromptKey)
         }
     }
 
