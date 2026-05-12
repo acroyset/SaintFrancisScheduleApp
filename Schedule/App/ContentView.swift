@@ -7,8 +7,8 @@ import SwiftUI
 import Foundation
 import UserNotifications
 
-let version = "1.18.1"
-let whatsNew = " - Map!!\n - Bug Fixes"
+let version = "1.19"
+let whatsNew = " - Autocomplete Classes\n - Bug Fixes"
 
 struct ContentView: View {
     @EnvironmentObject var authManager: AuthenticationManager
@@ -374,6 +374,7 @@ struct ContentView: View {
     private func handleBackgroundTap() {
         withAnimation(.snappy) {
             guard tutorial == .Hidden else { return }
+            NotificationCenter.default.post(name: .dismissCourseAutocomplete, object: nil)
             showCalendarGrid = false
             UserDefaults.standard.set(version, forKey: "LastSeenVersion")
         }

@@ -75,6 +75,8 @@ struct MapView: View {
             let viewportHeight = max(0, geo.size.height)
             let mapWidth = max(viewportWidth, viewportHeight * mapVerticalFillScale * mapAspectRatio)
             let mapHeight = mapWidth / mapAspectRatio
+            let layerControlTopPadding = max(geo.safeAreaInsets.top + 18, iPad ? 30 : 74)
+            let placementPromptTopPadding = layerControlTopPadding + 58
 
             ZStack(alignment: .top) {
                 ZoomableMapScrollView(
@@ -99,7 +101,7 @@ struct MapView: View {
                     TertiaryColor: TertiaryColor
                 )
                 .padding(.horizontal, 16)
-                .padding(.top, geo.safeAreaInsets.top + 18)
+                .padding(.top, layerControlTopPadding)
                 .zIndex(100)
 
                 if unplacedClassCount > 0 {
@@ -110,7 +112,7 @@ struct MapView: View {
                         action: onEditClasses
                     )
                     .padding(.horizontal, 18)
-                    .padding(.top, geo.safeAreaInsets.top + 76)
+                    .padding(.top, placementPromptTopPadding)
                     .zIndex(100)
                 }
 
@@ -404,8 +406,8 @@ private struct MapLayerControl: View {
                             .lineLimit(1)
                             .minimumScaleFactor(0.75)
                             .foregroundStyle(selectedLayer == layer ? TertiaryColor : PrimaryColor)
-                            .frame(minWidth: 96, minHeight: 36)
-                            .padding(.horizontal, 10)
+                            .frame(maxWidth: .infinity, minHeight: 36)
+                            .padding(.horizontal, 8)
                             .background(selectedLayer == layer ? PrimaryColor : Color.clear)
                             .clipShape(Capsule())
 
@@ -425,9 +427,11 @@ private struct MapLayerControl: View {
                     }
                 }
                 .buttonStyle(.plain)
+                .frame(maxWidth: .infinity)
                 .accessibilityLabel(accessibilityText(for: layer))
             }
         }
+        .frame(maxWidth: 360)
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .background(TertiaryColor.opacity(0.94))

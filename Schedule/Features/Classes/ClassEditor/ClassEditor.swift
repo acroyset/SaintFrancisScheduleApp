@@ -18,6 +18,7 @@ struct VphoneClassEditor: View {
     
     @Binding var window: classWindow
     @State private var showSchoologyConnect = false
+    private let courseOptions = CourseAutocomplete.allCourses
     
     var body: some View {
         ZStack{
@@ -83,7 +84,7 @@ struct VphoneClassEditor: View {
                     
                     let indices: [Int] = [0, 1, 2, 3, 4, 5, 6, 9, 12]
                     
-                    ForEach(indices, id: \.self) { (number: Int) in
+                    ForEach(Array(indices.enumerated()), id: \.element) { position, number in
                         HStack{
                             if number <= 6{
                                 TextFieldClassEditor(
@@ -91,7 +92,8 @@ struct VphoneClassEditor: View {
                                     defaultText: "Period \(number + 1)",
                                     PrimaryColor: PrimaryColor,
                                     SecondaryColor: SecondaryColor,
-                                    TertiaryColor: TertiaryColor
+                                    TertiaryColor: TertiaryColor,
+                                    courseOptions: courseOptions
                                 )
                             } else {
                                 Text(data.classes[number].name)
@@ -121,6 +123,7 @@ struct VphoneClassEditor: View {
                             
                             .frame(maxWidth: iPad ? .infinity : 60)
                         }
+                        .zIndex(Double(indices.count - position))
                     }
                     
                     Color.clear.frame(height: iPad ? 60 : 50)
@@ -129,6 +132,9 @@ struct VphoneClassEditor: View {
             }
             // Swipe down dismisses keyboard, tap elsewhere dismisses it too
             .scrollDismissesKeyboard(.interactively)
+            .onTapGesture {
+                dismissCourseAutocomplete()
+            }
             .mask{
                 LinearGradient(
                     gradient: Gradient(stops: [
@@ -197,6 +203,14 @@ struct VphoneClassEditor: View {
             }
         }
     }
+
+    private func dismissCourseAutocomplete() {
+        NotificationCenter.default.post(name: .dismissCourseAutocomplete, object: nil)
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder),
+            to: nil, from: nil, for: nil
+        )
+    }
 }
 
 // MARK: - HphoneClassEditor
@@ -207,6 +221,7 @@ struct HphoneClassEditor: View {
     var TertiaryColor: Color
     
     @Binding var window: classWindow
+    private let courseOptions = CourseAutocomplete.allCourses
     
     var body: some View {
         VStack {
@@ -277,7 +292,8 @@ struct HphoneClassEditor: View {
                                         defaultText: "Period \(number + 1)",
                                         PrimaryColor: PrimaryColor,
                                         SecondaryColor: SecondaryColor,
-                                        TertiaryColor: TertiaryColor
+                                        TertiaryColor: TertiaryColor,
+                                        courseOptions: courseOptions
                                     )
                                 } else {
                                     Text(data.classes[number].name)
@@ -315,6 +331,17 @@ struct HphoneClassEditor: View {
             }
             // Swipe down dismisses keyboard
             .scrollDismissesKeyboard(.interactively)
+            .onTapGesture {
+                dismissCourseAutocomplete()
+            }
         }
+    }
+
+    private func dismissCourseAutocomplete() {
+        NotificationCenter.default.post(name: .dismissCourseAutocomplete, object: nil)
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder),
+            to: nil, from: nil, for: nil
+        )
     }
 }

@@ -20,6 +20,7 @@ import SwiftUI
 
 extension Notification.Name {
     static let backToSchoolPromptEligibilityChanged = Notification.Name("BackToSchoolPromptEligibilityChanged")
+    static let dismissCourseAutocomplete = Notification.Name("DismissCourseAutocomplete")
 }
 
 func fancyDayName(_ code: String) -> String {

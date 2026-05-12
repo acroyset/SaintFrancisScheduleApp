@@ -35,6 +35,7 @@ struct OnboardingView: View {
         "e.g. AP Biology", "e.g. English 2 Honors", "e.g. Algebra 2",
         "e.g. US History", "e.g. Spanish 3", "e.g. Chemistry", "e.g. PE / Elective"
     ]
+    private let classNameOptions = CourseAutocomplete.allCourses
 
     var body: some View {
         VStack(spacing: 0) {
@@ -72,6 +73,7 @@ struct OnboardingView: View {
                             item: $classes[i],
                             periodName: periodNames[i],
                             namePlaceholder: namePlaceholders[i],
+                            classNameOptions: classNameOptions,
                             isExpanded: expandedIndex == i,
                             currentFocus: $currentFocus,
                             onTapRow: {
@@ -158,6 +160,7 @@ struct OnboardingView: View {
     }
 
     private func dismissKeyboard() {
+        NotificationCenter.default.post(name: .dismissCourseAutocomplete, object: nil)
         UIApplication.shared.sendAction(
             #selector(UIResponder.resignFirstResponder),
             to: nil, from: nil, for: nil
@@ -201,6 +204,7 @@ private struct ClassEntryRow: View {
     @Binding var item: ClassItem
     let periodName: String
     let namePlaceholder: String
+    let classNameOptions: [Course]
     let isExpanded: Bool
     @Binding var currentFocus: OnboardingView.FocusField?
     let onTapRow: () -> Void
@@ -212,6 +216,26 @@ private struct ClassEntryRow: View {
 
     private var hasContent: Bool {
         !item.name.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    private var trimmedName: String {
+        item.name.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var filteredClassNameOptions: [Course] {
+        CourseAutocomplete.suggestions(from: classNameOptions, matching: trimmedName)
+    }
+
+    private var hasExactClassNameMatch: Bool {
+        CourseAutocomplete.hasExactMatch(in: classNameOptions, for: trimmedName)
+    }
+
+    private var canAddCustomName: Bool {
+        !trimmedName.isEmpty && !hasExactClassNameMatch
+    }
+
+    private var shouldShowClassNameDropdown: Bool {
+        focusedField == .name(index) && (!filteredClassNameOptions.isEmpty || canAddCustomName)
     }
 
     var body: some View {
@@ -231,6 +255,8 @@ private struct ClassEntryRow: View {
                 TextField(namePlaceholder, text: $item.name)
                     .font(.system(size: 15))
                     .focused($focusedField, equals: .name(index))
+                    .submitLabel(.next)
+                    .onSubmit(onSubmitName)
                 
                 // Expand / detail indicator
                 HStack(spacing: 4) {
@@ -264,6 +290,8 @@ private struct ClassEntryRow: View {
                             TextField("Teacher", text: $item.teacher)
                                 .font(.system(size: 14))
                                 .focused($focusedField, equals: .teacher(index))
+                                .submitLabel(.next)
+                                .onSubmit(onSubmitTeacher)
                         }
                         .padding(.horizontal, 10)
                         .padding(.vertical, 8)
@@ -279,6 +307,8 @@ private struct ClassEntryRow: View {
                             TextField("Room", text: $item.room)
                                 .font(.system(size: 14))
                                 .focused($focusedField, equals: .room(index))
+                                .submitLabel(index < 6 ? .next : .done)
+                                .onSubmit(onSubmitRoom)
                         }
                         .frame(maxWidth: 110)
                         .padding(.horizontal, 10)
@@ -301,6 +331,22 @@ private struct ClassEntryRow: View {
                 .stroke(isExpanded ? Color.blue.opacity(0.4) : Color.clear, lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(alignment: .topLeading) {
+            if shouldShowClassNameDropdown {
+                CourseAutocompleteMenu(
+                    suggestions: filteredClassNameOptions,
+                    customName: canAddCustomName ? trimmedName : nil,
+                    primaryColor: .blue,
+                    secondaryColor: Color(.secondarySystemBackground),
+                    onSelect: selectClassName
+                )
+                .frame(width: min(CourseAutocomplete.menuWidth, UIScreen.main.bounds.width - 64))
+                .padding(.horizontal, 12)
+                .offset(y: 54)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .zIndex(shouldShowClassNameDropdown ? 1000 : Double(7 - index))
         .onChange(of: currentFocus) { _, newFocus in
             focusedField = newFocus
         }
@@ -308,5 +354,10 @@ private struct ClassEntryRow: View {
             // Sync back so parent knows where focus is
             if newFocus != nil { currentFocus = newFocus }
         }
+    }
+
+    private func selectClassName(_ name: String) {
+        item.name = name
+        onSubmitName()
     }
 }
