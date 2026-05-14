@@ -112,7 +112,13 @@ struct AddReminderView: View {
                 }
             }
         }
-        .onAppear(perform: loadExistingReminder)
+        .onAppear {
+            UsageStatsStore.shared.setCurrentFeature(.reminders)
+            loadExistingReminder()
+        }
+        .onDisappear {
+            UsageStatsStore.shared.setCurrentFeature(nil)
+        }
     }
 
     private var selectedSummary: String {

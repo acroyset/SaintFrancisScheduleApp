@@ -34,6 +34,7 @@ struct HomeView: View {
     @Binding var scrollTarget: Int?
     @Binding var addEvent: Bool
     @Binding var addReminder: Bool
+    @Binding var addHomework: Bool
 
     let dayCode: String
     let note: String
@@ -52,6 +53,7 @@ struct HomeView: View {
     @State private var dateNavHeight: CGFloat = 0
     @State private var collapsedHeaderHeight: CGFloat = 0
     @State private var portraitActionRowHeight: CGFloat = 0
+    @AppStorage(AppFeatureBadge.homework.seenKey) private var didSeeHomeworkBadge = false
 
     private var headerHeight: CGFloat { collapsedHeaderHeight + (iPad ? 16 : 12) }
     private var sharedHeaderRadius: CGFloat { max(dateNavHeight / 2, 16) }
@@ -127,6 +129,8 @@ struct HomeView: View {
                             scrollTarget: $scrollTarget,
                             addEvent: $addEvent,
                             addReminder: $addReminder,
+                            addHomework: $addHomework,
+                            classes: data?.classes ?? [],
                             currentDate: selectedDate
                         )
                         .id(pageID)
@@ -363,81 +367,102 @@ struct HomeView: View {
 
     @ViewBuilder
     private var reminderButtonStack: some View {
-        HStack(spacing: 12) {
-            addEventInline
-            addReminderInline
+        Menu {
+            addMenuButton(
+                title: "Event",
+                subtitle: "Start and end time",
+                systemImage: "calendar.badge.plus"
+            ) {
+                addEvent = true
+            }
+            addMenuButton(
+                title: "Reminder",
+                subtitle: "One-time nudge",
+                systemImage: "bell.badge.fill"
+            ) {
+                addReminder = true
+            }
+            addMenuButton(
+                title: "Homework",
+                subtitle: "Class assignment",
+                systemImage: "checklist",
+                showsNewBadge: !didSeeHomeworkBadge
+            ) {
+                AppFeatureBadge.markSeen(.homework)
+                addHomework = true
+            }
+        } label: {
+            addLauncherLabel
         }
         .padding(.horizontal, isPortrait ? 0 : 8)
     }
 
     @ViewBuilder
-    private var addEventInline: some View {
+    private var addLauncherLabel: some View {
         if #available(iOS 26.0, *), AppAvailability.liquidGlass {
-            Button { addEvent = true } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: "plus.circle.fill")
-                        .appThemeFont(.primary, size: iPad ? 24 : 20, weight: .semibold)
-                    Text("Event").appThemeFont(.primary, size: iPad ? 20 : 16, weight: .semibold)
+            HStack(spacing: 12) {
+                Image(systemName: "plus.circle.fill")
+                    .appThemeFont(.primary, size: iPad ? 26 : 22, weight: .bold)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Add")
+                        .appThemeFont(.primary, size: iPad ? 20 : 16, weight: .bold)
+                    Text("Event, reminder, homework")
+                        .appThemeFont(.secondary, size: iPad ? 13 : 11, weight: .medium)
+                        .lineLimit(1)
                 }
-                .frame(maxWidth: .infinity)
-                .foregroundColor(TertiaryColor)
-                .padding(actionLabelPadding)
+                Spacer()
+                Image(systemName: "chevron.up")
+                    .appThemeFont(.primary, size: iPad ? 14 : 12, weight: .bold)
             }
+            .frame(maxWidth: .infinity)
+            .foregroundColor(TertiaryColor)
+            .padding(actionLabelPadding)
             .padding(actionOuterPadding)
             .glassEffect(.regular.tint(PrimaryColor.opacity(headerGlassTintOpacity)))
             .frame(maxWidth: .infinity)
         } else {
-            Button { addEvent = true } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: "plus.circle.fill")
-                        .appThemeFont(.primary, size: iPad ? 24 : 20, weight: .semibold)
-                    Text("Event").appThemeFont(.primary, size: iPad ? 20 : 16, weight: .semibold)
+            HStack(spacing: 12) {
+                Image(systemName: "plus.circle.fill")
+                    .appThemeFont(.primary, size: iPad ? 26 : 22, weight: .bold)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Add")
+                        .appThemeFont(.primary, size: iPad ? 20 : 16, weight: .bold)
+                    Text("Event, reminder, homework")
+                        .appThemeFont(.secondary, size: iPad ? 13 : 11, weight: .medium)
+                        .lineLimit(1)
                 }
-                .frame(maxWidth: .infinity)
-                .padding(8)
-                .foregroundColor(TertiaryColor)
-                .padding(actionCardPadding)
-                .background(PrimaryColor)
-                .cornerRadius(16)
-                .shadow(radius: 8)
+                Spacer()
+                Image(systemName: "chevron.up")
+                    .appThemeFont(.primary, size: iPad ? 14 : 12, weight: .bold)
             }
+            .frame(maxWidth: .infinity)
+            .padding(8)
+            .foregroundColor(TertiaryColor)
+            .padding(actionCardPadding)
+            .background(PrimaryColor)
+            .cornerRadius(16)
+            .shadow(radius: 8)
             .frame(maxWidth: .infinity)
         }
     }
 
-    @ViewBuilder
-    private var addReminderInline: some View {
-        if #available(iOS 26.0, *), AppAvailability.liquidGlass {
-            Button { addReminder = true } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: "bell.badge.fill")
-                        .appThemeFont(.primary, size: iPad ? 24 : 20, weight: .semibold)
-                    Text("Reminder").appThemeFont(.primary, size: iPad ? 20 : 16, weight: .semibold)
+    private func addMenuButton(
+        title: String,
+        subtitle: String,
+        systemImage: String,
+        showsNewBadge: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Label {
+                VStack(alignment: .leading) {
+                    Text(title)
+                    Text(subtitle)
                 }
-                .frame(maxWidth: .infinity)
-                .foregroundColor(TertiaryColor)
-                .padding(actionLabelPadding)
+            } icon: {
+                Image(systemName: systemImage)
             }
-            .padding(actionOuterPadding)
-            .glassEffect(.regular.tint(PrimaryColor.opacity(headerGlassTintOpacity)))
-            .frame(maxWidth: .infinity)
-        } else {
-            Button { addReminder = true } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: "bell.badge.fill")
-                        .appThemeFont(.primary, size: iPad ? 24 : 20, weight: .semibold)
-                    Text("Reminder").appThemeFont(.primary, size: iPad ? 20 : 16, weight: .semibold)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(8)
-                .foregroundColor(TertiaryColor)
-                .frame(maxWidth: .infinity)
-                .padding(actionCardPadding)
-                .background(PrimaryColor)
-                .cornerRadius(16)
-                .shadow(radius: 8)
-            }
-            .frame(maxWidth: .infinity)
+            .newBadge(showsNewBadge)
         }
     }
 

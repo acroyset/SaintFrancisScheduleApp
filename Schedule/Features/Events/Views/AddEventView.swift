@@ -73,7 +73,13 @@ struct AddEventView: View {
             .sheet(isPresented: $viewModel.showingDatePicker) {
                 DatePickerSheet(selectedDate: $viewModel.selectedDate)
             }
-            .onAppear { viewModel.loadEventForEditing() }
+            .onAppear {
+                UsageStatsStore.shared.setCurrentFeature(.events)
+                viewModel.loadEventForEditing()
+            }
+            .onDisappear {
+                UsageStatsStore.shared.setCurrentFeature(nil)
+            }
             .onChange(of: viewModel.startTime) { _, _ in viewModel.checkForConflicts() }
             .onChange(of: viewModel.endTime) { _, _ in viewModel.checkForConflicts() }
             .onChange(of: viewModel.repeatPattern) { _, _ in viewModel.handleRepeatPatternChanged() }
@@ -410,4 +416,3 @@ private struct DatePickerSheet: View {
         .presentationDetents([.medium, .large])
     }
 }
-

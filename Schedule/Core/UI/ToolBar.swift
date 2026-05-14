@@ -14,6 +14,15 @@ enum AppFeatureBadge: String {
     case settings
     case fontPicker
     case whatIfCalculator
+    case homework
+
+    var seenKey: String {
+        "DidSeeNewBadge.\(rawValue)"
+    }
+
+    static func markSeen(_ feature: AppFeatureBadge) {
+        UserDefaults.standard.set(true, forKey: feature.seenKey)
+    }
 }
 
 struct NewBadge: ViewModifier {

@@ -8,12 +8,13 @@ import Foundation
 import UserNotifications
 
 let version = "1.19"
-let whatsNew = " - Autocomplete Classes\n - Bug Fixes"
+let whatsNew = " - Homework Tracker\n - Cleaner Add Menu\n - Class AutoFill\n - Bug Fixes"
 
 struct ContentView: View {
     @EnvironmentObject var authManager: AuthenticationManager
     @StateObject private var appStore = GlobalDataStore()
     @StateObject private var eventsManager = CustomEventsManager()
+    @StateObject private var homeworkStore = HomeworkStore()
     @StateObject private var usageStats = UsageStatsStore.shared
 
     var onboardingClasses: [ClassItem] = []
@@ -26,6 +27,7 @@ struct ContentView: View {
 
     @State private var addEvent = false
     @State private var addReminder = false
+    @State private var addHomework = false
     @State private var window: Window = .Home
     @State private var openClassEditorFromMap = false
     @State private var isPortrait: Bool = !iPad
@@ -53,8 +55,9 @@ struct ContentView: View {
                     if window != .Map {
                         topHeader
                     }
-                    mainContentView
-                        .environmentObject(eventsManager)
+                mainContentView
+                    .environmentObject(eventsManager)
+                    .environmentObject(homeworkStore)
                 }
                 .zIndex(0)
 
@@ -228,6 +231,7 @@ struct ContentView: View {
                 scrollTarget: $scrollTarget,
                 addEvent: $addEvent,
                 addReminder: $addReminder,
+                addHomework: $addHomework,
                 dayCode: appStore.dayCode,
                 note: appStore.note,
                 scheduleLines: appStore.scheduleLines,
@@ -274,6 +278,7 @@ struct ContentView: View {
                 isPortrait: isPortrait,
                 openClassEditor: $openClassEditorFromMap
             )
+            .environmentObject(homeworkStore)
 
         case .Map:
             MapView(

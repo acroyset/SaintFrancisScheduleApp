@@ -15,6 +15,7 @@ enum classWindow: Int{
     case FinalGradeCalculator = 3
     case ClassEditor = 4
     case WhatIfCalculator = 5
+    case Homework = 6
 }
 
 func inferClassLevel(from className: String) -> String {
@@ -41,6 +42,8 @@ struct ClassesView: View {
     @State var window = classWindow.None
     @StateObject private var courseViewModel = CourseViewModel()
     @StateObject private var localGradeStore = LocalGradeStore.shared
+    @EnvironmentObject private var homeworkStore: HomeworkStore
+    @AppStorage(AppFeatureBadge.homework.seenKey) private var didSeeHomeworkBadge = false
     
     var body: some View {
         ZStack{
@@ -58,6 +61,11 @@ struct ClassesView: View {
                         sectionCard(title: "Class Management") {
                             menuButton(title: "Edit Classes", systemImage: "pencil") {
                                 window = .ClassEditor
+                            }
+                            menuDivider
+                            menuButton(title: "Homework", systemImage: "checklist", showsNewBadge: !didSeeHomeworkBadge) {
+                                AppFeatureBadge.markSeen(.homework)
+                                window = .Homework
                             }
                             menuDivider
                             menuButton(title: "Browse Courses", systemImage: "book.fill") {
@@ -138,6 +146,16 @@ struct ClassesView: View {
                             window: $window
                         )
                     }
+
+                case .Homework:
+                    HomeworkListView(
+                        homeworkStore: homeworkStore,
+                        classes: data.classes,
+                        PrimaryColor: PrimaryColor,
+                        SecondaryColor: SecondaryColor,
+                        TertiaryColor: TertiaryColor,
+                        window: $window
+                    )
                 }
                 
                 Spacer()
@@ -184,7 +202,12 @@ struct ClassesView: View {
         .padding(.horizontal, 12)
     }
 
-    private func menuButton(title: String, systemImage: String, action: @escaping () -> Void) -> some View {
+    private func menuButton(
+        title: String,
+        systemImage: String,
+        showsNewBadge: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             HStack(spacing: 12) {
                 Image(systemName: systemImage)
@@ -202,6 +225,7 @@ struct ClassesView: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 14)
         }
+        .newBadge(showsNewBadge)
     }
 
     private var menuDivider: some View {
@@ -220,6 +244,8 @@ struct ClassesView: View {
             .classEditor
         case .WhatIfCalculator:
             .whatIfCalculator
+        case .Homework:
+            .homework
         case .None:
             nil
         }
@@ -255,5 +281,6 @@ private struct ClassesViewPreviewWrapper: View {
 
 #Preview("Classes Page") {
     ClassesViewPreviewWrapper()
+        .environmentObject(HomeworkStore())
 }
 #endif

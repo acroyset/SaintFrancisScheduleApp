@@ -20,6 +20,9 @@ enum UsagePage: String, Codable, CaseIterable {
 enum UsageFeature: String, Codable, CaseIterable {
     case settings
     case eventsReminders
+    case events
+    case reminders
+    case homework
     case gpaCalculator
     case finalGradeCalculator
     case whatIfCalculator

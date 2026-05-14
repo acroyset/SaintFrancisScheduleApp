@@ -18,22 +18,26 @@ struct ClassItemScroll: View {
     let iPad: Bool
     
     @EnvironmentObject var eventsManager: CustomEventsManager
+    @EnvironmentObject var homeworkStore: HomeworkStore
     
     @Binding var scrollTarget: Int?
     @Binding var addEvent: Bool
     @Binding var addReminder: Bool
+    @Binding var addHomework: Bool
     
     // Custom events integration
     @State private var showingAddEvent = false
     @State private var showingAddReminder = false
+    @State private var showingAddHomework = false
     @State private var editingEvent: CustomEvent?
     @State private var editingReminder: CustomEvent?
     @State private var showingConflictAlert = false
     @State private var conflictingEvents: [CustomEvent] = []
     
     let currentDate: Date
+    let classes: [ClassItem]
     
-    init(scheduleLines: [ScheduleLine], PrimaryColor: Color, SecondaryColor: Color, TertiaryColor: Color, note: String, dayCode: String, emptyTitle: String, emptySubtitle: String?, isToday: Bool, iPad: Bool, scrollTarget: Binding<Int?>, addEvent: Binding<Bool>, addReminder: Binding<Bool>, currentDate: Date = Date()) {
+    init(scheduleLines: [ScheduleLine], PrimaryColor: Color, SecondaryColor: Color, TertiaryColor: Color, note: String, dayCode: String, emptyTitle: String, emptySubtitle: String?, isToday: Bool, iPad: Bool, scrollTarget: Binding<Int?>, addEvent: Binding<Bool>, addReminder: Binding<Bool>, addHomework: Binding<Bool>, classes: [ClassItem], currentDate: Date = Date()) {
         self.scheduleLines = scheduleLines
         self.PrimaryColor = PrimaryColor
         self.SecondaryColor = SecondaryColor
@@ -47,20 +51,34 @@ struct ClassItemScroll: View {
         self._scrollTarget = scrollTarget
         self._addEvent = addEvent
         self._addReminder = addReminder
+        self._addHomework = addHomework
         self.currentDate = currentDate
+        self.classes = classes
     }
     
     var body: some View {
         VStack {
             let combinedItems = createCombinedScheduleItems()
             
-            if !combinedItems.isEmpty {
+            if !combinedItems.isEmpty || hasVisibleHomework {
                 ScrollViewReader { proxy in
                     LazyVStack(spacing: 12) {
                         ForEach(Array(combinedItems.enumerated()), id: \.offset) { index, item in
                             scheduleItemView(item: item, index: index)
                                 .id(index)
                         }
+                        if combinedItems.isEmpty {
+                            emptyScheduleMessage
+                        }
+                        HomeworkSummaryView(
+                            homeworkStore: homeworkStore,
+                            selectedDate: currentDate,
+                            PrimaryColor: PrimaryColor,
+                            SecondaryColor: SecondaryColor,
+                            TertiaryColor: TertiaryColor,
+                            iPad: iPad,
+                            classes: classes
+                        )
                     }
                     .padding(.horizontal, 12)
                     .onChange(of: scrollTarget) { _, target in
@@ -72,25 +90,7 @@ struct ClassItemScroll: View {
                     }
                 }
             } else {
-                VStack {
-                    Spacer()
-                    VStack(spacing: 8) {
-                        Text(emptyTitle)
-                            .appThemeFont(.primary, size: iPad ? 32 : 24, weight: .bold)
-                            .foregroundColor(PrimaryColor)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 24)
-
-                        if let emptySubtitle, !emptySubtitle.isEmpty {
-                            Text(emptySubtitle)
-                                .appThemeFont(.secondary, size: iPad ? 18 : 14, weight: .medium)
-                                .foregroundColor(PrimaryColor.opacity(0.65))
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 24)
-                        }
-                    }
-                    Spacer()
-                }
+                emptyScheduleMessage
             }
             
             // Add Event Button
@@ -114,6 +114,18 @@ struct ClassItemScroll: View {
                 isPresented: $showingAddReminder,
                 editingReminder: nil,
                 eventsManager: eventsManager,
+                currentDate: currentDate,
+                PrimaryColor: PrimaryColor,
+                SecondaryColor: SecondaryColor,
+                TertiaryColor: TertiaryColor
+            )
+        }
+        .sheet(isPresented: $showingAddHomework) {
+            AddHomeworkView(
+                isPresented: $showingAddHomework,
+                editingHomework: nil,
+                homeworkStore: homeworkStore,
+                classes: classes,
                 currentDate: currentDate,
                 PrimaryColor: PrimaryColor,
                 SecondaryColor: SecondaryColor,
@@ -162,6 +174,13 @@ struct ClassItemScroll: View {
                 addReminder = false
             }
         }
+        .onChange(of: addHomework) { _, shouldAdd in
+            if shouldAdd {
+                AppFeatureBadge.markSeen(.homework)
+                showingAddHomework = true
+                addHomework = false
+            }
+        }
         .onAppear {
             checkAllConflicts()
         }
@@ -192,6 +211,35 @@ struct ClassItemScroll: View {
         }
         
         return items
+    }
+
+    private var hasVisibleHomework: Bool {
+        !homeworkStore.incompleteItems(for: currentDate).isEmpty ||
+        !homeworkStore.overdueItems(before: currentDate).isEmpty ||
+        !homeworkStore.upcomingItems(after: currentDate).isEmpty
+    }
+
+    private var emptyScheduleMessage: some View {
+        VStack {
+            Spacer()
+            VStack(spacing: 8) {
+                Text(emptyTitle)
+                    .appThemeFont(.primary, size: iPad ? 32 : 24, weight: .bold)
+                    .foregroundColor(PrimaryColor)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+
+                if let emptySubtitle, !emptySubtitle.isEmpty {
+                    Text(emptySubtitle)
+                        .appThemeFont(.secondary, size: iPad ? 18 : 14, weight: .medium)
+                        .foregroundColor(PrimaryColor.opacity(0.65))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+                }
+            }
+            Spacer()
+        }
+        .frame(minHeight: 220)
     }
     
     @ViewBuilder

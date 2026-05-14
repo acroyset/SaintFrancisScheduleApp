@@ -38,6 +38,7 @@ func fancyDayName(_ code: String) -> String {
 class NotificationManager {
     static let shared = NotificationManager()
     private let reminderPrefix = "custom-reminder-"
+    private let homeworkPrefix = "homework-"
     private let backToSchoolPrefix = "back-to-school-"
     private let backToSchoolDayOfID = "back-to-school-day-of"
     private let schedulePrefixes = ["nightly-", "morning-"]
@@ -146,6 +147,24 @@ class NotificationManager {
         }
     }
 
+    func scheduleHomeworkNotifications(for homework: [HomeworkItem]) {
+        let center = UNUserNotificationCenter.current()
+
+        center.getPendingNotificationRequests { requests in
+            let existingHomeworkIDs = requests
+                .map(\.identifier)
+                .filter { $0.hasPrefix(self.homeworkPrefix) }
+
+            if !existingHomeworkIDs.isEmpty {
+                center.removePendingNotificationRequests(withIdentifiers: existingHomeworkIDs)
+            }
+
+            for item in homework where !item.isComplete && item.reminderChoice != .none {
+                self.scheduleHomeworkNotification(for: item, using: center)
+            }
+        }
+    }
+
     func scheduleBackToSchoolNotificationsIfAuthorized() {
         UNUserNotificationCenter.current().getNotificationSettings { settings in
             guard Self.canScheduleBackToSchoolNotifications(with: settings.authorizationStatus) else { return }
@@ -202,7 +221,8 @@ class NotificationManager {
             let expired = requests.compactMap { req -> String? in
                 guard self.schedulePrefixes.contains(where: { req.identifier.hasPrefix($0) }) ||
                         req.identifier.hasPrefix(self.backToSchoolPrefix) ||
-                        req.identifier.hasPrefix(self.reminderPrefix),
+                        req.identifier.hasPrefix(self.reminderPrefix) ||
+                        req.identifier.hasPrefix(self.homeworkPrefix),
                       let trigger = req.trigger as? UNCalendarNotificationTrigger,
                       let next = trigger.nextTriggerDate(),
                       next < now
@@ -456,6 +476,63 @@ class NotificationManager {
                 }
             }
         }
+    }
+
+    private func scheduleHomeworkNotification(
+        for item: HomeworkItem,
+        using center: UNUserNotificationCenter
+    ) {
+        let calendar = Calendar.current
+        var triggerComponents = calendar.dateComponents([.year, .month, .day], from: item.dueDate)
+
+        switch item.reminderChoice {
+        case .none:
+            return
+        case .nightBefore:
+            guard let dayBefore = calendar.date(byAdding: .day, value: -1, to: item.dueDate) else { return }
+            triggerComponents = calendar.dateComponents([.year, .month, .day], from: dayBefore)
+            triggerComponents.hour = 19
+            triggerComponents.minute = 0
+        case .morningOf:
+            triggerComponents.hour = 7
+            triggerComponents.minute = 0
+        }
+
+        triggerComponents.second = 0
+
+        guard let triggerDate = calendar.date(from: triggerComponents),
+              triggerDate > Date() else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "Homework due \(homeworkDuePhrase(for: item.dueDate))"
+        content.body = "\(item.className): \(item.title)"
+        if !item.details.isEmpty {
+            content.subtitle = item.details
+        }
+        content.sound = .default
+        content.interruptionLevel = item.priority == .high ? .timeSensitive : .active
+
+        let request = UNNotificationRequest(
+            identifier: "\(homeworkPrefix)\(item.id.uuidString)-\(item.reminderChoice.rawValue)",
+            content: content,
+            trigger: UNCalendarNotificationTrigger(dateMatching: triggerComponents, repeats: false)
+        )
+
+        center.add(request) { err in
+            if let err {
+                print("❌ Homework notification error: \(err)")
+            }
+        }
+    }
+
+    private func homeworkDuePhrase(for date: Date) -> String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) { return "today" }
+        if calendar.isDateInTomorrow(date) { return "tomorrow" }
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return formatter.string(from: date)
     }
 
     private func reminderBody(for event: CustomEvent, offset: ReminderOffset, startDate: Date) -> String {
