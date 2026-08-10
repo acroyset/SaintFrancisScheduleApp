@@ -16,7 +16,6 @@ struct HomeworkSummaryView: View {
     let classes: [ClassItem]
 
     @State private var editingHomework: HomeworkItem?
-    @AppStorage(AppFeatureBadge.homework.seenKey) private var didSeeHomeworkBadge = false
 
     private var dueToday: [HomeworkItem] {
         homeworkStore.incompleteItems(for: selectedDate)
@@ -42,7 +41,6 @@ struct HomeworkSummaryView: View {
                         .appThemeFont(.primary, size: iPad ? 17 : 15, weight: .bold)
                     Text(title)
                         .appThemeFont(.secondary, size: iPad ? 18 : 15, weight: .bold)
-                        .newBadge(!didSeeHomeworkBadge)
                     Spacer()
                     Text("\(visibleItems.count)")
                         .appThemeFont(.secondary, size: iPad ? 13 : 11, weight: .bold)
@@ -62,15 +60,12 @@ struct HomeworkSummaryView: View {
                             TertiaryColor: TertiaryColor,
                             iPad: iPad,
                             onToggle: {
-                                AppFeatureBadge.markSeen(.homework)
                                 homeworkStore.toggleComplete(item)
                             },
                             onEdit: {
-                                AppFeatureBadge.markSeen(.homework)
                                 editingHomework = item
                             },
                             onDelete: {
-                                AppFeatureBadge.markSeen(.homework)
                                 homeworkStore.delete(item)
                             }
                         )

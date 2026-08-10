@@ -30,6 +30,20 @@ enum UsageFeature: String, Codable, CaseIterable {
     case classEditor
 }
 
+enum UsageItemKind: String, Codable, CaseIterable {
+    case homework
+    case reminder = "reminders"
+    case event = "events"
+}
+
+enum UsageItemAction: String, Codable, CaseIterable {
+    case create
+    case edit
+    case complete
+    case delete
+    case open
+}
+
 struct UsageSessionRecord: Codable, Equatable, Hashable {
     let id: String
     let startedAt: Date
@@ -39,6 +53,7 @@ struct UsageSessionRecord: Codable, Equatable, Hashable {
     let pageDurations: [String: TimeInterval]
     let featureDurations: [String: TimeInterval]
     let featureCounts: [String: Int]
+    let itemActionCounts: [String: [String: Int]]
     let notificationsEnabled: Bool
     let liveActivitiesEnabled: Bool
     let liveActivityActive: Bool
@@ -61,6 +76,7 @@ final class UsageStatsStore: ObservableObject {
     private var pageDurations: [String: TimeInterval] = UsagePage.defaultDurations
     private var featureDurations: [String: TimeInterval] = UsageFeature.defaultDurations
     private var featureCounts: [String: Int] = UsageFeature.defaultCounts
+    private var itemActionCounts: [String: [String: Int]] = UsageItemKind.defaultActionCounts
 
     func setUserScope(_ userId: String?) {
         resetSession()
@@ -120,6 +136,14 @@ final class UsageStatsStore: ObservableObject {
         currentFeatureStartedAt = activeSessionStart != nil && feature != nil ? date : nil
     }
 
+    func recordItemAction(_ action: UsageItemAction, for kind: UsageItemKind) {
+        guard activeSessionStart != nil else { return }
+
+        var actionCounts = itemActionCounts[kind.rawValue] ?? UsageItemAction.defaultCounts
+        actionCounts[action.rawValue, default: 0] += 1
+        itemActionCounts[kind.rawValue] = actionCounts
+    }
+
     private func accumulatePageDuration(until date: Date) {
         guard let page = currentPage,
               let startedAt = currentPageStartedAt else { return }
@@ -150,6 +174,7 @@ final class UsageStatsStore: ObservableObject {
         pageDurations = UsagePage.defaultDurations
         featureDurations = UsageFeature.defaultDurations
         featureCounts = UsageFeature.defaultCounts
+        itemActionCounts = UsageItemKind.defaultActionCounts
     }
 
     private func makeSession(id: String, startedAt: Date, endedAt: Date) -> UsageSessionRecord {
@@ -162,6 +187,7 @@ final class UsageStatsStore: ObservableObject {
             pageDurations: pageDurations,
             featureDurations: featureDurations,
             featureCounts: featureCounts,
+            itemActionCounts: itemActionCounts,
             notificationsEnabled: NotificationSettings.isEnabled,
             liveActivitiesEnabled: liveActivitiesEnabled,
             liveActivityActive: liveActivityActive
@@ -203,6 +229,18 @@ private extension UsageFeature {
         Dictionary(uniqueKeysWithValues: allCases.map { ($0.rawValue, 0) })
     }
 
+    static var defaultCounts: [String: Int] {
+        Dictionary(uniqueKeysWithValues: allCases.map { ($0.rawValue, 0) })
+    }
+}
+
+private extension UsageItemKind {
+    static var defaultActionCounts: [String: [String: Int]] {
+        Dictionary(uniqueKeysWithValues: allCases.map { ($0.rawValue, UsageItemAction.defaultCounts) })
+    }
+}
+
+private extension UsageItemAction {
     static var defaultCounts: [String: Int] {
         Dictionary(uniqueKeysWithValues: allCases.map { ($0.rawValue, 0) })
     }

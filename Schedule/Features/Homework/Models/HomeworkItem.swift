@@ -64,6 +64,7 @@ enum HomeworkReminderChoice: String, Codable, CaseIterable, Identifiable {
 struct HomeworkItem: Identifiable, Codable, Equatable {
     var id: UUID = UUID()
     var className: String
+    var classID: UUID? = nil
     var title: String
     var details: String
     var dueDate: Date

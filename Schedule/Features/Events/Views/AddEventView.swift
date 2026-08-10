@@ -10,6 +10,7 @@ import SwiftUI
 
 struct AddEventView: View {
     @StateObject private var viewModel: AddEventViewModel
+    @State private var didRecordOpen = false
     @Binding var isPresented: Bool
     
     let PrimaryColor: Color
@@ -58,6 +59,8 @@ struct AddEventView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") { isPresented = false }
+                        .accessibilityLabel("Cancel event")
+                        .accessibilityIdentifier("add-event.cancel")
                 }
             
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -65,6 +68,8 @@ struct AddEventView: View {
                         viewModel.saveEvent { isPresented = false }
                     }
                     .disabled(!viewModel.isValid)
+                    .accessibilityLabel("Save event")
+                    .accessibilityIdentifier("add-event.save")
                 }
             }
         }
@@ -75,6 +80,7 @@ struct AddEventView: View {
             }
             .onAppear {
                 UsageStatsStore.shared.setCurrentFeature(.events)
+                recordOpenIfNeeded()
                 viewModel.loadEventForEditing()
             }
             .onDisappear {
@@ -85,6 +91,12 @@ struct AddEventView: View {
             .onChange(of: viewModel.repeatPattern) { _, _ in viewModel.handleRepeatPatternChanged() }
             .onChange(of: viewModel.selectedDays) { _, _ in viewModel.checkForConflicts() }
             .onChange(of: viewModel.selectedDate) { _, _ in viewModel.checkForConflicts() }
+    }
+
+    private func recordOpenIfNeeded() {
+        guard viewModel.editingEvent != nil, !didRecordOpen else { return }
+        didRecordOpen = true
+        UsageStatsStore.shared.recordItemAction(.open, for: .event)
     }
 }
 
@@ -357,15 +369,23 @@ private struct WeekdayButton: View {
     let SecondaryColor: Color
     
     var body: some View {
-        Text(weekday)
-            .padding(8)
-            .frame(maxWidth: .infinity)
-            .background(isSelected ? PrimaryColor : SecondaryColor)
-            .foregroundColor(isSelected ? .white : PrimaryColor)
-            .cornerRadius(8)
-            .onTapGesture {
-                onToggle()
-            }
+        Button(action: onToggle) {
+            Text(weekday)
+                .padding(8)
+                .frame(maxWidth: .infinity)
+                .background(isSelected ? PrimaryColor : SecondaryColor)
+                .foregroundColor(
+                    isSelected
+                        ? Color.white.accessibleForegroundColor(against: PrimaryColor)
+                        : PrimaryColor
+                )
+                .cornerRadius(8)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(weekday)
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityIdentifier("event.weekday.\(weekday.lowercased())")
     }
 }
 

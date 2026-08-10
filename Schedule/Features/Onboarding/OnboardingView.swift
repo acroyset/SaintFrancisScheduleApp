@@ -176,6 +176,12 @@ struct OnboardingView: View {
             )
         }
         onComplete(trimmed)
+        if hasAnyName {
+            UserDefaults.standard.set(
+                true,
+                forKey: BackToSchoolPromptStorage.firstDayClassUpdateHandled2026
+            )
+        }
         markOnboardingDone()
         withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
             isPresented = false

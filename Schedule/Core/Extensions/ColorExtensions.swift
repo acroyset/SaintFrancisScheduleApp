@@ -82,13 +82,115 @@ extension Color {
 }
 
 extension Color {
-    func luminance() -> CGFloat {
+    private func resolvedRGBA() -> (red: CGFloat, green: CGFloat, blue: CGFloat, alpha: CGFloat)? {
         let uiColor = UIColor(self)
-        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        uiColor.getRed(&r, green: &g, blue: &b, alpha: &a)
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+
+        guard uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha) else {
+            return nil
+        }
+
+        return (red, green, blue, alpha)
+    }
+
+    func luminance() -> CGFloat {
+        guard let components = resolvedRGBA() else { return 0.5 }
 
         // luminance calculation (WCAG)
-        return 0.299*r + 0.587*g + 0.114*b
+        return 0.299 * components.red
+            + 0.587 * components.green
+            + 0.114 * components.blue
+    }
+
+    /// WCAG relative luminance for contrast calculations.
+    private func relativeLuminance() -> CGFloat {
+        guard let components = resolvedRGBA() else { return 0.5 }
+
+        func linearized(_ component: CGFloat) -> CGFloat {
+            component <= 0.04045
+                ? component / 12.92
+                : pow((component + 0.055) / 1.055, 2.4)
+        }
+
+        return 0.2126 * linearized(components.red)
+            + 0.7152 * linearized(components.green)
+            + 0.0722 * linearized(components.blue)
+    }
+
+    func contrastRatio(with other: Color) -> CGFloat {
+        let first = relativeLuminance()
+        let second = other.relativeLuminance()
+        return (max(first, second) + 0.05) / (min(first, second) + 0.05)
+    }
+
+    func composited(over background: Color) -> Color {
+        guard let foreground = resolvedRGBA(),
+              let background = background.resolvedRGBA() else {
+            return self
+        }
+
+        let outputAlpha = foreground.alpha + background.alpha * (1 - foreground.alpha)
+        guard outputAlpha > 0 else { return .clear }
+
+        return Color(
+            red: (foreground.red * foreground.alpha
+                + background.red * background.alpha * (1 - foreground.alpha)) / outputAlpha,
+            green: (foreground.green * foreground.alpha
+                + background.green * background.alpha * (1 - foreground.alpha)) / outputAlpha,
+            blue: (foreground.blue * foreground.alpha
+                + background.blue * background.alpha * (1 - foreground.alpha)) / outputAlpha,
+            opacity: outputAlpha
+        )
+    }
+
+    /// Preserves the supplied color when it is readable, otherwise blends it
+    /// toward black or white just enough to meet the requested contrast.
+    func accessibleForegroundColor(
+        against background: Color,
+        minimumContrast: CGFloat = 4.5
+    ) -> Color {
+        guard contrastRatio(with: background) < minimumContrast,
+              let original = resolvedRGBA() else {
+            return self
+        }
+
+        let black = Color.black
+        let white = Color.white
+        let target: (red: CGFloat, green: CGFloat, blue: CGFloat) =
+            black.contrastRatio(with: background) >= white.contrastRatio(with: background)
+                ? (0, 0, 0)
+                : (1, 1, 1)
+
+        func blendedColor(progress: CGFloat) -> Color {
+            Color(
+                red: original.red + (target.red - original.red) * progress,
+                green: original.green + (target.green - original.green) * progress,
+                blue: original.blue + (target.blue - original.blue) * progress,
+                opacity: original.alpha
+            )
+        }
+
+        guard blendedColor(progress: 1).contrastRatio(with: background) >= minimumContrast else {
+            return black.contrastRatio(with: background) >= white.contrastRatio(with: background)
+                ? black
+                : white
+        }
+
+        var failingProgress: CGFloat = 0
+        var passingProgress: CGFloat = 1
+        for _ in 0..<16 {
+            let candidateProgress = (failingProgress + passingProgress) / 2
+            if blendedColor(progress: candidateProgress).contrastRatio(with: background) >= minimumContrast {
+                passingProgress = candidateProgress
+            } else {
+                failingProgress = candidateProgress
+            }
+        }
+
+        return blendedColor(progress: passingProgress)
     }
 }
 
@@ -98,6 +200,10 @@ extension Color {
         return luminance > 0.5 ?
         Color(hue: 0, saturation: 0, brightness: 0.4) :
         Color(hue: 0,saturation: 0,brightness: 0.6)
+    }
+
+    func maximumContrastTextColor() -> Color {
+        luminance() > 0.5 ? .black : .white
     }
 }
 

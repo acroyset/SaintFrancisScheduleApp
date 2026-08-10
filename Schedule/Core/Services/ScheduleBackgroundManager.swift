@@ -5,6 +5,7 @@ let nightlyTaskID = "Xcode.ScheduleApp.nightlyUpdate"
 
 class ScheduleBackgroundManager {
     static let shared = ScheduleBackgroundManager()
+    private let operationQueue = OperationQueue()
     
     private init() {}
     
@@ -13,11 +14,19 @@ class ScheduleBackgroundManager {
             forTaskWithIdentifier: nightlyTaskID,
             using: nil
         ) { task in
-            self.handleNightlyTask(task: task as! BGAppRefreshTask)
+            guard let refreshTask = task as? BGAppRefreshTask else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+            self.handleNightlyTask(task: refreshTask)
         }
     }
     
     func scheduleNextNightlyRefresh() {
+        // UI tests intentionally skip registration; submitting an unregistered
+        // identifier raises NSInternalInconsistencyException instead of throwing.
+        guard !AppRuntime.isUITesting else { return }
+
         let request = BGAppRefreshTaskRequest(identifier: nightlyTaskID)
         request.earliestBeginDate = Date(timeIntervalSinceNow: 1 * 60 * 60) // 1 hour
         
@@ -36,7 +45,6 @@ class ScheduleBackgroundManager {
             guard let data = SharedGroup.defaults.data(forKey: "ScheduleDict"),
                   let scheduleDict = try? JSONDecoder().decode([String: [String]].self, from: data) else {
                 NotificationManager.shared.scheduleNightly(dayCode: "")
-                task.setTaskCompleted(success: false)
                 return
             }
             
@@ -51,7 +59,9 @@ class ScheduleBackgroundManager {
         }
         
         task.expirationHandler = { op.cancel() }
-        op.completionBlock = { task.setTaskCompleted(success: !op.isCancelled) }
-        OperationQueue().addOperation(op)
+        op.completionBlock = { [weak op] in
+            task.setTaskCompleted(success: op?.isCancelled == false)
+        }
+        operationQueue.addOperation(op)
     }
 }

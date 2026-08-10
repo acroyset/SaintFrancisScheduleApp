@@ -3,8 +3,8 @@
 //  Schedule
 //
 //  Fixes:
-//  1. Debounce was resetting every second because the ticker calls
-//     scheduleNightly() every second. Changed to a time-gated approach:
+//  1. Repeated callers no longer reset the debounce. Changed to a
+//     time-gated approach:
 //     notifications are only rescheduled when the dayCode actually changes
 //     or after a minimum interval has elapsed since the last real schedule.
 //  2. Nightly notifications no longer roll over to the next evening after
@@ -63,10 +63,25 @@ class NotificationManager {
         }
     }
 
+    func ensureNotificationAuthorization() async -> Bool {
+        let center = UNUserNotificationCenter.current()
+        let settings = await center.notificationSettings()
+
+        switch settings.authorizationStatus {
+        case .authorized, .provisional, .ephemeral:
+            return true
+        case .notDetermined:
+            return (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
+        case .denied:
+            return false
+        @unknown default:
+            return false
+        }
+    }
+
     // MARK: - Public scheduling entry point
 
-    /// Call this freely — it gates on actual changes so the ticker calling it
-    /// every second is harmless.
+    /// Call this freely — it gates on actual changes and a minimum interval.
     func scheduleNightly(
         dayCode:        String,
         firstClassName: String = "",
@@ -650,11 +665,13 @@ class NotificationSettings {
         set {
             UserDefaults.standard.set(newValue, forKey: enabledKey)
             if newValue {
-                let center = UNUserNotificationCenter.current()
-                center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
-                    if !granted { print("❌ Notification Permission Denied") }
+                if !AppRuntime.isUITesting {
+                    let center = UNUserNotificationCenter.current()
+                    center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+                        if !granted { print("❌ Notification Permission Denied") }
+                    }
+                    ScheduleBackgroundManager.shared.scheduleNextNightlyRefresh()
                 }
-                ScheduleBackgroundManager.shared.scheduleNextNightlyRefresh()
             } else {
                 NotificationManager.shared.cancelAllNotifications()
             }

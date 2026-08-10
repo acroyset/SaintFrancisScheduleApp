@@ -30,6 +30,7 @@ final class GlobalDataStore: ObservableObject {
     private var lastSavedTheme: ThemeColors?
     private var hasTriedFetchingSchedule = false
     private var hasLoadedFromCloud = false
+    private var scheduleFetchTask: Task<Void, Never>?
 
     var currentTheme: ThemeColors {
         ThemeColors(
@@ -48,18 +49,32 @@ final class GlobalDataStore: ObservableObject {
     ) {
         guard data == nil else { return }
 
-        applyLocalData(onboardingClasses: onboardingClasses)
+        applyLocalData(
+            onboardingClasses: onboardingClasses,
+            events: eventsManager.events
+        )
+        if AppRuntime.isUITesting, scheduleDict == nil {
+            scheduleDict = [:]
+        }
+        if AppRuntime.simulatesActiveScheduleRetry {
+            scheduleRetryAttempt = 1
+        } else if AppRuntime.simulatesScheduleRefreshFailure {
+            scheduleLoadError = "Couldn’t refresh. Showing the last saved schedule."
+        }
         syncCloudData(authManager: authManager)
         eventsManager.setAuthManager(authManager)
         eventsManager.loadFromCloud(using: authManager)
 
         if !hasTriedFetchingSchedule {
             hasTriedFetchingSchedule = true
-            fetchScheduleFromGoogleSheets(events: eventsManager.events)
+            if !AppRuntime.isUITesting {
+                fetchScheduleFromGoogleSheets(events: eventsManager.events)
+            }
         }
     }
 
     func saveTheme(authManager: AuthenticationManager) {
+        guard !AppRuntime.isUITesting else { return }
         saveThemeLocally(currentTheme)
         if authManager.user != nil {
             debouncedCloudSave(authManager: authManager, theme: currentTheme)
@@ -67,7 +82,9 @@ final class GlobalDataStore: ObservableObject {
     }
 
     func saveSchedule(authManager: AuthenticationManager) {
-        guard let user = authManager.user, let data else { return }
+        guard let data else { return }
+        overwriteClassesFile(with: data.classes)
+        guard let user = authManager.user else { return }
 
         Task {
             do {
@@ -77,7 +94,6 @@ final class GlobalDataStore: ObservableObject {
                     isSecondLunch: data.isSecondLunch,
                     userId: user.id
                 )
-                overwriteClassesFile(with: data.classes)
             } catch {
                 print("❌ Failed to save classes to cloud: \(error)")
             }
@@ -118,9 +134,17 @@ final class GlobalDataStore: ObservableObject {
 
     func syncDerivedOutputs(events: [CustomEvent]) {
         refreshRenderedSchedule(events: events)
-        saveScheduleLinesWithEvents(events: events)
-        saveDataForWidget()
+        guard !AppRuntime.isUITesting else { return }
+        saveDataForWidget(reloadTimeline: false)
+        saveScheduleLinesWithEvents(events: events, reloadTimeline: true)
         updateLiveActivity()
+    }
+
+    func updateCurrentScheduleProgress() {
+        scheduleLines = ScheduleRenderer.shared.refreshingProgress(
+            in: scheduleLines,
+            selectedDate: selectedDate
+        )
     }
 
     func refreshAllData(
@@ -138,8 +162,7 @@ final class GlobalDataStore: ObservableObject {
                 }
                 applyTheme(theme)
                 SharedGroup.defaults.set(Date(), forKey: "LastAppDataUpdate")
-                refreshRenderedSchedule(events: events)
-                saveScheduleLinesWithEvents(events: events)
+                syncDerivedOutputs(events: events)
                 saveThemeLocally(theme)
             } catch {
                 print("❌ Failed to refresh from cloud: \(error)")
@@ -198,7 +221,10 @@ final class GlobalDataStore: ObservableObject {
         ScheduleRenderer.shared.currentClassIndex(in: scheduleLines) ?? 0
     }
 
-    private func applyLocalData(onboardingClasses: [ClassItem]) {
+    private func applyLocalData(
+        onboardingClasses: [ClassItem],
+        events: [CustomEvent]
+    ) {
         guard let localState = persistence.loadLocalSchedule(
             parseClass: ScheduleParsing.parseClass,
             parseDays: ScheduleParsing.parseDays
@@ -208,7 +234,20 @@ final class GlobalDataStore: ObservableObject {
         }
 
         applyScheduleState(localState, overwriteClasses: false)
+        if AppRuntime.isUITesting {
+            applyTheme(
+                AppRuntime.usesGraphiteThemeFixture
+                    ? ThemeColors(
+                        primary: "#D1D1D6FF",
+                        secondary: "#D1D1D62E",
+                        tertiary: "#FFFFFFFF"
+                    )
+                    : .defaultTheme
+            )
+        }
+        overwriteClassesFile(with: data?.classes ?? [])
         applyOnboardingClassesIfNeeded(onboardingClasses)
+        loadCachedSchedule(events: events)
     }
 
     private func syncCloudData(authManager: AuthenticationManager) {
@@ -218,12 +257,21 @@ final class GlobalDataStore: ObservableObject {
             do {
                 guard let days = data?.days else { return }
                 let cloudState = try await persistence.loadCloudScheduleState(for: user.id, days: days)
+                let needsIDMigration = cloudState.classes.contains { $0.needsIDMigration }
                 if !cloudState.classes.isEmpty {
                     applyScheduleState(cloudState)
                 } else {
                     applyThemeState(cloudState.theme)
                 }
                 saveDataForWidget()
+                if needsIDMigration, let migratedData = data {
+                    try await persistence.saveScheduleToCloud(
+                        classes: migratedData.classes,
+                        theme: currentTheme,
+                        isSecondLunch: migratedData.isSecondLunch,
+                        userId: user.id
+                    )
+                }
                 hasLoadedFromCloud = true
             } catch {
                 print("❌ Failed to load from cloud: \(error)")
@@ -303,7 +351,7 @@ final class GlobalDataStore: ObservableObject {
             SharedGroup.defaults.set(dictData, forKey: "ScheduleDict")
         }
         updateNightlyNotification()
-        saveDataForWidget()
+        syncDerivedOutputs(events: events)
     }
 
     private func refreshRenderedSchedule(events: [CustomEvent]) {
@@ -316,61 +364,98 @@ final class GlobalDataStore: ObservableObject {
     }
 
     private func fetchScheduleFromGoogleSheets(events: [CustomEvent]) {
-        Task { await fetchWithRetry(attempt: 1, events: events) }
+        retryScheduleLoad(events: events)
     }
 
     private func fetchScheduleFromGoogleSheetsAsync(events: [CustomEvent]) async {
-        await fetchWithRetry(attempt: 1, events: events)
+        scheduleFetchTask?.cancel()
+        await fetchWithRetry(events: events)
     }
 
-    private func fetchWithRetry(
-        attempt: Int,
-        events: [CustomEvent],
-        maxAttempts: Int = 10
-    ) async {
+    func retryScheduleLoad(events: [CustomEvent]) {
+        scheduleFetchTask?.cancel()
+        scheduleFetchTask = Task { [weak self] in
+            await self?.fetchWithRetry(events: events)
+        }
+    }
+
+    private func fetchWithRetry(events: [CustomEvent], maxAttempts: Int = 3) async {
         let csvURL = "https://docs.google.com/spreadsheets/d/1vrodfGZP7wNooj8VYgpNejPaLvOl8PUyg82hwWz_uU4/export?format=csv&gid=0"
         guard let url = URL(string: csvURL) else { return }
 
-        do {
-            let (data, response) = try await URLSession.shared.data(from: url)
-            if let http = response as? HTTPURLResponse, http.statusCode != 200 {
-                throw URLError(.badServerResponse)
-            }
-            guard let csv = String(data: data, encoding: .utf8) else {
-                throw URLError(.cannotDecodeContentData)
-            }
-
-            scheduleRetryAttempt = 0
-            scheduleLoadError = nil
-            parseCSV(csv, events: events)
-            applySelectedDate(selectedDate, events: events)
-            saveDataForWidget()
-        } catch {
-            if attempt < maxAttempts {
+        for attempt in 1...maxAttempts {
+            do {
+                try Task.checkCancellation()
                 scheduleRetryAttempt = attempt
-                try? await Task.sleep(nanoseconds: 2 * 1_000_000_000)
-                await fetchWithRetry(attempt: attempt + 1, events: events, maxAttempts: maxAttempts)
-            } else {
+                scheduleLoadError = nil
+
+                var request = URLRequest(url: url)
+                request.timeoutInterval = 5
+                request.cachePolicy = .reloadRevalidatingCacheData
+
+                let (responseData, response) = try await URLSession.shared.data(for: request)
+                if let http = response as? HTTPURLResponse, http.statusCode != 200 {
+                    throw URLError(.badServerResponse)
+                }
+                guard let csv = String(data: responseData, encoding: .utf8) else {
+                    throw URLError(.cannotDecodeContentData)
+                }
+
                 scheduleRetryAttempt = 0
-                scheduleLoadError = "Could not load schedule. Close and reopen the app to try again."
+                scheduleLoadError = nil
+                parseCSV(csv, events: events)
+                return
+            } catch is CancellationError {
+                scheduleRetryAttempt = 0
+                return
+            } catch {
+                guard attempt < maxAttempts else {
+                    scheduleRetryAttempt = 0
+                    scheduleLoadError = scheduleDict == nil
+                        ? "Couldn’t load the schedule. Check your connection and try again."
+                        : "Couldn’t refresh. Showing the last saved schedule."
+                    return
+                }
+
+                do {
+                    try await Task.sleep(nanoseconds: 1_500_000_000)
+                } catch {
+                    scheduleRetryAttempt = 0
+                    return
+                }
             }
         }
     }
 
-    private func saveDataForWidget() {
+    private func loadCachedSchedule(events: [CustomEvent]) {
+        guard scheduleDict == nil,
+              let cachedData = SharedGroup.defaults.data(forKey: "ScheduleDict"),
+              let cachedSchedule = try? JSONDecoder().decode([String: [String]].self, from: cachedData) else {
+            return
+        }
+        scheduleDict = cachedSchedule
+        applySelectedDate(selectedDate, events: events)
+    }
+
+    private func saveDataForWidget(reloadTimeline: Bool = true) {
         WidgetManager.shared.saveData(
             scheduleDict: scheduleDict,
             data: data,
-            dayCode: dayCode
+            dayCode: dayCode,
+            reloadTimeline: reloadTimeline
         )
     }
 
-    private func saveScheduleLinesWithEvents(events: [CustomEvent]) {
+    private func saveScheduleLinesWithEvents(
+        events: [CustomEvent],
+        reloadTimeline: Bool = true
+    ) {
         WidgetManager.shared.saveScheduleLinesWithEvents(
             scheduleLines: scheduleLines,
             events: events,
             dayCode: dayCode,
-            selectedDate: selectedDate
+            selectedDate: selectedDate,
+            reloadTimeline: reloadTimeline
         )
     }
 

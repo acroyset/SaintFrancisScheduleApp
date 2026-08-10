@@ -20,6 +20,20 @@ struct CampusClassLocation: Identifiable, Equatable {
     let className: String
     let room: String
     let building: CampusBuilding
+    let countsTowardClassTotal: Bool
+
+    var displayName: String {
+        if periodLabel.compare(
+            className,
+            options: [.caseInsensitive, .diacriticInsensitive],
+            range: nil,
+            locale: .current
+        ) == .orderedSame {
+            return className
+        }
+
+        return "\(periodLabel) \(className)"
+    }
 }
 
 struct CampusRoomMarker: Identifiable, Equatable {
@@ -58,6 +72,26 @@ enum CampusMapLayer: Int, CaseIterable, Identifiable {
 }
 
 enum CampusMapData {
+    static func unplacedAcademicClassCount(in classes: [ClassItem]) -> Int {
+        classes.enumerated().filter { index, classItem in
+            guard (0...6).contains(index) else { return false }
+
+            let className = classItem.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            let room = classItem.room.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+            guard !className.isEmpty,
+                  className.caseInsensitiveCompare("none") != .orderedSame else {
+                return false
+            }
+
+            return room.isEmpty ||
+                room == "n" ||
+                room == "none" ||
+                room == "room" ||
+                building(forRoom: classItem.room) == nil
+        }.count
+    }
+
     static let innovationCenter = CampusBuilding(
         id: "innovationCenter",
         title: "Edgars Innovation Center 1100's 1200's",
@@ -235,6 +269,15 @@ enum CampusMapData {
             layer: .second
         ),
         [
+            CampusRoomMarker(
+                room: "Gym",
+                building: burnsGym,
+                normalizedX: burnsGym.normalizedX,
+                normalizedY: burnsGym.normalizedY,
+                layer: .first
+            )
+        ],
+        [
             roomMarker(building: fiveHundreds, room: 501, x: 0.405, y: 0.462, layer: .first),
             roomMarker(building: fiveHundreds, room: 502, x: 0.405, y: 0.486, layer: .first),
             roomMarker(building: fiveHundreds, room: 503, x: 0.405, y: 0.510, layer: .first),
@@ -299,7 +342,8 @@ enum CampusMapData {
                 periodLabel: periodLabel(for: index, fallback: trimmedName),
                 className: trimmedName,
                 room: trimmedRoom,
-                building: building
+                building: building,
+                countsTowardClassTotal: (0...6).contains(index)
             )
         }
     }

@@ -33,6 +33,11 @@ enum TutorialState: Int {
     case Outro = 7
 }
 
+enum BackToSchoolPromptStorage {
+    static let reminderPrompt2026 = "DidPromptBackToSchoolReminders2026"
+    static let firstDayClassUpdateHandled2026 = "DidHandleFirstDayClassUpdate2026"
+}
+
 func classesDocumentsURL() throws -> URL {
     let docs = try FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
     return docs.appendingPathComponent("Classes.txt")
@@ -55,8 +60,15 @@ func ensureWritableClassesFile() throws -> URL {
 func overwriteClassesFile(with classes: [ClassItem]) {
     do {
         let url = try ensureWritableClassesFile()
-        let text = classes.map { "\($0.name) - \($0.teacher) - \($0.room)" }
-                          .joined(separator: "\n") + "\n"
+        let encoder = JSONEncoder()
+        let text = try classes.map { item -> String in
+            let data = try encoder.encode(item)
+            guard let line = String(data: data, encoding: .utf8) else {
+                throw CocoaError(.fileWriteInapplicableStringEncoding)
+            }
+            return line
+        }
+        .joined(separator: "\n") + "\n"
         try text.write(to: url, atomically: true, encoding: .utf8)
     } catch {
         print("❌ overwriteClassesFile error:", error)

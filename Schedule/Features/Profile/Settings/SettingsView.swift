@@ -37,6 +37,14 @@ struct Settings: View {
     @State private var permissionStatus: UNAuthorizationStatus = .notDetermined
     @State private var showResetAlert = false
 
+    private var readableTextColor: Color {
+        PrimaryColor.accessibleForegroundColor(against: TertiaryColor)
+    }
+
+    private var glassHeaderTextColor: Color {
+        TertiaryColor.luminance() > 0.5 ? .black : .white
+    }
+
     var body: some View {
         ZStack {
             VStack {
@@ -137,13 +145,13 @@ struct Settings: View {
                         .appThemeFont(.secondary, size: iPad ? 34 : 22, weight: .bold)
                         .padding(iPad ? 16 : 12)
                         .frame(maxWidth: .infinity)
-                        .foregroundStyle(PrimaryColor)
-                        .glassEffect()
+                        .foregroundStyle(glassHeaderTextColor)
+                        .glassEffect(.regular.tint(TertiaryColor.opacity(0.62)))
                 } else {
                     Text("Settings")
                         .appThemeFont(.secondary, size: iPad ? 34 : 22, weight: .bold)
                         .padding(12)
-                        .foregroundStyle(PrimaryColor)
+                        .foregroundStyle(readableTextColor)
                 }
                 Spacer()
             }
@@ -170,12 +178,12 @@ struct Settings: View {
             HStack {
                 Image(systemName: "bell.slash.fill")
                     .frame(width: 24)
-                    .foregroundColor(PrimaryColor)
+                    .foregroundColor(readableTextColor)
                     .padding(.leading, 16)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Nightly Notifications")
                         .appThemeFont(.secondary, size: iPad ? 18 : 15, weight: .semibold)
-                        .foregroundColor(PrimaryColor)
+                        .foregroundColor(readableTextColor)
                     Text("Permission denied — tap to open Settings")
                         .appThemeFont(.secondary, style: .caption)
                         .foregroundColor(.secondary)
@@ -203,15 +211,20 @@ struct Settings: View {
             HStack {
                 Image(systemName: "bell.fill")
                     .frame(width: 24)
-                    .foregroundColor(PrimaryColor)
+                    .foregroundColor(readableTextColor)
                     .padding(.leading, 16)
                 Text("Nightly Notifications")
                     .appThemeFont(.secondary, size: iPad ? 18 : 15, weight: .semibold)
-                    .foregroundColor(PrimaryColor)
+                    .foregroundColor(readableTextColor)
                 Spacer()
                 Toggle("", isOn: Binding(
                     get: { NotificationSettings.isEnabled },
                     set: { newValue in
+                        if AppRuntime.isUITesting {
+                            NotificationSettings.isEnabled = newValue
+                            return
+                        }
+
                         if newValue {
                             requestNotificationPermission { granted in
                                 NotificationSettings.isEnabled = granted
@@ -223,7 +236,9 @@ struct Settings: View {
                         }
                     }
                 ))
-                .toggleStyle(SwitchToggleStyle(tint: PrimaryColor))
+                .toggleStyle(SwitchToggleStyle(tint: readableTextColor))
+                .accessibilityLabel("Nightly Notifications")
+                .accessibilityIdentifier("settings.nightly-notifications")
                 .padding(.trailing, 16)
             }
             .padding(.vertical, 14)
@@ -236,7 +251,7 @@ struct Settings: View {
         HStack {
             Image(systemName: "clock.badge")
                 .frame(width: 24)
-                .foregroundColor(PrimaryColor)
+                .foregroundColor(readableTextColor)
                 .padding(.leading, 16)
             DatePicker(
                 "Alert Time",
@@ -247,7 +262,8 @@ struct Settings: View {
                 displayedComponents: .hourAndMinute
             )
             .appThemeFont(.secondary, size: iPad ? 18 : 15, weight: .semibold)
-            .foregroundColor(PrimaryColor)
+            .foregroundColor(readableTextColor)
+            .tint(readableTextColor)
             .padding(.trailing, 16)
         }
         .padding(.vertical, 4)
@@ -308,7 +324,7 @@ struct Settings: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title.uppercased())
                 .appThemeFont(.secondary, size: 12, weight: .bold)
-                .foregroundColor(PrimaryColor.opacity(0.55))
+                .foregroundColor(readableTextColor)
                 .padding(.leading, 4)
 
             VStack(spacing: 0) {
@@ -316,7 +332,7 @@ struct Settings: View {
             }
             .background(
                 RoundedRectangle(cornerRadius: 14)
-                    .fill(Color(.systemBackground))
+                    .fill(TertiaryColor)
                     .shadow(color: .black.opacity(0.07), radius: 6, x: 0, y: 2)
             )
             .clipShape(RoundedRectangle(cornerRadius: 14))
@@ -333,14 +349,14 @@ struct Settings: View {
         HStack {
             Image(systemName: icon)
                 .frame(width: 24)
-                .foregroundColor(PrimaryColor)
+                .foregroundColor(readableTextColor)
                 .padding(.leading, 16)
             Text(label)
                 .appThemeFont(.secondary, size: iPad ? 18 : 15, weight: .semibold)
-                .foregroundColor(PrimaryColor)
+                .foregroundColor(readableTextColor)
             Spacer()
             Toggle("", isOn: isOn)
-                .toggleStyle(SwitchToggleStyle(tint: PrimaryColor))
+                .toggleStyle(SwitchToggleStyle(tint: readableTextColor))
                 .padding(.trailing, 16)
         }
         .padding(.vertical, 14)
@@ -351,11 +367,11 @@ struct Settings: View {
         HStack {
             Image(systemName: icon)
                 .frame(width: 24)
-                .foregroundColor(PrimaryColor)
+                .foregroundColor(readableTextColor)
                 .padding(.leading, 16)
             Text(label)
                 .appThemeFont(.secondary, size: iPad ? 18 : 15, weight: .semibold)
-                .foregroundColor(PrimaryColor)
+                .foregroundColor(readableTextColor)
             Spacer()
             CompactColorPicker(
                 selectedColor: color,
@@ -378,11 +394,11 @@ struct Settings: View {
         HStack {
             Image(systemName: icon)
                 .frame(width: 24)
-                .foregroundColor(PrimaryColor)
+                .foregroundColor(readableTextColor)
                 .padding(.leading, 16)
             Text(label)
                 .appThemeFont(.secondary, size: iPad ? 18 : 15, weight: .semibold)
-                .foregroundColor(PrimaryColor)
+                .foregroundColor(readableTextColor)
             Spacer()
             Menu {
                 ForEach(AppFontChoice.allCases) { choice in
@@ -408,17 +424,17 @@ struct Settings: View {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(selection.wrappedValue.displayName)
                         .font(.system(size: 15, weight: .semibold, design: selection.wrappedValue.design))
-                        .foregroundStyle(PrimaryColor)
+                        .foregroundStyle(readableTextColor)
                     Text(selection.wrappedValue == .monospaced ? "12:45 PM" : "Aa Bb Cc")
                         .font(.system(size: 12, weight: .regular, design: selection.wrappedValue.design))
-                        .foregroundStyle(PrimaryColor.opacity(0.7))
+                        .foregroundStyle(readableTextColor.opacity(0.8))
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .background(SecondaryColor.opacity(0.75))
                 .clipShape(RoundedRectangle(cornerRadius: 10))
             }
-            .tint(PrimaryColor)
+            .tint(readableTextColor)
             .padding(.trailing, 16)
         }
         .padding(.vertical, 14)
@@ -445,17 +461,24 @@ struct ThemePresetsSection: View {
     let columns = [GridItem(.flexible()), GridItem(.flexible()),
                    GridItem(.flexible()), GridItem(.flexible())]
 
+    private var readablePrimaryColor: Color {
+        PrimaryColor.accessibleForegroundColor(
+            against: SecondaryColor.composited(over: TertiaryColor)
+        )
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Presets")
                 .appThemeFont(.secondary, size: 13, weight: .semibold)
-                .foregroundStyle(PrimaryColor)
+                .foregroundStyle(readablePrimaryColor)
 
             LazyVGrid(columns: columns, spacing: 12) {
                 ForEach(ThemePreset.presets) { preset in
                     PresetTile(
                         preset: preset,
                         isActive: activePresetId == preset.id,
+                        labelColor: readablePrimaryColor,
                         onTap: {
                             withAnimation(.spring(duration: 0.25)) {
                                 PrimaryColor   = preset.primary
@@ -475,15 +498,20 @@ struct ThemePresetsSection: View {
         .onChange(of: PrimaryColor)   { _, _ in checkIfCustom() }
         .onChange(of: SecondaryColor) { _, _ in checkIfCustom() }
         .onChange(of: TertiaryColor)  { _, _ in checkIfCustom() }
+        .onAppear(perform: checkIfCustom)
     }
 
     private func checkIfCustom() {
-        let match = ThemePreset.presets.first {
-            $0.primaryHex   == (PrimaryColor.toHex()   ?? "") &&
-            $0.secondaryHex == (SecondaryColor.toHex() ?? "") &&
-            $0.tertiaryHex  == (TertiaryColor.toHex()  ?? "")
-        }
-        if match == nil {
+        let match = ThemePreset.matching(
+            primaryHex: PrimaryColor.toHex() ?? "",
+            secondaryHex: SecondaryColor.toHex() ?? "",
+            tertiaryHex: TertiaryColor.toHex() ?? ""
+        )
+        activePresetId = match?.id
+
+        if let match {
+            UserDefaults.standard.set(match.id, forKey: "ActivePresetId")
+        } else {
             activePresetId = nil
             UserDefaults.standard.removeObject(forKey: "ActivePresetId")
         }
@@ -493,6 +521,7 @@ struct ThemePresetsSection: View {
 private struct PresetTile: View {
     let preset: ThemePreset
     let isActive: Bool
+    let labelColor: Color
     let onTap: () -> Void
 
     var body: some View {
@@ -527,7 +556,12 @@ private struct PresetTile: View {
                             .overlay(
                                 Image(systemName: "checkmark")
                                     .appThemeFont(.secondary, size: 8, weight: .bold)
-                                    .foregroundStyle(preset.tertiary)
+                                    .foregroundStyle(
+                                        preset.tertiary.accessibleForegroundColor(
+                                            against: preset.primary,
+                                            minimumContrast: 3
+                                        )
+                                    )
                             )
                             .offset(x: 4, y: 4)
                     }
@@ -535,10 +569,13 @@ private struct PresetTile: View {
 
                 Text(preset.name)
                     .appThemeFont(.secondary, size: 10, weight: .medium)
-                    .foregroundStyle(isActive ? preset.primary : Color.gray)
+                    .foregroundStyle(isActive ? labelColor : Color.gray)
                     .lineLimit(1)
             }
         }
+        .accessibilityLabel("\(preset.name) theme")
+        .accessibilityValue(isActive ? "Selected" : "Not selected")
+        .accessibilityIdentifier("theme.\(preset.id)")
         .buttonStyle(.plain)
         .scaleEffect(isActive ? 1.04 : 1)
         .animation(.spring(duration: 0.25), value: isActive)

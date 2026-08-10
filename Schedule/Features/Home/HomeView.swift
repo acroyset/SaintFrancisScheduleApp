@@ -12,6 +12,16 @@
 
 import SwiftUI
 
+enum HomeLayoutMetrics {
+    static func addSelectorWidth(
+        isPortrait: Bool,
+        toolbarWidth: CGFloat
+    ) -> CGFloat? {
+        guard isPortrait, toolbarWidth > 0 else { return nil }
+        return toolbarWidth
+    }
+}
+
 struct HomeView: View {
     private let headerGlassTintOpacity: Double = 0.9
     private var actionLabelPadding: CGFloat { isPortrait ? 12 : 10 }
@@ -19,8 +29,17 @@ struct HomeView: View {
         if iPad { return isPortrait ? 16 : 12 }
         return isPortrait ? 8 : 6
     }
-    private var actionCardPadding: CGFloat { isPortrait ? 16 : 12 }
+    private var addMenuOuterCornerRadius: CGFloat { 28 }
+    private var addMenuInnerCornerRadius: CGFloat {
+        max(addMenuOuterCornerRadius - actionOuterPadding, 0)
+    }
     private var portraitActionBottomPadding: CGFloat { toolbarHeight }
+    private var addSelectorWidth: CGFloat? {
+        HomeLayoutMetrics.addSelectorWidth(
+            isPortrait: isPortrait,
+            toolbarWidth: toolbarWidth
+        )
+    }
     private var scrollBottomInset: CGFloat {
         let baseToolbarInset = toolbarHeight + (iPad ? 20 : 16)
         if isPortrait && scheduleDict != nil {
@@ -35,6 +54,8 @@ struct HomeView: View {
     @Binding var addEvent: Bool
     @Binding var addReminder: Bool
     @Binding var addHomework: Bool
+    @Binding var isAddSelectorExpanded: Bool
+    @Binding var addSelectorHeight: CGFloat
 
     let dayCode: String
     let note: String
@@ -45,6 +66,7 @@ struct HomeView: View {
     let SecondaryColor: Color
     let TertiaryColor: Color
     let toolbarHeight: CGFloat
+    let toolbarWidth: CGFloat
     var isPortrait: Bool
     var onDatePick: (Date) -> Void
 
@@ -53,7 +75,6 @@ struct HomeView: View {
     @State private var dateNavHeight: CGFloat = 0
     @State private var collapsedHeaderHeight: CGFloat = 0
     @State private var portraitActionRowHeight: CGFloat = 0
-    @AppStorage(AppFeatureBadge.homework.seenKey) private var didSeeHomeworkBadge = false
 
     private var headerHeight: CGFloat { collapsedHeaderHeight + (iPad ? 16 : 12) }
     private var sharedHeaderRadius: CGFloat { max(dateNavHeight / 2, 16) }
@@ -75,24 +96,44 @@ struct HomeView: View {
                 .offset(x: dragX)
 
             if isPortrait && scheduleDict != nil {
+                if isAddSelectorExpanded {
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .ignoresSafeArea()
+                        .onTapGesture(perform: closeAddSelector)
+                        .zIndex(19)
+                }
+
                 reminderButtonStack
-                    .padding(.horizontal, iPad ? 40 : 24)
-                    .padding(.bottom, portraitActionBottomPadding)
                     .background(
                         GeometryReader { geo in
                             Color.clear
-                                .onAppear { portraitActionRowHeight = geo.size.height }
+                                .onAppear {
+                                    updatePortraitActionRowHeight(geo.size.height)
+                                }
                                 .onChange(of: geo.size.height) { _, newHeight in
-                                    portraitActionRowHeight = newHeight
+                                    updatePortraitActionRowHeight(newHeight)
                                 }
                         }
                     )
+                    .padding(.bottom, portraitActionBottomPadding)
                     .zIndex(20)
             }
         }
         .clipped()
         .onChange(of: pageID) {
             resetToken += 1
+        }
+        .onChange(of: isPortrait) { _, newIsPortrait in
+            if !newIsPortrait {
+                isAddSelectorExpanded = false
+                addSelectorHeight = 0
+            }
+        }
+        .onChange(of: scheduleDict == nil) { _, hasNoSchedule in
+            if hasNoSchedule {
+                addSelectorHeight = 0
+            }
         }
     }
 
@@ -138,6 +179,21 @@ struct HomeView: View {
                 }
             }
             .mask(scrollMask)
+            .allowsHitTesting(!showCalendarGrid)
+
+            if showCalendarGrid {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation(.snappy) {
+                            showCalendarGrid = false
+                        }
+                    }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Close date picker")
+                    .accessibilityAddTraits(.isButton)
+                    .zIndex(9)
+            }
 
             VStack(spacing: 0) {
                 floatingHeader
@@ -367,103 +423,244 @@ struct HomeView: View {
 
     @ViewBuilder
     private var reminderButtonStack: some View {
-        Menu {
-            addMenuButton(
-                title: "Event",
-                subtitle: "Start and end time",
-                systemImage: "calendar.badge.plus"
-            ) {
-                addEvent = true
+        Group {
+            if #available(iOS 26.0, *), AppAvailability.liquidGlass {
+                addSelectorContent(launcherPadding: actionLabelPadding)
+                .frame(maxWidth: .infinity)
+                .foregroundColor(TertiaryColor)
+                .padding(actionOuterPadding)
+                .glassEffect(
+                    .regular.tint(PrimaryColor.opacity(headerGlassTintOpacity)),
+                    in: RoundedRectangle(
+                        cornerRadius: addMenuOuterCornerRadius,
+                        style: .continuous
+                    )
+                )
+                .frame(maxWidth: .infinity)
+            } else {
+                addSelectorContent(launcherPadding: 8)
+                .frame(maxWidth: .infinity)
+                .foregroundColor(TertiaryColor)
+                .padding(actionOuterPadding)
+                .background(PrimaryColor)
+                .clipShape(
+                    RoundedRectangle(
+                        cornerRadius: addMenuOuterCornerRadius,
+                        style: .continuous
+                    )
+                )
+                .shadow(radius: 8)
+                .frame(maxWidth: .infinity)
             }
-            addMenuButton(
-                title: "Reminder",
-                subtitle: "One-time nudge",
-                systemImage: "bell.badge.fill"
-            ) {
-                addReminder = true
-            }
-            addMenuButton(
-                title: "Homework",
-                subtitle: "Class assignment",
-                systemImage: "checklist",
-                showsNewBadge: !didSeeHomeworkBadge
-            ) {
-                AppFeatureBadge.markSeen(.homework)
-                addHomework = true
-            }
-        } label: {
-            addLauncherLabel
         }
-        .padding(.horizontal, isPortrait ? 0 : 8)
+        .padding(.horizontal, addSelectorWidth == nil && !isPortrait ? 8 : 0)
+        .frame(width: addSelectorWidth)
+        .animation(addSelectorAnimation, value: isAddSelectorExpanded)
+    }
+
+    private func addSelectorContent(launcherPadding: CGFloat) -> some View {
+        VStack(spacing: 0) {
+            if isAddSelectorExpanded {
+                Group {
+                    if isPortrait || iPad {
+                        VStack(spacing: iPad ? 8 : 6) {
+                            fullAddSelectorButtons
+                        }
+                    } else {
+                        HStack(spacing: 6) {
+                            compactLandscapeAddSelectorButton(
+                                title: "Event",
+                                systemImage: "calendar.badge.plus"
+                            ) {
+                                closeAddSelector()
+                                addEvent = true
+                            }
+
+                            compactLandscapeAddSelectorButton(
+                                title: "Reminder",
+                                systemImage: "bell.badge.fill"
+                            ) {
+                                closeAddSelector()
+                                addReminder = true
+                            }
+
+                            compactLandscapeAddSelectorButton(
+                                title: "Homework",
+                                systemImage: "checklist"
+                            ) {
+                                closeAddSelector()
+                                addHomework = true
+                            }
+                        }
+                    }
+                }
+                .padding(.bottom, iPad ? 10 : 8)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+
+                Rectangle()
+                    .fill(TertiaryColor.opacity(0.22))
+                    .frame(height: 1)
+                    .padding(.horizontal, 10)
+                    .transition(.opacity)
+            }
+
+            Button {
+                withAnimation(addSelectorAnimation) {
+                    isAddSelectorExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: isAddSelectorExpanded ? "xmark.circle.fill" : "plus.circle.fill")
+                        .appThemeFont(.primary, size: iPad ? 26 : 22, weight: .bold)
+                        .contentTransition(.symbolEffect(.replace))
+
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(isAddSelectorExpanded ? "Choose what to add" : "Add")
+                            .appThemeFont(.primary, size: iPad ? 20 : 16, weight: .bold)
+                            .contentTransition(.opacity)
+                        Text("Event, reminder, homework")
+                            .appThemeFont(.secondary, size: iPad ? 13 : 11, weight: .medium)
+                            .lineLimit(1)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "chevron.up")
+                        .appThemeFont(.primary, size: iPad ? 14 : 12, weight: .bold)
+                        .rotationEffect(.degrees(isAddSelectorExpanded ? 180 : 0))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(launcherPadding)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("home.add-menu")
+            .accessibilityLabel(isAddSelectorExpanded ? "Close add selector" : "Open add selector")
+            .accessibilityValue(isAddSelectorExpanded ? "Expanded" : "Collapsed")
+        }
+        .frame(maxWidth: .infinity)
+        .clipped()
     }
 
     @ViewBuilder
-    private var addLauncherLabel: some View {
-        if #available(iOS 26.0, *), AppAvailability.liquidGlass {
-            HStack(spacing: 12) {
-                Image(systemName: "plus.circle.fill")
-                    .appThemeFont(.primary, size: iPad ? 26 : 22, weight: .bold)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Add")
-                        .appThemeFont(.primary, size: iPad ? 20 : 16, weight: .bold)
-                    Text("Event, reminder, homework")
-                        .appThemeFont(.secondary, size: iPad ? 13 : 11, weight: .medium)
-                        .lineLimit(1)
-                }
-                Spacer()
-                Image(systemName: "chevron.up")
-                    .appThemeFont(.primary, size: iPad ? 14 : 12, weight: .bold)
-            }
-            .frame(maxWidth: .infinity)
-            .foregroundColor(TertiaryColor)
-            .padding(actionLabelPadding)
-            .padding(actionOuterPadding)
-            .glassEffect(.regular.tint(PrimaryColor.opacity(headerGlassTintOpacity)))
-            .frame(maxWidth: .infinity)
-        } else {
-            HStack(spacing: 12) {
-                Image(systemName: "plus.circle.fill")
-                    .appThemeFont(.primary, size: iPad ? 26 : 22, weight: .bold)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Add")
-                        .appThemeFont(.primary, size: iPad ? 20 : 16, weight: .bold)
-                    Text("Event, reminder, homework")
-                        .appThemeFont(.secondary, size: iPad ? 13 : 11, weight: .medium)
-                        .lineLimit(1)
-                }
-                Spacer()
-                Image(systemName: "chevron.up")
-                    .appThemeFont(.primary, size: iPad ? 14 : 12, weight: .bold)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(8)
-            .foregroundColor(TertiaryColor)
-            .padding(actionCardPadding)
-            .background(PrimaryColor)
-            .cornerRadius(16)
-            .shadow(radius: 8)
-            .frame(maxWidth: .infinity)
+    private var fullAddSelectorButtons: some View {
+        addSelectorButton(
+            title: "Event",
+            subtitle: "Start and end time",
+            systemImage: "calendar.badge.plus"
+        ) {
+            closeAddSelector()
+            addEvent = true
+        }
+
+        addSelectorButton(
+            title: "Reminder",
+            subtitle: "One-time nudge",
+            systemImage: "bell.badge.fill"
+        ) {
+            closeAddSelector()
+            addReminder = true
+        }
+
+        addSelectorButton(
+            title: "Homework",
+            subtitle: "Class assignment",
+            systemImage: "checklist"
+        ) {
+            closeAddSelector()
+            addHomework = true
         }
     }
 
-    private func addMenuButton(
+    private func compactLandscapeAddSelectorButton(
         title: String,
-        subtitle: String,
         systemImage: String,
-        showsNewBadge: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            Label {
-                VStack(alignment: .leading) {
-                    Text(title)
-                    Text(subtitle)
-                }
-            } icon: {
+            VStack(spacing: 4) {
                 Image(systemName: systemImage)
+                    .appThemeFont(.primary, size: 17, weight: .bold)
+
+                Text(title)
+                    .appThemeFont(.primary, size: 11, weight: .bold)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
             }
-            .newBadge(showsNewBadge)
+            .frame(maxWidth: .infinity, minHeight: 50)
+            .padding(.horizontal, 4)
+            .background(TertiaryColor.opacity(0.10))
+            .clipShape(
+                RoundedRectangle(
+                    cornerRadius: addMenuInnerCornerRadius,
+                    style: .continuous
+                )
+            )
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Add \(title)")
+        .accessibilityIdentifier("home.add-\(title.lowercased())")
+    }
+
+    private func addSelectorButton(
+        title: String,
+        subtitle: String,
+        systemImage: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: iPad ? 14 : 12) {
+                Image(systemName: systemImage)
+                    .appThemeFont(.primary, size: iPad ? 20 : 17, weight: .bold)
+                    .frame(width: iPad ? 42 : 36, height: iPad ? 42 : 36)
+                    .background(TertiaryColor.opacity(0.14), in: Circle())
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .appThemeFont(.primary, size: iPad ? 18 : 15, weight: .bold)
+                    Text(subtitle)
+                        .appThemeFont(.secondary, size: iPad ? 13 : 11, weight: .medium)
+                        .foregroundColor(TertiaryColor.opacity(0.74))
+                }
+
+                Spacer(minLength: 8)
+
+                Image(systemName: "chevron.right")
+                    .appThemeFont(.primary, size: iPad ? 13 : 11, weight: .bold)
+                    .foregroundColor(TertiaryColor.opacity(0.7))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, iPad ? 14 : 12)
+            .padding(.vertical, iPad ? 9 : 7)
+            .background(TertiaryColor.opacity(0.10))
+            .clipShape(
+                RoundedRectangle(
+                    cornerRadius: addMenuInnerCornerRadius,
+                    style: .continuous
+                )
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Add \(title)")
+        .accessibilityIdentifier("home.add-\(title.lowercased())")
+    }
+
+    private var addSelectorAnimation: Animation {
+        .spring(response: 0.34, dampingFraction: 0.86)
+    }
+
+    private func closeAddSelector() {
+        withAnimation(addSelectorAnimation) {
+            isAddSelectorExpanded = false
+        }
+    }
+
+    private func updatePortraitActionRowHeight(_ height: CGFloat) {
+        guard height.isFinite, height > 0 else { return }
+        portraitActionRowHeight = height
+        addSelectorHeight = height
     }
 
     // MARK: Helpers

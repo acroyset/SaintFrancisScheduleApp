@@ -39,19 +39,15 @@ struct PersistedAppState {
 
 @MainActor
 final class CloudService {
-    private let dataManager: DataManager
-    private let eventsDataManager: CloudEventsDataManager
+    private lazy var dataManager = DataManager()
+    private lazy var eventsDataManager = CloudEventsDataManager()
     private let userDefaults = UserDefaults.standard
     private let customEventsKey = "CustomEvents"
 
-    init() {
-        self.dataManager = DataManager()
-        self.eventsDataManager = CloudEventsDataManager()
-    }
+    init() {}
 
     init(dataManager: DataManager) {
         self.dataManager = dataManager
-        self.eventsDataManager = CloudEventsDataManager()
     }
 
     func loadLocalClasses(parseClass: (String) -> ClassItem) -> [ClassItem] {

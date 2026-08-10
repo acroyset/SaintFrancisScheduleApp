@@ -27,7 +27,7 @@ struct DailyAnnouncementsService {
                     throw URLError(.cannotParseResponse)
                 }
 
-                return firstField.trimmingCharacters(in: .whitespacesAndNewlines)
+                return try Self.validatedAnnouncementHTML(firstField)
             } catch {
                 lastError = error
 
@@ -38,6 +38,14 @@ struct DailyAnnouncementsService {
         }
 
         throw lastError ?? URLError(.cannotLoadFromNetwork)
+    }
+
+    static func validatedAnnouncementHTML(_ value: String) throws -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            throw URLError(.cannotParseResponse)
+        }
+        return trimmed
     }
 
     private var csvURL: URL {

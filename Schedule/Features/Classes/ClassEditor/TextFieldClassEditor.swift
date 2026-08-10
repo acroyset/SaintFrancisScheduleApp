@@ -28,15 +28,22 @@ struct TextFieldClassEditor: View {
     }
 
     private var canAddCustomName: Bool {
-        !trimmedInput.isEmpty && !CourseAutocomplete.hasExactMatch(in: courseOptions, for: trimmedInput)
+        !courseOptions.isEmpty &&
+            !trimmedInput.isEmpty &&
+            !CourseAutocomplete.hasExactMatch(in: courseOptions, for: trimmedInput)
     }
 
     private var shouldShowAutocomplete: Bool {
-        isFocused && (!suggestions.isEmpty || canAddCustomName)
+        !courseOptions.isEmpty && isFocused && (!suggestions.isEmpty || canAddCustomName)
     }
-    
+
     var body: some View {
-        TextField(defaultText, text: $inputText)
+        TextField(
+            "",
+            text: $inputText,
+            prompt: Text(defaultText)
+                .foregroundStyle(PrimaryColor.opacity(0.78))
+        )
             .appThemeFont(.secondary, size: iPad ? 20 : 14, weight: .bold)
             .focused($isFocused)
             .padding(12)

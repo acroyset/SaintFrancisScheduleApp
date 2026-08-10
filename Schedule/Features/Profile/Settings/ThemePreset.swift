@@ -26,6 +26,18 @@ struct ThemePreset: Identifiable {
         ThemePreset(id: "forest",     name: "Forest",     primaryHex: "#2ECC71FF", secondaryHex: "#2ECC7119", tertiaryHex: "#FFFFFFFF"),
         ThemePreset(id: "lavender",   name: "Lavender",   primaryHex: "#9B59B6FF", secondaryHex: "#9B59B619", tertiaryHex: "#FFFFFFFF"),
         ThemePreset(id: "gold",       name: "Gold",       primaryHex: "#F1A208FF", secondaryHex: "#F1A20819", tertiaryHex: "#FFFFFFFF"),
-        ThemePreset(id: "graphite",   name: "Graphite",   primaryHex: "#8E8E93FF", secondaryHex: "#8E8E9319", tertiaryHex: "#000000FF"),
+        ThemePreset(id: "graphite",   name: "Graphite",   primaryHex: "#D1D1D6FF", secondaryHex: "#D1D1D62E", tertiaryHex: "#000000FF"),
     ]
+
+    static func matching(
+        primaryHex: String,
+        secondaryHex: String,
+        tertiaryHex: String
+    ) -> ThemePreset? {
+        presets.first {
+            $0.primaryHex.caseInsensitiveCompare(primaryHex) == .orderedSame
+                && $0.secondaryHex.caseInsensitiveCompare(secondaryHex) == .orderedSame
+                && $0.tertiaryHex.caseInsensitiveCompare(tertiaryHex) == .orderedSame
+        }
+    }
 }

@@ -7,8 +7,37 @@ import SwiftUI
 import Foundation
 import UserNotifications
 
-let version = "1.19"
-let whatsNew = " - Homework Tracker\n - Cleaner Add Menu\n - Class AutoFill\n - Bug Fixes"
+let version = "1.20"
+let whatsNew = """
+ - Redesigned Home & class details
+ - New grade & GPA tools
+ - Athletics schedules in News
+ - Homework, reminder & map improvements
+ - Bug fixes & performance improvements
+"""
+
+enum ContentOverlayVisibility {
+    static func showsCompactRefreshStatus(
+        retryAttempt: Int,
+        hasCachedSchedule: Bool,
+        isCreationSheetPresented: Bool,
+        isAddSelectorExpanded: Bool
+    ) -> Bool {
+        retryAttempt > 0
+            && hasCachedSchedule
+            && !isCreationSheetPresented
+            && !isAddSelectorExpanded
+    }
+
+    static func showsScheduleLoadError(
+        hasCachedSchedule: Bool,
+        isCreationSheetPresented: Bool,
+        isAddSelectorExpanded: Bool
+    ) -> Bool {
+        !hasCachedSchedule
+            || (!isCreationSheetPresented && !isAddSelectorExpanded)
+    }
+}
 
 struct ContentView: View {
     @EnvironmentObject var authManager: AuthenticationManager
@@ -28,16 +57,25 @@ struct ContentView: View {
     @State private var addEvent = false
     @State private var addReminder = false
     @State private var addHomework = false
+    @State private var isHomeAddSelectorExpanded = false
+    @State private var homeAddSelectorHeight: CGFloat = 0
     @State private var window: Window = .Home
     @State private var openClassEditorFromMap = false
     @State private var isPortrait: Bool = !iPad
     @State private var tutorial = TutorialState.Hidden
     @State private var toolbarHeight: CGFloat = 0
+    @State private var toolbarWidth: CGFloat = 0
+    @State private var outgoingWindow: Window?
+    @State private var pendingWindow: Window?
+    @State private var pageSlideDirection: CGFloat = 1
+    @State private var pageSlideProgress: CGFloat = 1
+    @State private var pageSlideGeneration = 0
     @State private var showBackToSchoolReminderPrompt = false
     @State private var backToSchoolPromptOpensSettings = false
+    @State private var showFirstDayClassUpdatePrompt = false
 
     let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-    private let backToSchoolPromptKey = "DidPromptBackToSchoolReminders2026"
+    let widgetRequestTicker = Timer.publish(every: 30, on: .main, in: .common).autoconnect()
 
     @Environment(\.scenePhase) private var scenePhase
 
@@ -55,14 +93,46 @@ struct ContentView: View {
                     if window != .Map {
                         topHeader
                     }
-                mainContentView
-                    .environmentObject(eventsManager)
-                    .environmentObject(homeworkStore)
+
+                    GeometryReader { geo in
+                        ZStack {
+                            if let outgoingWindow {
+                                mainContentView(for: outgoingWindow)
+                                    .environmentObject(eventsManager)
+                                    .environmentObject(homeworkStore)
+                                    .id(outgoingWindow.rawValue)
+                                    .offset(
+                                        x: -pageSlideDirection
+                                            * pageSlideProgress
+                                            * geo.size.width
+                                    )
+                            }
+
+                            mainContentView(for: window)
+                                .environmentObject(eventsManager)
+                                .environmentObject(homeworkStore)
+                                .id(window.rawValue)
+                                .offset(
+                                    x: outgoingWindow == nil
+                                        ? 0
+                                        : pageSlideDirection
+                                            * (1 - pageSlideProgress)
+                                            * geo.size.width
+                                )
+                        }
+                        .frame(width: geo.size.width, height: geo.size.height)
+                        .clipped()
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
+                .ignoresSafeArea(
+                    .container,
+                    edges: displaysFullScreenMap ? .all : []
+                )
                 .zIndex(0)
 
                 ToolBar(
-                    window: $window,
+                    window: toolbarWindowBinding,
                     PrimaryColor: appStore.primaryColor,
                     SecondaryColor: appStore.secondaryColor,
                     TertiaryColor: appStore.tertiaryColor
@@ -70,9 +140,13 @@ struct ContentView: View {
                 .background(
                     GeometryReader { geo in
                         Color.clear
-                            .onAppear { toolbarHeight = geo.size.height }
-                            .onChange(of: geo.size.height) { _, newHeight in
-                                toolbarHeight = newHeight
+                            .onAppear {
+                                toolbarHeight = geo.size.height
+                                toolbarWidth = geo.size.width
+                            }
+                            .onChange(of: geo.size) { _, newSize in
+                                toolbarHeight = newSize.height
+                                toolbarWidth = newSize.width
                             }
                     }
                 )
@@ -87,7 +161,8 @@ struct ContentView: View {
             .animation(.easeInOut(duration: 0.1), value: appStore.dayCode)
             .onAppear(perform: handleAppear)
             .onChange(of: eventsManager.events, handleEventsChange)
-            .onChange(of: appStore.dayCode, handleDayCodeChange)
+            .onChange(of: appStore.data?.classes, handleClassesChange)
+            .onChange(of: appStore.data?.isSecondLunch, handleLunchPreferenceChange)
             .onChange(of: scenePhase, handleScenePhaseChange)
             .onChange(of: window, handleWindowChange)
             .onChange(of: onboardingClasses, handleOnboardingClassesChange)
@@ -100,17 +175,13 @@ struct ContentView: View {
             .onChange(of: NotificationSettings.time) { _, _ in appStore.updateNightlyNotification() }
             .onChange(of: authManager.user?.id, handleUserChange)
             .onReceive(ticker) { _ in
-                eventsManager.purgeExpiredReminders()
-                appStore.syncDerivedOutputs(events: eventsManager.events)
-                scrollTarget = appStore.scrollTargetForCurrentSchedule()
-
-                let now = Date()
-                let lastWidgetCheck = SharedGroup.defaults.object(forKey: "LastWidgetCheck") as? Date ?? .distantPast
-                if now.timeIntervalSince(lastWidgetCheck) > 30 {
-                    SharedGroup.defaults.set(now, forKey: "LastWidgetCheck")
-                    handleWidgetRefreshRequest()
+                appStore.updateCurrentScheduleProgress()
+                let currentTarget = appStore.scrollTargetForCurrentSchedule()
+                if scrollTarget != currentTarget {
+                    scrollTarget = currentTarget
                 }
             }
+            .onReceive(widgetRequestTicker) { _ in handleWidgetRefreshRequest() }
             .onReceive(NotificationCenter.default.publisher(for: .backToSchoolPromptEligibilityChanged)) { _ in
                 handleBackToSchoolReminders()
             }
@@ -133,6 +204,18 @@ struct ContentView: View {
                 }
             } message: {
                 Text("Want a reminder a few days before school starts so you can input your classes when you get them?")
+            }
+            .alert("Update Your Classes", isPresented: $showFirstDayClassUpdatePrompt) {
+                Button("Update Classes") {
+                    markFirstDayClassUpdatePromptShown()
+                    openClassEditorFromMap = true
+                    window = .ClassesView
+                }
+                Button("Not Now", role: .cancel) {
+                    markFirstDayClassUpdatePromptShown()
+                }
+            } message: {
+                Text("It’s the first day of school. Make sure your classes, teachers, and rooms are up to date.")
             }
         }
         .environment(\.appTheme, appStore.currentTheme)
@@ -193,26 +276,91 @@ struct ContentView: View {
         }
 
         if appStore.scheduleRetryAttempt > 0 {
-            VStack(spacing: 8) {
-                SpinningGear(color: appStore.primaryColor)
-                Text("Loading...")
-                    .appThemeFont(.secondary, size: 13, weight: .medium)
-                    .foregroundStyle(appStore.primaryColor.opacity(0.8))
+            if appStore.scheduleDict == nil {
+                VStack(spacing: 8) {
+                    SpinningGear(color: appStore.primaryColor)
+                    Text("Loading schedule…")
+                        .appThemeFont(.secondary, size: 13, weight: .medium)
+                        .foregroundStyle(appStore.primaryColor.opacity(0.8))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if ContentOverlayVisibility.showsCompactRefreshStatus(
+                retryAttempt: appStore.scheduleRetryAttempt,
+                hasCachedSchedule: true,
+                isCreationSheetPresented: isCreationSheetPresented,
+                isAddSelectorExpanded: isHomeAddSelectorExpanded
+            ) {
+                Label("Refreshing schedule…", systemImage: "arrow.clockwise")
+                    .accessibilityIdentifier("schedule.refresh-status")
+                    .appThemeFont(.secondary, size: 12, weight: .semibold)
+                    .foregroundStyle(
+                        appStore.tertiaryColor.maximumContrastTextColor()
+                    )
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background {
+                        Capsule()
+                            .fill(appStore.tertiaryColor.opacity(0.94))
+                            .overlay {
+                                Capsule()
+                                    .stroke(
+                                        appStore.primaryColor.opacity(0.32),
+                                        lineWidth: 1
+                                    )
+                            }
+                    }
+                    .padding(.bottom, compactRefreshBottomPadding)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let error = appStore.scheduleLoadError {
+        } else if let error = appStore.scheduleLoadError,
+                  ContentOverlayVisibility.showsScheduleLoadError(
+                    hasCachedSchedule: appStore.scheduleDict != nil,
+                    isCreationSheetPresented: isCreationSheetPresented,
+                    isAddSelectorExpanded: isHomeAddSelectorExpanded
+                  ) {
             VStack(spacing: 8) {
                 Image(systemName: "wifi.exclamationmark")
                     .appThemeFont(.primary, size: 32)
                     .foregroundStyle(appStore.primaryColor.opacity(0.6))
                 Text(error)
+                    .accessibilityIdentifier("schedule.load-error")
                     .appThemeFont(.secondary, size: 14, weight: .medium)
                     .foregroundStyle(appStore.primaryColor.opacity(0.8))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
+                Button("Retry") {
+                    appStore.retryScheduleLoad(events: eventsManager.events)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(appStore.primaryColor)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(20)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+            .padding(24)
+            .frame(
+                maxWidth: .infinity,
+                maxHeight: appStore.scheduleDict == nil ? .infinity : nil
+            )
+            .padding(
+                .bottom,
+                appStore.scheduleDict == nil ? 0 : compactRefreshBottomPadding
+            )
         }
+    }
+
+    private var isCreationSheetPresented: Bool {
+        addEvent || addReminder || addHomework
+    }
+
+    private var compactRefreshBottomPadding: CGFloat {
+        let defaultPadding = toolbarHeight + 8
+        guard window == .Home,
+              isPortrait,
+              appStore.scheduleDict != nil else {
+            return defaultPadding
+        }
+
+        let minimumSelectorHeight: CGFloat = iPad ? 86 : 64
+        return toolbarHeight + max(homeAddSelectorHeight, minimumSelectorHeight) + 12
     }
 
     private var orientationReader: some View {
@@ -221,9 +369,84 @@ struct ContentView: View {
         }
     }
 
+    private var toolbarWindowBinding: Binding<Window> {
+        Binding(
+            get: { pendingWindow ?? window },
+            set: transitionToWindow
+        )
+    }
+
+    private var displaysFullScreenMap: Bool {
+        window == .Map || outgoingWindow == .Map
+    }
+
+    private var pageTransitionAnimation: Animation {
+        .spring(response: 0.42, dampingFraction: 0.88)
+    }
+
+    private func transitionToWindow(_ newWindow: Window) {
+        if outgoingWindow != nil {
+            pendingWindow = newWindow == window ? nil : newWindow
+            return
+        }
+
+        guard newWindow != window else {
+            pendingWindow = nil
+            return
+        }
+
+        beginWindowTransition(to: newWindow)
+    }
+
+    private func beginWindowTransition(to newWindow: Window) {
+        guard newWindow != window, outgoingWindow == nil else { return }
+
+        pageSlideGeneration += 1
+        let generation = pageSlideGeneration
+        let previousWindow = window
+
+        var transaction = Transaction()
+        transaction.animation = nil
+        withTransaction(transaction) {
+            pendingWindow = nil
+            pageSlideDirection = newWindow.rawValue > previousWindow.rawValue ? 1 : -1
+            pageSlideProgress = 0
+            outgoingWindow = previousWindow
+            window = newWindow
+        }
+
+        DispatchQueue.main.async {
+            guard generation == pageSlideGeneration else { return }
+
+            withAnimation(pageTransitionAnimation) {
+                pageSlideProgress = 1
+            }
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) {
+                guard generation == pageSlideGeneration else { return }
+
+                var cleanupTransaction = Transaction()
+                cleanupTransaction.animation = nil
+                withTransaction(cleanupTransaction) {
+                    outgoingWindow = nil
+                }
+
+                if let queuedWindow = pendingWindow,
+                   queuedWindow != window {
+                    DispatchQueue.main.async {
+                        guard pendingWindow == queuedWindow,
+                              outgoingWindow == nil else { return }
+
+                        beginWindowTransition(to: queuedWindow)
+                    }
+                }
+            }
+        }
+    }
+
     @ViewBuilder
-    private var mainContentView: some View {
-        switch window {
+    private func mainContentView(for presentedWindow: Window) -> some View {
+        switch presentedWindow {
         case .Home:
             HomeView(
                 selectedDate: selectedDateBinding,
@@ -232,6 +455,8 @@ struct ContentView: View {
                 addEvent: $addEvent,
                 addReminder: $addReminder,
                 addHomework: $addHomework,
+                isAddSelectorExpanded: $isHomeAddSelectorExpanded,
+                addSelectorHeight: $homeAddSelectorHeight,
                 dayCode: appStore.dayCode,
                 note: appStore.note,
                 scheduleLines: appStore.scheduleLines,
@@ -241,9 +466,11 @@ struct ContentView: View {
                 SecondaryColor: appStore.secondaryColor,
                 TertiaryColor: appStore.tertiaryColor,
                 toolbarHeight: toolbarHeight,
+                toolbarWidth: toolbarWidth,
                 isPortrait: isPortrait,
                 onDatePick: { date in
                     appStore.applySelectedDate(date, events: eventsManager.events)
+                    appStore.syncDerivedOutputs(events: eventsManager.events)
                     scrollTarget = appStore.scrollTargetForCurrentSchedule()
                 }
             )
@@ -288,7 +515,7 @@ struct ContentView: View {
                 TertiaryColor: appStore.tertiaryColor,
                 onEditClasses: {
                     openClassEditorFromMap = true
-                    window = .ClassesView
+                    transitionToWindow(.ClassesView)
                 }
             )
 
@@ -386,14 +613,16 @@ struct ContentView: View {
     }
 
     private func handleAppear() {
-        usageStats.setUserScope(authManager.user?.id)
-        if scenePhase == .active {
-            usageStats.beginSession()
+        if !AppRuntime.isUITesting {
+            usageStats.setUserScope(authManager.user?.id)
+            if scenePhase == .active {
+                usageStats.beginSession()
+            }
+            usageStats.setCurrentPage(usagePage(for: window))
+            usageStats.setCurrentFeature(nil)
+            appStore.touchLastUpdated(authManager: authManager)
+            syncCurrentUsageSession()
         }
-        usageStats.setCurrentPage(usagePage(for: window))
-        usageStats.setCurrentFeature(nil)
-        appStore.touchLastUpdated(authManager: authManager)
-        syncCurrentUsageSession()
 
         appStore.resetHomeDateToToday(events: eventsManager.events)
         appStore.loadData(
@@ -401,6 +630,10 @@ struct ContentView: View {
             eventsManager: eventsManager,
             onboardingClasses: onboardingClasses
         )
+        if let classes = appStore.data?.classes {
+            homeworkStore.reconcileClassReferences(with: classes)
+        }
+        appStore.syncDerivedOutputs(events: eventsManager.events)
         scrollTarget = appStore.scrollTargetForCurrentSchedule()
 
         if lastSeenVersion != version || isFirstLaunch {
@@ -410,13 +643,13 @@ struct ContentView: View {
             UserDefaults.standard.set(true, forKey: "HasLaunchedBefore")
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            appStore.syncDerivedOutputs(events: eventsManager.events)
+        if !AppRuntime.isUITesting {
+            eventsManager.purgeExpiredReminders()
+            appStore.updateNightlyNotification()
+            handleWidgetRefreshRequest()
+            handleBackToSchoolReminders()
+            handleFirstDayClassUpdatePrompt()
         }
-
-        eventsManager.purgeExpiredReminders()
-        appStore.updateNightlyNotification()
-        handleBackToSchoolReminders()
     }
 
     private func handleEventsChange(_: [CustomEvent], _: [CustomEvent]) {
@@ -425,12 +658,25 @@ struct ContentView: View {
         saveEventsToCloud()
     }
 
-    private func handleDayCodeChange(oldDay: String, newDay: String) {
-        guard oldDay != newDay else { return }
+    private func handleClassesChange(_: [ClassItem]?, newClasses: [ClassItem]?) {
+        guard let newClasses else { return }
+        homeworkStore.reconcileClassReferences(with: newClasses)
+        appStore.syncDerivedOutputs(events: eventsManager.events)
+    }
+
+    private func handleLunchPreferenceChange(_: [Bool]?, newValue: [Bool]?) {
+        guard newValue != nil else { return }
         appStore.syncDerivedOutputs(events: eventsManager.events)
     }
 
     private func handleScenePhaseChange(oldPhase: ScenePhase, newPhase: ScenePhase) {
+        if AppRuntime.isUITesting {
+            if newPhase == .active {
+                appStore.updateCurrentScheduleProgress()
+            }
+            return
+        }
+
         switch newPhase {
         case .active:
             usageStats.beginSession()
@@ -438,13 +684,14 @@ struct ContentView: View {
             usageStats.setCurrentFeature(nil)
             appStore.touchLastUpdated(authManager: authManager)
             syncCurrentUsageSession()
-            appStore.resetHomeDateToToday(events: eventsManager.events)
-            appStore.syncDerivedOutputs(events: eventsManager.events)
+            appStore.updateCurrentScheduleProgress()
             appStore.updateNightlyNotification()
+            eventsManager.purgeExpiredReminders()
+            handleWidgetRefreshRequest()
             handleBackToSchoolReminders()
+            handleFirstDayClassUpdatePrompt()
         case .background:
             appendEndedUsageSession()
-            appStore.syncDerivedOutputs(events: eventsManager.events)
             appStore.updateNightlyNotification()
         case .inactive:
             appendEndedUsageSession()
@@ -472,8 +719,8 @@ struct ContentView: View {
 
     private var shouldOfferBackToSchoolReminderPrompt: Bool {
         guard UserDefaults.standard.bool(forKey: "HasCompletedOnboarding") else { return false }
-        guard !UserDefaults.standard.bool(forKey: backToSchoolPromptKey) else { return false }
-        return Date() < backToSchoolFirstDay
+        guard !UserDefaults.standard.bool(forKey: BackToSchoolPromptStorage.reminderPrompt2026) else { return false }
+        return Date() < Calendar.current.startOfDay(for: backToSchoolFirstDay)
     }
 
     private var backToSchoolFirstDay: Date {
@@ -484,15 +731,27 @@ struct ContentView: View {
                 year: 2026,
                 month: 8,
                 day: 13,
-                hour: 23,
-                minute: 59,
+                hour: 0,
+                minute: 0,
                 second: 0
             )
         ) ?? .distantPast
     }
 
     private func markBackToSchoolPromptShown() {
-        UserDefaults.standard.set(true, forKey: backToSchoolPromptKey)
+        UserDefaults.standard.set(true, forKey: BackToSchoolPromptStorage.reminderPrompt2026)
+    }
+
+    private func handleFirstDayClassUpdatePrompt() {
+        guard UserDefaults.standard.bool(forKey: "HasCompletedOnboarding") else { return }
+        guard !UserDefaults.standard.bool(forKey: BackToSchoolPromptStorage.firstDayClassUpdateHandled2026) else { return }
+        guard Calendar.current.isDate(Date(), inSameDayAs: backToSchoolFirstDay) else { return }
+
+        showFirstDayClassUpdatePrompt = true
+    }
+
+    private func markFirstDayClassUpdatePromptShown() {
+        UserDefaults.standard.set(true, forKey: BackToSchoolPromptStorage.firstDayClassUpdateHandled2026)
     }
 
     private func handleWindowChange(oldWindow: Window, newWindow: Window) {
@@ -501,6 +760,7 @@ struct ContentView: View {
         usageStats.setCurrentFeature(nil)
         withAnimation(.snappy) {
             showCalendarGrid = false
+            isHomeAddSelectorExpanded = false
         }
     }
 

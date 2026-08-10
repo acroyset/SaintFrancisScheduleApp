@@ -15,7 +15,6 @@ struct HomeworkListView: View {
 
     @State private var showingAddHomework = false
     @State private var editingHomework: HomeworkItem?
-    @AppStorage(AppFeatureBadge.homework.seenKey) private var didSeeHomeworkBadge = false
 
     private var classNames: [String] {
         classes.map(\.name).filter { !$0.isEmpty }
@@ -96,12 +95,10 @@ struct HomeworkListView: View {
             Text("Homework")
                 .appThemeFont(.secondary, size: iPad ? 34 : 22, weight: .bold)
                 .foregroundStyle(PrimaryColor)
-                .newBadge(!didSeeHomeworkBadge)
 
             Spacer()
 
             Button {
-                AppFeatureBadge.markSeen(.homework)
                 showingAddHomework = true
             } label: {
                 Image(systemName: "plus")
@@ -111,7 +108,6 @@ struct HomeworkListView: View {
                     .background(PrimaryColor)
                     .clipShape(Circle())
             }
-            .newBadge(!didSeeHomeworkBadge)
         }
         .padding(.horizontal, 12)
         .padding(.top, 12)
@@ -134,15 +130,12 @@ struct HomeworkListView: View {
                             TertiaryColor: TertiaryColor,
                             iPad: iPad,
                             onToggle: {
-                                AppFeatureBadge.markSeen(.homework)
                                 homeworkStore.toggleComplete(item)
                             },
                             onEdit: {
-                                AppFeatureBadge.markSeen(.homework)
                                 editingHomework = item
                             },
                             onDelete: {
-                                AppFeatureBadge.markSeen(.homework)
                                 homeworkStore.delete(item)
                             }
                         )
@@ -163,7 +156,6 @@ struct HomeworkListView: View {
                 .foregroundColor(PrimaryColor)
 
             Button {
-                AppFeatureBadge.markSeen(.homework)
                 showingAddHomework = true
             } label: {
                 Label("Add Homework", systemImage: "plus")
@@ -174,7 +166,6 @@ struct HomeworkListView: View {
                     .background(PrimaryColor)
                     .clipShape(Capsule())
             }
-            .newBadge(!didSeeHomeworkBadge)
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 80)

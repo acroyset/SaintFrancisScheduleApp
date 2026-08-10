@@ -14,8 +14,30 @@ struct GPACalculatorModal: View {
     var TertiaryColor: Color
     @Binding var window: classWindow
     @ObservedObject var localGradeStore: LocalGradeStore
+    @State private var reviewsIndividually = false
     
     let classTypes = ["Normal", "Honors", "AP"]
+
+    private var configuredClassIndices: [Int] {
+        (0..<min(7, data.classes.count)).filter { index in
+            !data.classes[index].name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+    }
+
+    private var reviewableLegacyIndices: [Int] {
+        configuredClassIndices.filter { index in
+            localGradeStore.needsLegacyNinetyFiveReview(
+                for: index,
+                className: data.classes[index].name
+            )
+        }
+    }
+
+    private var prominentActionColor: Color {
+        PrimaryColor.luminance() > 0.7 && TertiaryColor.luminance() < 0.3
+            ? Color(hex: "#48484AFF")
+            : PrimaryColor
+    }
     
     func percentageToLetter(_ percentage: Double) -> String {
         switch percentage {
@@ -50,12 +72,13 @@ struct GPACalculatorModal: View {
         return min(gpa, 5.0)
     }
 
-    func calculateGPA(isWeighted: Bool) -> Double {
+    func calculateGPA(isWeighted: Bool) -> Double? {
         var totalGPA = 0.0
         var validGradeCount = 0
 
-        for index in 0..<min(7, data.classes.count) {
+        for index in configuredClassIndices {
             let record = localGradeStore.record(for: index, className: data.classes[index].name)
+            guard !localGradeStore.needsLegacyNinetyFiveReview(for: index) else { continue }
             guard let percentage = Double(record.gpaPercentage),
                   (0...100).contains(percentage) else { continue }
 
@@ -65,7 +88,7 @@ struct GPACalculatorModal: View {
             validGradeCount += 1
         }
 
-        guard validGradeCount > 0 else { return 0.0 }
+        guard validGradeCount > 0 else { return nil }
         return totalGPA / Double(validGradeCount)
     }
     
@@ -94,13 +117,32 @@ struct GPACalculatorModal: View {
                         
                         Divider()
                             .padding(.vertical, 8)
+
+                        if reviewableLegacyIndices.count > 1 {
+                            bulkLegacyReviewCard
+                        }
                         
                         // Classes with grade selection
                         VStack(spacing: 12) {
-                            ForEach(0..<min(7, data.classes.count), id: \.self) { index in
+                            if configuredClassIndices.isEmpty {
+                                Text("Add your classes in Class Editor to calculate your GPA.")
+                                    .appThemeFont(.secondary, size: 14, weight: .semibold)
+                                    .foregroundStyle(TertiaryColor.highContrastTextColor())
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(16)
+                                    .background(SecondaryColor)
+                                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            }
+
+                            ForEach(configuredClassIndices, id: \.self) { index in
                                 let record = localGradeStore.record(for: index, className: data.classes[index].name)
                                 let percentageBinding = localGradeStore.binding(for: index, className: data.classes[index].name, keyPath: \.gpaPercentage)
-                                let percentageValue = Double(record.gpaPercentage).flatMap { (0...100).contains($0) ? $0 : nil }
+                                let hasPendingLegacyReview = localGradeStore.needsLegacyNinetyFiveReview(for: index)
+                                let showsLegacyReview = hasPendingLegacyReview
+                                    && (reviewableLegacyIndices.count == 1 || reviewsIndividually)
+                                let percentageValue = hasPendingLegacyReview
+                                    ? nil
+                                    : Double(record.gpaPercentage).flatMap { (0...100).contains($0) ? $0 : nil }
 
                                 VStack(spacing: 8) {
                                     Text(data.classes[index].name.isEmpty ? "Class Name" : data.classes[index].name)
@@ -115,7 +157,7 @@ struct GPACalculatorModal: View {
                                                 .foregroundStyle(PrimaryColor.opacity(0.7))
 
                                             HStack(spacing: 8) {
-                                                TextField("95", text: percentageBinding)
+                                                TextField("Grade", text: percentageBinding)
                                                     .keyboardType(.decimalPad)
                                                     .appThemeFont(.secondary, size: 14, weight: .semibold)
                                                     .padding(10)
@@ -170,6 +212,45 @@ struct GPACalculatorModal: View {
                                             }
                                         }
                                     }
+
+                                    if showsLegacyReview {
+                                        VStack(alignment: .leading, spacing: 8) {
+                                            Text("Was 95% your saved grade?")
+                                                .appThemeFont(.secondary, size: 13, weight: .bold)
+                                                .foregroundStyle(PrimaryColor)
+
+                                            Text("An older version prefilled 95%. Choose whether to keep it as your grade or clear it.")
+                                                .appThemeFont(.secondary, size: 12, weight: .regular)
+                                                .foregroundStyle(TertiaryColor.highContrastTextColor())
+
+                                            HStack(spacing: 8) {
+                                                Button("Keep 95%") {
+                                                    localGradeStore.resolveLegacyNinetyFiveReview(
+                                                        for: index,
+                                                        keepGrade: true
+                                                    )
+                                                }
+                                                .buttonStyle(.borderedProminent)
+                                                .tint(prominentActionColor)
+                                                .accessibilityIdentifier("gpa.legacy-95.keep.\(index)")
+
+                                                Button("Clear grade", role: .destructive) {
+                                                    localGradeStore.resolveLegacyNinetyFiveReview(
+                                                        for: index,
+                                                        keepGrade: false
+                                                    )
+                                                }
+                                                .buttonStyle(.bordered)
+                                                .accessibilityIdentifier("gpa.legacy-95.clear.\(index)")
+                                            }
+                                        }
+                                        .padding(10)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                                .fill(PrimaryColor.opacity(0.10))
+                                        )
+                                    }
                                 }
                                 .padding(12)
                                 .background(SecondaryColor)
@@ -219,13 +300,13 @@ struct GPACalculatorModal: View {
                         Button(action: { window = .None }) {
                             Image(systemName: "xmark.circle.fill")
                                 .appThemeFont(.primary, size: iPad ? 30 : 26)
-                                .foregroundStyle(PrimaryColor)
+                                .foregroundStyle(TertiaryColor.maximumContrastTextColor())
                         }
                         .padding(iPad ? 16 : 12)
                     }
                     .frame(maxWidth: .infinity)
-                    .foregroundStyle(PrimaryColor)
-                    .glassEffect()
+                    .foregroundStyle(TertiaryColor.maximumContrastTextColor())
+                    .glassEffect(.regular.tint(TertiaryColor.opacity(0.62)))
                 } else {
                     HStack {
                         Text("GPA Calculator")
@@ -251,7 +332,7 @@ struct GPACalculatorModal: View {
         }
     }
 
-    private func gpaSummaryCard(title: String, subtitle: String, value: Double) -> some View {
+    private func gpaSummaryCard(title: String, subtitle: String, value: Double?) -> some View {
         HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
@@ -265,11 +346,55 @@ struct GPACalculatorModal: View {
 
             Spacer()
 
-            Text(String(format: "%.2f", value))
+            Text(value.map { String(format: "%.2f", $0) } ?? "--")
                 .appThemeFont(.primary, size: iPad ? 42 : 34, weight: .bold)
                 .foregroundStyle(PrimaryColor)
         }
         .padding(16)
+        .background(SecondaryColor)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private var bulkLegacyReviewCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Review saved 95% grades")
+                .appThemeFont(.secondary, size: 15, weight: .bold)
+                .foregroundStyle(PrimaryColor)
+
+            Text("An older version prefilled 95% for \(reviewableLegacyIndices.count) classes. You can resolve them together or review each class separately.")
+                .appThemeFont(.secondary, size: 12, weight: .regular)
+                .foregroundStyle(TertiaryColor.highContrastTextColor())
+
+            HStack(spacing: 8) {
+                Button("Keep all 95%") {
+                    localGradeStore.resolveLegacyNinetyFiveReviews(
+                        for: reviewableLegacyIndices,
+                        keepGrades: true
+                    )
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(prominentActionColor)
+                .accessibilityIdentifier("gpa.legacy-95.keep-all")
+
+                Button("Clear all grades", role: .destructive) {
+                    localGradeStore.resolveLegacyNinetyFiveReviews(
+                        for: reviewableLegacyIndices,
+                        keepGrades: false
+                    )
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("gpa.legacy-95.clear-all")
+            }
+
+            Button(reviewsIndividually ? "Hide individual choices" : "Review one by one") {
+                reviewsIndividually.toggle()
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(PrimaryColor)
+            .accessibilityIdentifier("gpa.legacy-95.review-individually")
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(SecondaryColor)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }

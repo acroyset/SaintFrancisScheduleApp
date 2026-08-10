@@ -20,7 +20,8 @@ final class WidgetManager: ObservableObject {
     func saveData(
         scheduleDict: [String: [String]]?,
         data: ScheduleData?,
-        dayCode: String
+        dayCode: String,
+        reloadTimeline: Bool = true
     ) {
         SharedGroup.defaults.set(Date(), forKey: "LastAppDataUpdate")
         SharedGroup.defaults.set(dayCode, forKey: "CurrentDayCode")
@@ -41,7 +42,9 @@ final class WidgetManager: ObservableObject {
 
         SharedGroup.defaults.set(data.isSecondLunch, forKey: "IsSecondLunch")
 
-        WidgetCenter.shared.reloadTimelines(ofKind: "ScheduleWidget")
+        if reloadTimeline {
+            WidgetCenter.shared.reloadTimelines(ofKind: "ScheduleWidget")
+        }
     }
 
     // MARK: - Save schedule lines + events
@@ -50,7 +53,8 @@ final class WidgetManager: ObservableObject {
         scheduleLines: [ScheduleLine],
         events: [CustomEvent],
         dayCode: String,
-        selectedDate: Date
+        selectedDate: Date,
+        reloadTimeline: Bool = true
     ) {
         let todaysEvents = events.filter { $0.appliesTo(dayCode: dayCode, date: selectedDate) }
 
@@ -78,7 +82,9 @@ final class WidgetManager: ObservableObject {
             SharedGroup.defaults.set(eventsData, forKey: "CustomEvents")
             SharedGroup.defaults.set(Date(),     forKey: "LastAppDataUpdate")
             SharedGroup.defaults.set(dayCode,    forKey: "CurrentDayCode")
-            WidgetCenter.shared.reloadTimelines(ofKind: "ScheduleWidget")
+            if reloadTimeline {
+                WidgetCenter.shared.reloadTimelines(ofKind: "ScheduleWidget")
+            }
         } catch {
             print("❌ WidgetManager encoding failed:", error)
         }

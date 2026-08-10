@@ -15,34 +15,58 @@ struct AddHomeworkView: View {
     let homeworkStore: HomeworkStore
     let classes: [ClassItem]
     let currentDate: Date
+    let initialClassName: String?
+    let initialClassID: UUID?
     let PrimaryColor: Color
     let SecondaryColor: Color
     let TertiaryColor: Color
 
+    init(
+        isPresented: Binding<Bool>,
+        editingHomework: HomeworkItem?,
+        homeworkStore: HomeworkStore,
+        classes: [ClassItem],
+        currentDate: Date,
+        initialClassName: String? = nil,
+        initialClassID: UUID? = nil,
+        PrimaryColor: Color,
+        SecondaryColor: Color,
+        TertiaryColor: Color
+    ) {
+        _isPresented = isPresented
+        self.editingHomework = editingHomework
+        self.homeworkStore = homeworkStore
+        self.classes = classes
+        self.currentDate = currentDate
+        self.initialClassName = initialClassName
+        self.initialClassID = initialClassID
+        self.PrimaryColor = PrimaryColor
+        self.SecondaryColor = SecondaryColor
+        self.TertiaryColor = TertiaryColor
+    }
+
     @State private var title = ""
     @State private var details = ""
-    @State private var selectedClass = ""
+    @State private var selectedClassID: UUID?
     @State private var dueDate = Date()
     @State private var priority: HomeworkPriority = .normal
     @State private var reminderChoice: HomeworkReminderChoice = .nightBefore
+    @State private var didRecordOpen = false
+    @State private var isRequestingAuthorization = false
+    @State private var showNotificationsDisabledAlert = false
 
-    private var classNames: [String] {
-        let filtered = classes
-            .map(\.name)
-            .filter { name in
-                let lower = name.lowercased()
-                return !name.isEmpty &&
-                    !["lunch", "break", "brunch", "student collaboration", "faculty collaboration"].contains(lower)
-            }
-
-        var seen: Set<String> = []
-        let unique = filtered.filter { seen.insert($0).inserted }
-        return unique.isEmpty ? ["Homework"] : unique
+    private var availableClasses: [ClassItem] {
+        classes.filter { item in
+            let name = item.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            return !name.isEmpty &&
+                !["lunch", "break", "brunch", "student collaboration", "faculty collaboration"]
+                    .contains(name.lowercased())
+        }
     }
 
     private var isValid: Bool {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !selectedClass.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        (selectedClassID != nil || availableClasses.isEmpty)
     }
 
     var body: some View {
@@ -60,9 +84,13 @@ struct AddHomeworkView: View {
                 }
 
                 Section("Class") {
-                    Picker("Class", selection: $selectedClass) {
-                        ForEach(classNames, id: \.self) { className in
-                            Text(className).tag(className)
+                    Picker("Class", selection: $selectedClassID) {
+                        if availableClasses.isEmpty {
+                            Text("Homework").tag(Optional<UUID>.none)
+                        } else {
+                            ForEach(availableClasses) { classItem in
+                                Text(classItem.name).tag(Optional(classItem.id))
+                            }
                         }
                     }
                 }
@@ -108,23 +136,41 @@ struct AddHomeworkView: View {
                         isPresented = false
                         dismiss()
                     }
+                    .accessibilityLabel("Cancel homework")
+                    .accessibilityIdentifier("add-homework.cancel")
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Save") {
-                        saveHomework()
+                        Task { await saveHomework() }
                     }
-                    .disabled(!isValid)
+                    .disabled(!isValid || isRequestingAuthorization)
+                    .accessibilityLabel("Save homework")
+                    .accessibilityIdentifier("add-homework.save")
                 }
             }
         }
         .onAppear {
-            AppFeatureBadge.markSeen(.homework)
             UsageStatsStore.shared.setCurrentFeature(.homework)
+            recordOpenIfNeeded()
             loadInitialValues()
         }
         .onDisappear {
             UsageStatsStore.shared.setCurrentFeature(nil)
+        }
+        .alert("Notifications Disabled", isPresented: $showNotificationsDisabledAlert) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("Save Without Reminder") {
+                reminderChoice = .none
+                persistHomework(reminderChoice: .none)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This homework cannot alert you unless notifications are enabled in Settings.")
         }
     }
 
@@ -134,42 +180,75 @@ struct AddHomeworkView: View {
         if let editingHomework {
             title = editingHomework.title
             details = editingHomework.details
-            selectedClass = editingHomework.className
+            selectedClassID = editingHomework.classID
+                ?? availableClasses.first(where: {
+                    $0.name.caseInsensitiveCompare(editingHomework.className) == .orderedSame
+                })?.id
             dueDate = editingHomework.dueDate
             priority = editingHomework.priority
             reminderChoice = editingHomework.reminderChoice
             return
         }
 
-        selectedClass = classNames.first ?? "Homework"
+        if let initialClassID,
+           availableClasses.contains(where: { $0.id == initialClassID }) {
+            selectedClassID = initialClassID
+        } else if let initialClassName,
+                  let matchingClass = availableClasses.first(where: { $0.name == initialClassName }) {
+            selectedClassID = matchingClass.id
+        } else {
+            selectedClassID = availableClasses.first?.id
+        }
         dueDate = currentDate
     }
 
-    private func saveHomework() {
+    private func recordOpenIfNeeded() {
+        guard editingHomework != nil, !didRecordOpen else { return }
+        didRecordOpen = true
+        UsageStatsStore.shared.recordItemAction(.open, for: .homework)
+    }
+
+    private func saveHomework() async {
         if reminderChoice != .none {
-            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+            isRequestingAuthorization = true
+            let isAuthorized = await NotificationManager.shared.ensureNotificationAuthorization()
+            isRequestingAuthorization = false
+
+            guard isAuthorized else {
+                showNotificationsDisabledAlert = true
+                return
+            }
         }
+
+        persistHomework(reminderChoice: reminderChoice)
+    }
+
+    private func persistHomework(reminderChoice savedReminderChoice: HomeworkReminderChoice) {
 
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedDetails = details.trimmingCharacters(in: .whitespacesAndNewlines)
+        let selectedClass = availableClasses.first(where: { $0.id == selectedClassID })
+        let selectedClassName = selectedClass?.name ?? "Homework"
 
         if let editingHomework {
             var updated = editingHomework
             updated.title = trimmedTitle
             updated.details = trimmedDetails
-            updated.className = selectedClass
+            updated.className = selectedClassName
+            updated.classID = selectedClass?.id
             updated.dueDate = Calendar.current.startOfDay(for: dueDate)
             updated.priority = priority
-            updated.reminderChoice = reminderChoice
+            updated.reminderChoice = savedReminderChoice
             homeworkStore.update(updated)
         } else {
             let item = HomeworkItem(
-                className: selectedClass,
+                className: selectedClassName,
+                classID: selectedClass?.id,
                 title: trimmedTitle,
                 details: trimmedDetails,
                 dueDate: Calendar.current.startOfDay(for: dueDate),
                 priority: priority,
-                reminderChoice: reminderChoice,
+                reminderChoice: savedReminderChoice,
                 isComplete: false,
                 createdAt: Date()
             )

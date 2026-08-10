@@ -42,7 +42,7 @@ struct NewsMenu: View {
                 VStack(alignment: .leading, spacing: 12) {
                     contentView
                     
-                    Text("Last updated: \(store.lastUpdatedString)")
+                    Text("Last checked: \(store.lastUpdatedString)")
                         .font(.footnote)
                         .foregroundStyle(TertiaryColor.highContrastTextColor())
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -90,7 +90,9 @@ struct NewsMenu: View {
 
     @ViewBuilder
     private var contentView: some View {
-        if store.isLoading && store.latestVideo == nil && store.htmlContent.isEmpty {
+        if store.selectedSource == .athletics {
+            athleticsContentView
+        } else if store.isLoading && store.latestVideo == nil && store.htmlContent.isEmpty {
             VStack(spacing: 12) {
                 ProgressView()
                     .tint(PrimaryColor)
@@ -125,6 +127,17 @@ struct NewsMenu: View {
                     fullscreenVideo = video
                 }
             )
+        } else if store.selectedSource == .dailyAnnouncements,
+                  store.htmlContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            Text("No announcements are available right now.")
+                .appThemeFont(.secondary, size: 16, weight: .medium)
+                .foregroundStyle(TertiaryColor.highContrastTextColor())
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .fill(SecondaryColor)
+                )
         } else {
             ThemedAutoHeightWebView(
                 html: store.htmlContent,
@@ -133,6 +146,43 @@ struct NewsMenu: View {
             )
             .frame(height: webHeight)
             .background(Color.clear)
+        }
+    }
+
+    @ViewBuilder
+    private var athleticsContentView: some View {
+        if store.isLoading && store.athleticsSchedule == nil {
+            VStack(spacing: 12) {
+                ProgressView()
+                    .tint(PrimaryColor)
+
+                Text("Loading Athletics...")
+                    .appThemeFont(.secondary, size: 16, weight: .medium)
+                    .foregroundStyle(TertiaryColor.highContrastTextColor())
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 32)
+            .background(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(SecondaryColor)
+            )
+        } else if let schedule = store.athleticsSchedule {
+            AthleticsScheduleView(
+                schedule: schedule,
+                primaryColor: PrimaryColor,
+                secondaryColor: SecondaryColor,
+                tertiaryColor: TertiaryColor
+            )
+        } else {
+            Text(store.errorMessage ?? "Couldn’t load Athletics games right now.")
+                .appThemeFont(.secondary, size: 16, weight: .medium)
+                .foregroundStyle(TertiaryColor.highContrastTextColor())
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .fill(SecondaryColor)
+                )
         }
     }
 
@@ -177,12 +227,14 @@ struct NewsMenu: View {
                 .padding(.vertical, iPad ? 12 : 10)
                 .padding(.horizontal, 14)
                 .frame(maxWidth: .infinity)
-                .glassEffect()
+                .foregroundStyle(PrimaryColor)
+                .glassEffect(.regular.tint(TertiaryColor.opacity(0.62)))
         } else {
             headerTitle
                 .padding(.vertical, iPad ? 12 : 10)
                 .padding(.horizontal, 14)
                 .frame(maxWidth: .infinity)
+                .foregroundStyle(PrimaryColor)
                 .background(
                     RoundedRectangle(cornerRadius: 24, style: .continuous)
                         .fill(SecondaryColor)
@@ -192,12 +244,7 @@ struct NewsMenu: View {
 
     private var headerTitle: some View {
         Text("Saint Francis News")
-            .font(.system(
-                size: iPad ? 34 : 22,
-                weight: .bold,
-                design: .monospaced
-            ))
-            .foregroundStyle(PrimaryColor)
+            .appThemeFont(.secondary, size: iPad ? 34 : 22, weight: .bold)
     }
 }
 

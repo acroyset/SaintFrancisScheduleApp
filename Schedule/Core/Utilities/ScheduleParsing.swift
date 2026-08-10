@@ -7,10 +7,20 @@ import Foundation
 
 enum ScheduleParsing {
     static func parseClass(_ line: String) -> ClassItem {
-        let parts = line.split(separator: "-").map { $0.trimmingCharacters(in: .whitespaces) }
-        if parts.count == 4 { return ClassItem(name: parts[3], teacher: parts[1], room: parts[2]) }
-        if parts.count == 3 { return ClassItem(name: parts[0], teacher: parts[1], room: parts[2]) }
-        return ClassItem(name: "None", teacher: "None", room: "None")
+        if let data = line.data(using: .utf8),
+           let item = try? JSONDecoder().decode(ClassItem.self, from: data) {
+            return item
+        }
+
+        let parts = line.components(separatedBy: " - ")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+        if parts.count == 4 {
+            return ClassItem(name: parts[3], teacher: parts[1], room: parts[2])
+        }
+        if parts.count == 3 {
+            return ClassItem(name: parts[0], teacher: parts[1], room: parts[2])
+        }
+        return ClassItem(name: "", teacher: "", room: "")
     }
 
     static func parseDays(_ contents: String) -> [Day] {

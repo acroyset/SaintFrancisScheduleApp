@@ -19,6 +19,7 @@ struct WhatIfGradeCalculatorModal: View {
     var TertiaryColor: Color
     @Binding var window: classWindow
     @ObservedObject var localGradeStore: LocalGradeStore
+    var initialClassIndex: Int? = nil
 
     @State private var categoryScenario: CategoryScenario = .singleAssignment
     @State private var selectedClassIndex: Int = 0
@@ -282,13 +283,13 @@ struct WhatIfGradeCalculatorModal: View {
                         Button(action: { window = .None }) {
                             Image(systemName: "xmark.circle.fill")
                                 .appThemeFont(.primary, size: iPad ? 30 : 22)
-                                .foregroundStyle(PrimaryColor)
+                                .foregroundStyle(TertiaryColor.maximumContrastTextColor())
                         }
                         .padding(iPad ? 16 : 12)
                     }
                     .frame(maxWidth: .infinity)
-                    .foregroundStyle(PrimaryColor)
-                    .glassEffect()
+                    .foregroundStyle(TertiaryColor.maximumContrastTextColor())
+                    .glassEffect(.regular.tint(TertiaryColor.opacity(0.62)))
                 } else {
                     HStack {
                         Text("What-If Calculator")
@@ -312,7 +313,10 @@ struct WhatIfGradeCalculatorModal: View {
             }
         }
         .onAppear {
-            if let first = classOptions.first {
+            if let initialClassIndex,
+               classOptions.contains(where: { $0.index == initialClassIndex }) {
+                selectedClassIndex = initialClassIndex
+            } else if let first = classOptions.first {
                 selectedClassIndex = first.index
             }
             syncCategoryScenarioFromStore()

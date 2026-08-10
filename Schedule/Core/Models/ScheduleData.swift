@@ -13,23 +13,27 @@ struct ScheduleData: Codable {
     var isSecondLunch: [Bool] = [false, false]
 
     static let defaultClasses: [ClassItem] = [
-        ClassItem(name: "Period 1", teacher: "Teacher", room: "Room"),
-        ClassItem(name: "Period 2", teacher: "Teacher", room: "Room"),
-        ClassItem(name: "Period 3", teacher: "Teacher", room: "Room"),
-        ClassItem(name: "Period 4", teacher: "Teacher", room: "Room"),
-        ClassItem(name: "Period 5", teacher: "Teacher", room: "Room"),
-        ClassItem(name: "Period 6", teacher: "Teacher", room: "Room"),
-        ClassItem(name: "Period 7", teacher: "Teacher", room: "Room"),
-        ClassItem(name: "Lunch", teacher: "N", room: "N"),
-        ClassItem(name: "Student Collaboration", teacher: "N", room: "N"),
-        ClassItem(name: "Advisory", teacher: "Teacher", room: "Room"),
-        ClassItem(name: "Break", teacher: "N", room: "N"),
-        ClassItem(name: "Faculty Collaboration", teacher: "N", room: "N"),
-        ClassItem(name: "Homeroom", teacher: "Teacher", room: "Room"),
-        ClassItem(name: "Activity", teacher: "N", room: "N"),
-        ClassItem(name: "Brunch", teacher: "N", room: "N"),
-        ClassItem(name: "Liturgy", teacher: "N", room: "Gym")
+        ClassItem(id: defaultClassID(1), name: "", teacher: "", room: ""),
+        ClassItem(id: defaultClassID(2), name: "", teacher: "", room: ""),
+        ClassItem(id: defaultClassID(3), name: "", teacher: "", room: ""),
+        ClassItem(id: defaultClassID(4), name: "", teacher: "", room: ""),
+        ClassItem(id: defaultClassID(5), name: "", teacher: "", room: ""),
+        ClassItem(id: defaultClassID(6), name: "", teacher: "", room: ""),
+        ClassItem(id: defaultClassID(7), name: "", teacher: "", room: ""),
+        ClassItem(id: defaultClassID(8), name: "Lunch", teacher: "N", room: "N"),
+        ClassItem(id: defaultClassID(9), name: "Student Collaboration", teacher: "N", room: "N"),
+        ClassItem(id: defaultClassID(10), name: "Advisory", teacher: "", room: ""),
+        ClassItem(id: defaultClassID(11), name: "Break", teacher: "N", room: "N"),
+        ClassItem(id: defaultClassID(12), name: "Faculty Collaboration", teacher: "N", room: "N"),
+        ClassItem(id: defaultClassID(13), name: "Homeroom", teacher: "", room: ""),
+        ClassItem(id: defaultClassID(14), name: "Activity", teacher: "N", room: "N"),
+        ClassItem(id: defaultClassID(15), name: "Brunch", teacher: "N", room: "N"),
+        ClassItem(id: defaultClassID(16), name: "Liturgy", teacher: "N", room: "Gym")
     ]
+
+    private static func defaultClassID(_ index: Int) -> UUID {
+        UUID(uuidString: String(format: "00000000-0000-0000-0000-%012d", index))!
+    }
 
     func normalized() -> ScheduleData {
         var copy = self
@@ -41,6 +45,22 @@ struct ScheduleData: Codable {
 
         if copy.classes.count < Self.defaultClasses.count {
             copy.classes += Self.defaultClasses.dropFirst(copy.classes.count)
+        }
+
+        for index in copy.classes.indices {
+            let trimmedName = copy.classes[index].name.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmedTeacher = copy.classes[index].teacher.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmedRoom = copy.classes[index].room.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if index < 7, trimmedName.caseInsensitiveCompare("Period \(index + 1)") == .orderedSame {
+                copy.classes[index].name = ""
+            }
+            if ["teacher", "teahcer"].contains(trimmedTeacher.lowercased()) {
+                copy.classes[index].teacher = ""
+            }
+            if ["room", "room #"].contains(trimmedRoom.lowercased()) {
+                copy.classes[index].room = ""
+            }
         }
 
         return copy

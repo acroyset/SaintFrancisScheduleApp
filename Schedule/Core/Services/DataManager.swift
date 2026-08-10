@@ -8,6 +8,7 @@
 //
 
 import FirebaseFirestore
+import Foundation
 
 @MainActor
 class DataManager: ObservableObject {
@@ -108,6 +109,7 @@ class DataManager: ObservableObject {
             "pageDurations": session.pageDurations,
             "featureDurations": session.featureDurations,
             "featureCounts": session.featureCounts,
+            "itemActionCounts": session.itemActionCounts,
             "notificationsEnabled": session.notificationsEnabled,
             "liveActivitiesEnabled": session.liveActivitiesEnabled,
             "liveActivityActive": session.liveActivityActive
@@ -115,7 +117,7 @@ class DataManager: ObservableObject {
 
         let userRef = db.collection("users").document(userId)
 
-        try await db.runTransaction { transaction, errorPointer in
+        _ = try await db.runTransaction { transaction, errorPointer in
             do {
                 let doc = try transaction.getDocument(userRef)
                 let data = doc.data()
@@ -216,10 +218,13 @@ class DataManager: ObservableObject {
     private func loadPlaintext(_ data: [String: Any]) -> ([ClassItem], ThemeColors, [Bool]) {
         let classesArray = (data["classes"] as? [[String: String]]) ?? []
         let classes = classesArray.map { dict in
-            ClassItem(
+            let persistedID = dict["id"].flatMap(UUID.init(uuidString:))
+            return ClassItem(
+                id: persistedID ?? UUID(),
                 name:    dict["name"]    ?? "",
                 teacher: dict["teacher"] ?? "",
-                room:    dict["room"]    ?? ""
+                room:    dict["room"]    ?? "",
+                needsIDMigration: persistedID == nil
             )
         }
 

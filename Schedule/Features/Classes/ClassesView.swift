@@ -23,7 +23,7 @@ func inferClassLevel(from className: String) -> String {
     
     if lowerName.contains("ap") {
         return "AP"
-    } else if lowerName.contains("honors") || lowerName.contains("honors") {
+    } else if lowerName.contains("honors") {
         return "Honors"
     } else {
         return "Normal"
@@ -43,7 +43,6 @@ struct ClassesView: View {
     @StateObject private var courseViewModel = CourseViewModel()
     @StateObject private var localGradeStore = LocalGradeStore.shared
     @EnvironmentObject private var homeworkStore: HomeworkStore
-    @AppStorage(AppFeatureBadge.homework.seenKey) private var didSeeHomeworkBadge = false
     
     var body: some View {
         ZStack{
@@ -63,8 +62,7 @@ struct ClassesView: View {
                                 window = .ClassEditor
                             }
                             menuDivider
-                            menuButton(title: "Homework", systemImage: "checklist", showsNewBadge: !didSeeHomeworkBadge) {
-                                AppFeatureBadge.markSeen(.homework)
+                            menuButton(title: "Homework", systemImage: "checklist") {
                                 window = .Homework
                             }
                             menuDivider
@@ -205,7 +203,6 @@ struct ClassesView: View {
     private func menuButton(
         title: String,
         systemImage: String,
-        showsNewBadge: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
@@ -225,7 +222,6 @@ struct ClassesView: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 14)
         }
-        .newBadge(showsNewBadge)
     }
 
     private var menuDivider: some View {

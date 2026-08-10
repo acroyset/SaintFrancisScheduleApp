@@ -108,6 +108,7 @@ class CustomEventsManager: ObservableObject {
     func addEvent(_ event: CustomEvent) {
         events.append(event)
         saveEvents()
+        UsageStatsStore.shared.recordItemAction(.create, for: usageItemKind(for: event))
     }
 
     /// Updates an existing event in-place.
@@ -115,17 +116,24 @@ class CustomEventsManager: ObservableObject {
         guard let index = events.firstIndex(where: { $0.id == event.id }) else { return }
         events[index] = event
         saveEvents()
+        UsageStatsStore.shared.recordItemAction(.edit, for: usageItemKind(for: event))
     }
 
     /// Removes an event. Fix 4: now atomic — no barrier/main-thread split.
     func deleteEvent(_ event: CustomEvent) {
-        events.removeAll { $0.id == event.id }
+        guard let index = events.firstIndex(where: { $0.id == event.id }) else { return }
+        let removedEvent = events.remove(at: index)
         saveEvents()
+        UsageStatsStore.shared.recordItemAction(.delete, for: usageItemKind(for: removedEvent))
     }
 
     // These remain for call sites that use the "Sync" suffix
     func addEventSync(_ event: CustomEvent)    { addEvent(event) }
     func updateEventSync(_ event: CustomEvent) { updateEvent(event) }
+
+    private func usageItemKind(for event: CustomEvent) -> UsageItemKind {
+        event.isReminder ? .reminder : .event
+    }
 
     // MARK: - Event Filtering
 

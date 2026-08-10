@@ -6,6 +6,19 @@
 import SwiftUI
 import UserNotifications
 
+enum ReminderFormValidation {
+    static func canSave(
+        title: String,
+        hasSelectedOffsets: Bool,
+        wasSavedWithoutNotifications: Bool,
+        isRequestingAuthorization: Bool
+    ) -> Bool {
+        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+            (hasSelectedOffsets || wasSavedWithoutNotifications) &&
+            !isRequestingAuthorization
+    }
+}
+
 struct AddReminderView: View {
     @Environment(\.dismiss) private var dismiss
 
@@ -24,6 +37,18 @@ struct AddReminderView: View {
     @State private var selectedDate = Date()
     @State private var reminderTime = Time(h: 8, m: 0, s: 0)
     @State private var selectedOffsets: Set<ReminderOffset> = [.tenMinutes]
+    @State private var didRecordOpen = false
+    @State private var isRequestingAuthorization = false
+    @State private var showNotificationsDisabledAlert = false
+
+    private var isSaveEnabled: Bool {
+        ReminderFormValidation.canSave(
+            title: title,
+            hasSelectedOffsets: !selectedOffsets.isEmpty,
+            wasSavedWithoutNotifications: editingReminder?.reminderOffsets.isEmpty == true,
+            isRequestingAuthorization: isRequestingAuthorization
+        )
+    }
 
     var body: some View {
         NavigationView {
@@ -102,22 +127,40 @@ struct AddReminderView: View {
                         isPresented = false
                         dismiss()
                     }
+                    .accessibilityLabel("Cancel reminder")
+                    .accessibilityIdentifier("add-reminder.cancel")
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Save") {
-                        saveReminder()
+                        Task { await saveReminder() }
                     }
-                    .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || selectedOffsets.isEmpty)
+                    .disabled(!isSaveEnabled)
+                    .accessibilityLabel("Save reminder")
+                    .accessibilityIdentifier("add-reminder.save")
                 }
             }
         }
         .onAppear {
             UsageStatsStore.shared.setCurrentFeature(.reminders)
+            recordOpenIfNeeded()
             loadExistingReminder()
         }
         .onDisappear {
             UsageStatsStore.shared.setCurrentFeature(nil)
+        }
+        .alert("Notifications Disabled", isPresented: $showNotificationsDisabledAlert) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("Save Without Notifications") {
+                persistReminder(offsets: [])
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This reminder cannot alert you unless notifications are enabled in Settings.")
         }
     }
 
@@ -156,13 +199,35 @@ struct AddReminderView: View {
         reminderTime = reminder.startTime
     }
 
-    private func saveReminder() {
-        requestNotificationAuthorizationIfNeeded()
+    private func recordOpenIfNeeded() {
+        guard editingReminder != nil, !didRecordOpen else { return }
+        didRecordOpen = true
+        UsageStatsStore.shared.recordItemAction(.open, for: .reminder)
+    }
+
+    private func saveReminder() async {
+        guard !selectedOffsets.isEmpty else {
+            persistReminder(offsets: [])
+            return
+        }
+
+        isRequestingAuthorization = true
+        let isAuthorized = await NotificationManager.shared.ensureNotificationAuthorization()
+        isRequestingAuthorization = false
+
+        guard isAuthorized else {
+            showNotificationsDisabledAlert = true
+            return
+        }
+
+        persistReminder(offsets: selectedOffsets.sorted { $0.secondsBefore < $1.secondsBefore })
+    }
+
+    private func persistReminder(offsets: [ReminderOffset]) {
 
         let formatter = DateFormatter()
         formatter.dateFormat = "MM-dd-yy"
 
-        let offsets = selectedOffsets.sorted { $0.secondsBefore < $1.secondsBefore }
         let endTime = Time(seconds: min(reminderTime.seconds + 300, 23 * 3600 + 59 * 60 + 59))
 
         if let editingReminder {
@@ -198,9 +263,6 @@ struct AddReminderView: View {
         dismiss()
     }
 
-    private func requestNotificationAuthorizationIfNeeded() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
-    }
 }
 
 private struct ReminderColorSection: View {

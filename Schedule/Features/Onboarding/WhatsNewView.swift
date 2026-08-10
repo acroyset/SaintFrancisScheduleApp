@@ -19,14 +19,26 @@ struct WhatsNewView: View {
     
     var body: some View {
         VStack {
-            Text("Whats New?")
-                .font(.system(
-                    size: iPad ? 40 : 30,
-                    weight: .bold,
-                    design: .monospaced
-                ))
-                .padding(12)
-                .foregroundStyle(PrimaryColor)
+            HStack(alignment: .top) {
+                Text("What’s New?")
+                    .font(.system(
+                        size: iPad ? 40 : 30,
+                        weight: .bold,
+                        design: .monospaced
+                    ))
+                    .foregroundStyle(PrimaryColor)
+
+                Spacer(minLength: 8)
+
+                Button(action: close) {
+                    Label("Close", systemImage: "xmark.circle.fill")
+                        .labelStyle(.iconOnly)
+                        .font(.system(size: iPad ? 28 : 24, weight: .semibold))
+                        .foregroundStyle(PrimaryColor)
+                }
+                .accessibilityLabel("Close What’s New")
+            }
+            .padding(12)
             
             Divider()
             
@@ -65,5 +77,11 @@ struct WhatsNewView: View {
         .background(TertiaryColor)
         .clipShape(RoundedRectangle(cornerRadius: 15))
         .shadow(radius: 20)
+        .accessibilityAction(.escape, close)
+    }
+
+    private func close() {
+        UserDefaults.standard.set(version, forKey: "LastSeenVersion")
+        whatsNewPopup = false
     }
 }

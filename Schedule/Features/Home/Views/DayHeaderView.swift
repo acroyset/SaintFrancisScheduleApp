@@ -28,12 +28,14 @@ struct DayHeaderView: View {
                         .foregroundColor(TertiaryColor)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
+                        .accessibilityIdentifier("home.day-title")
                 } else {
                     Text(dayName)
                         .appThemeFont(.primary, size: iPad ? 52 : 32, weight: .black)
                         .foregroundColor(TertiaryColor)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
+                        .accessibilityIdentifier("home.day-title")
                 }
             }
             .padding(.horizontal, iPad ? 20 : 16)

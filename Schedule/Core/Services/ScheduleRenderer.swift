@@ -157,6 +157,64 @@ final class ScheduleRenderer {
             ?? lines.firstIndex(where: { !$0.timeRange.isEmpty })
     }
 
+    /// Updates only time-sensitive flags and progress values. Static schedule
+    /// rendering, persistence, widgets, and Live Activities stay off the
+    /// one-second UI ticker.
+    func refreshingProgress(
+        in lines: [ScheduleLine],
+        selectedDate: Date,
+        nowSeconds: Int = Time.now().seconds
+    ) -> [ScheduleLine] {
+        let isToday = Calendar.current.isDateInToday(selectedDate)
+        let existingPassingPeriod = lines.first(where: { $0.className == "Passing Period" })
+        var refreshed = lines.filter { $0.className != "Passing Period" }
+
+        for index in refreshed.indices {
+            guard let start = refreshed[index].startSec,
+                  let end = refreshed[index].endSec else { continue }
+            refreshed[index].isCurrentClass = isToday && start <= nowSeconds && nowSeconds < end
+            refreshed[index].progress = progressValue(start: start, end: end, now: nowSeconds)
+        }
+
+        guard isToday, refreshed.count > 1 else { return refreshed }
+
+        for index in 1..<refreshed.count {
+            guard let previousEnd = refreshed[index - 1].endSec,
+                  let currentStart = refreshed[index].startSec else { continue }
+            let gap = currentStart - previousEnd
+            guard gap > 0, gap <= 600,
+                  previousEnd <= nowSeconds, nowSeconds < currentStart else { continue }
+
+            var passingPeriod: ScheduleLine
+            if var existingPassingPeriod,
+               existingPassingPeriod.startSec == previousEnd,
+               existingPassingPeriod.endSec == currentStart {
+                existingPassingPeriod.isCurrentClass = true
+                existingPassingPeriod.progress = progressValue(
+                    start: previousEnd,
+                    end: currentStart,
+                    now: nowSeconds
+                )
+                passingPeriod = existingPassingPeriod
+            } else {
+                passingPeriod = ScheduleLine(
+                    content: "",
+                    base: "",
+                    isCurrentClass: true,
+                    timeRange: "\(Time(seconds: previousEnd).string()) to \(Time(seconds: currentStart).string())",
+                    className: "Passing Period",
+                    startSec: previousEnd,
+                    endSec: currentStart,
+                    progress: progressValue(start: previousEnd, end: currentStart, now: nowSeconds)
+                )
+            }
+            refreshed.insert(passingPeriod, at: index)
+            break
+        }
+
+        return refreshed
+    }
+
     // MARK: - Private helpers
 
     private func shouldSwapLunchAndPeriod(dayIndex: Int, isSecondLunch: [Bool]) -> Bool {

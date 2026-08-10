@@ -75,6 +75,8 @@ struct AllItemsView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Close") { dismiss() }
+                        .accessibilityLabel("Close events and reminders")
+                        .accessibilityIdentifier("all-items.close")
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
@@ -92,7 +94,10 @@ struct AllItemsView: View {
                     } label: {
                         Image(systemName: "line.3.horizontal.decrease.circle")
                             .foregroundStyle(PrimaryColor)
+                            .accessibilityHidden(true)
                     }
+                    .accessibilityLabel("Filter and sort events and reminders")
+                    .accessibilityIdentifier("all-items.filter-sort")
                 }
             }
         }

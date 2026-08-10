@@ -1,16 +1,16 @@
-Period 1 - Teacher - Room
-Period 2 - Teacher - Room
-Period 3 - Teacher - Room
-Period 4 - Teacher - Room
-Period 5 - Teacher - Room
-Period 6 - Teacher - Room
-Period 7 - Teacher - Room
-Lunch - N - N
-Student Collaboration - N - N
-Advisory - Teahcer - Room
-Break - N - N
-Faculty Collaboration - N - N
-Homeroom - Teacher - Room
-Activity - N - N
-Brunch - N - N
-Liturgy - N - Gym
+{"id":"00000000-0000-0000-0000-000000000001","name":"","teacher":"","room":""}
+{"id":"00000000-0000-0000-0000-000000000002","name":"","teacher":"","room":""}
+{"id":"00000000-0000-0000-0000-000000000003","name":"","teacher":"","room":""}
+{"id":"00000000-0000-0000-0000-000000000004","name":"","teacher":"","room":""}
+{"id":"00000000-0000-0000-0000-000000000005","name":"","teacher":"","room":""}
+{"id":"00000000-0000-0000-0000-000000000006","name":"","teacher":"","room":""}
+{"id":"00000000-0000-0000-0000-000000000007","name":"","teacher":"","room":""}
+{"id":"00000000-0000-0000-0000-000000000008","name":"Lunch","teacher":"N","room":"N"}
+{"id":"00000000-0000-0000-0000-000000000009","name":"Student Collaboration","teacher":"N","room":"N"}
+{"id":"00000000-0000-0000-0000-000000000010","name":"Advisory","teacher":"","room":""}
+{"id":"00000000-0000-0000-0000-000000000011","name":"Break","teacher":"N","room":"N"}
+{"id":"00000000-0000-0000-0000-000000000012","name":"Faculty Collaboration","teacher":"N","room":"N"}
+{"id":"00000000-0000-0000-0000-000000000013","name":"Homeroom","teacher":"","room":""}
+{"id":"00000000-0000-0000-0000-000000000014","name":"Activity","teacher":"N","room":"N"}
+{"id":"00000000-0000-0000-0000-000000000015","name":"Brunch","teacher":"N","room":"N"}
+{"id":"00000000-0000-0000-0000-000000000016","name":"Liturgy","teacher":"N","room":"Gym"}

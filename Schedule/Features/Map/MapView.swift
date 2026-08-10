@@ -20,6 +20,9 @@ struct MapView: View {
     private var mapVerticalFillScale: CGFloat { iPad ? 1.22 : 1.35 }
     private var mapScrollPadding: CGFloat { iPad ? 260 : 160 }
     private var labelScale: CGFloat { iPad ? 1.02 : 0.88 }
+    private var readablePrimaryColor: Color {
+        PrimaryColor.accessibleForegroundColor(against: TertiaryColor)
+    }
 
     private var classLocations: [CampusClassLocation] {
         CampusMapData.locations(for: data?.normalized().classes ?? [])
@@ -42,31 +45,16 @@ struct MapView: View {
     }
 
     private var classCountsByLayer: [CampusMapLayer: Int] {
-        Dictionary(grouping: classLocations) { location in
+        Dictionary(grouping: classLocations.filter(\.countsTowardClassTotal)) { location in
             roomLayerByKey[CampusMapData.roomKey(for: location.room)] ?? .first
         }
         .mapValues(\.count)
     }
 
     private var unplacedClassCount: Int {
-        (data?.normalized().classes ?? []).filter { classItem in
-            let className = classItem.name.trimmingCharacters(in: .whitespacesAndNewlines)
-            let teacher = classItem.teacher.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            let room = classItem.room.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-
-            guard !className.isEmpty,
-                  className.lowercased() != "none",
-                  teacher != "n",
-                  teacher != "none" else {
-                return false
-            }
-
-            return room.isEmpty ||
-                room == "n" ||
-                room == "none" ||
-                room == "room" ||
-                CampusMapData.building(forRoom: classItem.room) == nil
-        }.count
+        CampusMapData.unplacedAcademicClassCount(
+            in: data?.normalized().classes ?? []
+        )
     }
 
     var body: some View {
@@ -88,7 +76,7 @@ struct MapView: View {
                     maxZoomScale: 5,
                     zoomScale: $mapZoomScale
                 ) {
-                    mapCanvas(width: mapWidth, height: mapHeight, zoomScale: mapZoomScale)
+                    mapCanvas(width: mapWidth, height: mapHeight)
                         .padding(mapScrollPadding)
                 }
                 .frame(width: viewportWidth, height: viewportHeight)
@@ -96,7 +84,7 @@ struct MapView: View {
                 MapLayerControl(
                     selectedLayer: $selectedLayer,
                     classCountsByLayer: classCountsByLayer,
-                    PrimaryColor: PrimaryColor,
+                    PrimaryColor: readablePrimaryColor,
                     SecondaryColor: SecondaryColor,
                     TertiaryColor: TertiaryColor
                 )
@@ -107,7 +95,7 @@ struct MapView: View {
                 if unplacedClassCount > 0 {
                     MapPlacementPrompt(
                         count: unplacedClassCount,
-                        PrimaryColor: PrimaryColor,
+                        PrimaryColor: readablePrimaryColor,
                         TertiaryColor: TertiaryColor,
                         action: onEditClasses
                     )
@@ -126,7 +114,7 @@ struct MapView: View {
                             zoomScale: $mapZoomScale,
                             minZoomScale: 0.45,
                             maxZoomScale: 5,
-                            PrimaryColor: PrimaryColor,
+                            PrimaryColor: readablePrimaryColor,
                             TertiaryColor: TertiaryColor
                         )
                     }
@@ -141,7 +129,7 @@ struct MapView: View {
         .ignoresSafeArea()
     }
 
-    private func mapCanvas(width: CGFloat, height: CGFloat, zoomScale: CGFloat) -> some View {
+    private func mapCanvas(width: CGFloat, height: CGFloat) -> some View {
         return ZStack(alignment: .topLeading) {
             Image("CampusMap")
                 .resizable()
@@ -151,11 +139,10 @@ struct MapView: View {
                 RoomNumberMarker(
                     marker: marker,
                     locations: classLocationsByRoom[CampusMapData.roomKey(for: marker.room)] ?? [],
-                    PrimaryColor: PrimaryColor,
+                    PrimaryColor: readablePrimaryColor,
                     TertiaryColor: TertiaryColor,
                     scale: labelScale
                 )
-                .scaleEffect(1 / max(zoomScale, 0.01))
                 .position(
                     x: marker.normalizedX * width,
                     y: marker.normalizedY * height
@@ -166,11 +153,10 @@ struct MapView: View {
                 RoomNumberMarker(
                     marker: marker,
                     locations: classLocationsByRoom[CampusMapData.roomKey(for: marker.room)] ?? [],
-                    PrimaryColor: PrimaryColor,
+                    PrimaryColor: readablePrimaryColor,
                     TertiaryColor: TertiaryColor,
                     scale: labelScale
                 )
-                .scaleEffect(1 / max(zoomScale, 0.01))
                 .position(
                     x: marker.normalizedX * width,
                     y: marker.normalizedY * height
@@ -512,6 +498,8 @@ private struct MapZoomControl: View {
                     .frame(width: 38, height: 34)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Zoom in")
+            .accessibilityIdentifier("map.zoom-in")
 
             Divider()
                 .frame(width: 24)
@@ -525,6 +513,8 @@ private struct MapZoomControl: View {
                     .frame(width: 38, height: 34)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Zoom out")
+            .accessibilityIdentifier("map.zoom-out")
         }
         .foregroundStyle(PrimaryColor)
         .background(TertiaryColor.opacity(0.94))
@@ -716,12 +706,127 @@ private struct RoomNumberMarker: View {
         !locations.isEmpty
     }
 
+    private var cardWidth: CGFloat {
+        (hasClasses ? 190 : 34) * scale
+    }
+
+    private var cardHeight: CGFloat {
+        (hasClasses ? 36 : 18) * scale
+    }
+
+    private var connectorHeight: CGFloat {
+        (hasClasses ? 28 : 11) * scale
+    }
+
+    private var anchorDiameter: CGFloat {
+        (hasClasses ? 12 : 9) * scale
+    }
+
+    private var cornerRadius: CGFloat {
+        (hasClasses ? 9 : 8) * scale
+    }
+
+    private var cardColor: Color {
+        hasClasses ? PrimaryColor : TertiaryColor
+    }
+
+    private var borderColor: Color {
+        hasClasses ? TertiaryColor.opacity(0.9) : PrimaryColor.opacity(0.28)
+    }
+
+    private var horizontalDirection: CGFloat {
+        let difference = marker.normalizedX - marker.building.normalizedX
+        if abs(difference) > 0.008 {
+            return difference < 0 ? -1 : 1
+        }
+
+        return roomNumber.isMultiple(of: 2) ? -1 : 1
+    }
+
+    private var verticalDirection: CGFloat {
+        let difference = marker.normalizedY - marker.building.normalizedY
+        if abs(difference) > 0.012 {
+            return difference < 0 ? -1 : 1
+        }
+
+        return roomNumber.isMultiple(of: 2) ? -1 : 1
+    }
+
+    private var cardOffset: CGSize {
+        CGSize(
+            width: horizontalDirection * ((cardWidth / 2) + connectorHeight),
+            height: verticalDirection * ((cardHeight / 2) + connectorHeight)
+        )
+    }
+
+    private var leaderEnd: CGSize {
+        CGSize(
+            width: cardOffset.width - horizontalDirection * ((cardWidth / 2) - cornerRadius),
+            height: cardOffset.height - verticalDirection * (cardHeight / 2)
+        )
+    }
+
+    private var calloutCanvasSize: CGSize {
+        let shadowAllowance = (hasClasses ? 14 : 9) * scale
+        return CGSize(
+            width: 2 * (cardWidth + connectorHeight + shadowAllowance),
+            height: 2 * (cardHeight + connectorHeight + shadowAllowance)
+        )
+    }
+
+    private var roomNumber: Int {
+        Int(marker.room.filter(\.isNumber)) ?? 0
+    }
+
     var body: some View {
+        ZStack {
+            MapCalloutLeader(end: leaderEnd, startInset: anchorDiameter / 2)
+                .stroke(
+                    Color.black.opacity(hasClasses ? 0.24 : 0.14),
+                    style: StrokeStyle(lineWidth: max(2.5, 3.5 * scale), lineCap: .round)
+                )
+                .offset(y: 1.5 * scale)
+
+            MapCalloutLeader(end: leaderEnd, startInset: anchorDiameter / 2)
+                .stroke(
+                    PrimaryColor.opacity(hasClasses ? 0.95 : 0.62),
+                    style: StrokeStyle(lineWidth: max(1.2, 1.8 * scale), lineCap: .round)
+                )
+
+            labelCard
+                .offset(cardOffset)
+
+            Circle()
+                .fill(Color.clear)
+                .frame(width: anchorDiameter, height: anchorDiameter)
+                .overlay(
+                    Circle()
+                        .stroke(
+                            hasClasses ? PrimaryColor : TertiaryColor,
+                            lineWidth: max(2, 2.5 * scale)
+                        )
+                )
+                .overlay(
+                    Circle()
+                        .stroke(
+                            hasClasses ? TertiaryColor.opacity(0.9) : PrimaryColor.opacity(0.8),
+                            lineWidth: max(0.75, 1 * scale)
+                        )
+                )
+                .shadow(color: .black.opacity(0.28), radius: 2.5 * scale, y: 1.5 * scale)
+        }
+        .frame(width: calloutCanvasSize.width, height: calloutCanvasSize.height)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityText)
+        .accessibilityHint("The center of the ring marks the exact room location")
+    }
+
+    private var labelCard: some View {
         Group {
             if hasClasses {
                 HStack(spacing: 5 * scale) {
                     Text(marker.room)
-                        .appThemeFont(.secondary, size: 13 * scale, weight: .heavy)
+                        .appThemeFont(.secondary, size: 12.5 * scale, weight: .heavy)
                         .lineLimit(1)
 
                     Circle()
@@ -729,43 +834,58 @@ private struct RoomNumberMarker: View {
                         .frame(width: 5.5 * scale, height: 5.5 * scale)
 
                     Text(locationsSummary)
-                        .appThemeFont(.secondary, size: 12 * scale, weight: .heavy)
+                        .appThemeFont(.secondary, size: 11.5 * scale, weight: .heavy)
                         .lineLimit(1)
                         .minimumScaleFactor(0.45)
+                        .layoutPriority(1)
                 }
-                .frame(width: 230 * scale, alignment: .center)
+                .padding(.horizontal, 9 * scale)
             } else {
-                roomNumberOnly
+                Text(marker.room)
+                    .appThemeFont(.secondary, size: 7.5 * scale, weight: .heavy)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .center)
             }
         }
         .foregroundStyle(hasClasses ? TertiaryColor : PrimaryColor)
-        .padding(.horizontal, hasClasses ? 10 * scale : 0)
-        .padding(.vertical, hasClasses ? 8 * scale : 0)
-        .frame(minHeight: 18 * scale)
-        .background(hasClasses ? PrimaryColor.opacity(0.98) : TertiaryColor)
-        .clipShape(RoundedRectangle(cornerRadius: hasClasses ? 7 : 9, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: hasClasses ? 7 : 9, style: .continuous)
-                .stroke(hasClasses ? TertiaryColor.opacity(0.9) : PrimaryColor.opacity(0.2), lineWidth: hasClasses ? 1.5 : 1)
-        )
-        .shadow(color: .black.opacity(hasClasses ? 0.3 : 0.1), radius: hasClasses ? 10 : 5, y: 2)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityText)
-    }
+        .frame(width: cardWidth, height: cardHeight)
+        .background {
+            ZStack {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(Color.black.opacity(hasClasses ? 0.3 : 0.2))
+                    .offset(y: 3.5 * scale)
 
-    private var roomNumberOnly: some View {
-        VStack(alignment: .center, spacing: 3 * scale) {
-            Text(marker.room)
-                .appThemeFont(.secondary, size: 7.5 * scale, weight: .heavy)
-                .lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .center)
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [cardColor, cardColor.opacity(0.88)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+            }
         }
-        .frame(width: 34 * scale, alignment: .center)
+        .overlay(
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .stroke(borderColor, lineWidth: hasClasses ? 1.5 : 1)
+        )
+        .overlay(alignment: .top) {
+            Capsule()
+                .fill(Color.white.opacity(hasClasses ? 0.22 : 0.38))
+                .frame(height: max(0.7, 0.9 * scale))
+                .padding(.horizontal, 6 * scale)
+                .padding(.top, 2 * scale)
+        }
+        .shadow(
+            color: .black.opacity(hasClasses ? 0.32 : 0.2),
+            radius: (hasClasses ? 9 : 5) * scale,
+            y: (hasClasses ? 7 : 4) * scale
+        )
     }
 
     private var locationsSummary: String {
         locations
-            .map { "\($0.periodLabel) \($0.className)" }
+            .map(\.displayName)
             .joined(separator: " / ")
     }
 
@@ -774,7 +894,29 @@ private struct RoomNumberMarker: View {
             return "Room \(marker.room), \(marker.layer.title)"
         }
 
-        let classText = locations.map { "\($0.periodLabel) \($0.className)" }.joined(separator: ", ")
+        let classText = locations.map(\.displayName).joined(separator: ", ")
         return "Room \(marker.room), \(classText)"
+    }
+}
+
+private struct MapCalloutLeader: Shape {
+    let end: CGSize
+    let startInset: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let distance = max(hypot(end.width, end.height), 0.01)
+        let unitX = end.width / distance
+        let unitY = end.height / distance
+
+        var path = Path()
+        path.move(to: CGPoint(
+            x: rect.midX + unitX * startInset,
+            y: rect.midY + unitY * startInset
+        ))
+        path.addLine(to: CGPoint(
+            x: rect.midX + end.width,
+            y: rect.midY + end.height
+        ))
+        return path
     }
 }

@@ -22,7 +22,7 @@ struct Course: Identifiable, Codable {
     let isHonorsAP: Bool
     
     enum CodingKeys: String, CodingKey {
-        case id, name, requierments, nextCourses, semester, isHonorsAP
+        case id, name, requirements, nextCourses, semester, isHonorsAP
     }
     
     // For Codable conformance, prerequisites need special handling
@@ -40,7 +40,7 @@ struct Course: Identifiable, Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
         name = try container.decode(String.self, forKey: .name)
-        requirements = try container.decode([String].self, forKey: .requierments)
+        requirements = try container.decode([String].self, forKey: .requirements)
         nextCourses = try container.decode([NextCourse].self, forKey: .nextCourses)
         semester = try container.decode(String.self, forKey: .semester)
         isHonorsAP = try container.decode(Bool.self, forKey: .isHonorsAP)
@@ -50,7 +50,7 @@ struct Course: Identifiable, Codable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
         try container.encode(name, forKey: .name)
-        try container.encode(requirements, forKey: .requierments)
+        try container.encode(requirements, forKey: .requirements)
         try container.encode(nextCourses, forKey: .nextCourses)
         try container.encode(semester, forKey: .semester)
         try container.encode(isHonorsAP, forKey: .isHonorsAP)
@@ -228,7 +228,7 @@ extension Course {
         allCourses.first { $0.id == id }
     }
     
-    func getRequierments(for course: Course) -> [String] {
+    func getRequirements(for course: Course) -> [String] {
         return course.requirements
     }
     
@@ -236,7 +236,7 @@ extension Course {
         course.nextCourses.compactMap { getCourse(byId: $0.courseId) }
     }
     
-    func getNextCoursesRequierments(for course: Course) -> [NextCourse] {
+    func getNextCourseRequirements(for course: Course) -> [NextCourse] {
         course.nextCourses
     }
 }
@@ -314,13 +314,13 @@ struct CourseSchedulingView: View {
                         Button(action: { window = .None }) {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.system(size: iPad ? 30 : 26))
-                                .foregroundStyle(PrimaryColor)
+                                .foregroundStyle(TertiaryColor.maximumContrastTextColor())
                         }
                         .padding(iPad ? 16 : 12)
                     }
                     .frame(maxWidth: .infinity)
-                    .foregroundStyle(PrimaryColor)
-                    .glassEffect()
+                    .foregroundStyle(TertiaryColor.maximumContrastTextColor())
+                    .glassEffect(.regular.tint(TertiaryColor.opacity(0.62)))
                 } else {
                     HStack {
                         Text("Course Scheduler")
@@ -353,20 +353,22 @@ struct SearchBar: View {
     var PrimaryColor: Color
     var SecondaryColor: Color
     var TertiaryColor: Color
-    
+
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass").foregroundColor(PrimaryColor)
-            ZStack{
-                if text.isEmpty {
-                    Text("Search courses...")
-                        .foregroundColor(PrimaryColor.opacity(0.5))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(PrimaryColor)
+                .accessibilityHidden(true)
 
-                TextField("", text: $text)
-                    .foregroundColor(PrimaryColor)
-            }
+            TextField(
+                "",
+                text: $text,
+                prompt: Text("Search courses...")
+                    .foregroundStyle(PrimaryColor.opacity(0.78))
+            )
+                .foregroundStyle(PrimaryColor)
+                .accessibilityLabel("Search courses")
+                .accessibilityIdentifier("course-search.field")
         }
         .padding(12)
         .background(SecondaryColor)
@@ -454,16 +456,16 @@ struct CourseDetailView: View {
     var SecondaryColor: Color
     var TertiaryColor: Color
     
-    var requierments: [String] {
-        viewModel.getRequierments(for: course)
+    var requirements: [String] {
+        viewModel.getRequirements(for: course)
     }
     
     var nextCourses: [Course] {
         viewModel.getNextCourses(for: course)
     }
     
-    var nextCoursesRequierments: [NextCourse] {
-        viewModel.getNextCoursesRequierments(for: course)
+    var nextCourseRequirements: [NextCourse] {
+        viewModel.getNextCourseRequirements(for: course)
     }
     
     var body: some View {
@@ -485,9 +487,9 @@ struct CourseDetailView: View {
                     VStack(alignment: .leading, spacing: 20) {
                         ContentSection(
                             course: course,
-                            requierments: requierments,
+                            requirements: requirements,
                             nextCourses: nextCourses,
-                            nextCoursesRequierments: nextCoursesRequierments,
+                            nextCourseRequirements: nextCourseRequirements,
                             onCourseSelected: onCourseSelected,
                             PrimaryColor: PrimaryColor,
                             SecondaryColor: SecondaryColor,
@@ -504,7 +506,7 @@ struct CourseDetailView: View {
 struct CourseBtn: View {
     let course: Course
     let minGrade: String
-    let requierments: [String]
+    let requirements: [String]
     let onTap: () -> Void
     
     var PrimaryColor: Color
@@ -525,7 +527,7 @@ struct CourseBtn: View {
                         Text("Min: \(minGrade)").font(.caption2).fontWeight(.semibold).foregroundColor(.white).padding(.horizontal, 6).padding(.vertical, 2).background(PrimaryColor).cornerRadius(4)
                     }
                     
-                    ForEach(requierments, id: \.self) { req in
+                    ForEach(requirements, id: \.self) { req in
                         Text(req).font(.caption).foregroundColor(TertiaryColor.highContrastTextColor())
                     }
                 }
@@ -568,8 +570,8 @@ struct Info: View {
     }
 }
 
-struct Requierments: View {
-    let requierments: [String]
+struct Requirements: View {
+    let requirements: [String]
     
     var PrimaryColor: Color
     var SecondaryColor: Color
@@ -583,15 +585,15 @@ struct Requierments: View {
                 .foregroundStyle(PrimaryColor)
                 .padding(8)
             
-            if requierments.isEmpty {
-                Text("No requirements required")
+            if requirements.isEmpty {
+                Text("No prerequisites")
                     .font(.subheadline)
                     .foregroundColor(TertiaryColor.highContrastTextColor())
                     .padding(12).frame(maxWidth: .infinity, alignment: .leading)
                     .cornerRadius(6)
             } else {
                 VStack(spacing: 8) {
-                    ForEach(requierments, id: \.self) { req in
+                    ForEach(requirements, id: \.self) { req in
                         Text(req)
                             .font(.caption)
                             .foregroundColor(TertiaryColor.highContrastTextColor())
@@ -605,9 +607,9 @@ struct Requierments: View {
 
 struct ContentSection: View {
     let course: Course
-    let requierments: [String]
+    let requirements: [String]
     let nextCourses: [Course]
-    let nextCoursesRequierments: [NextCourse]
+    let nextCourseRequirements: [NextCourse]
     let onCourseSelected: (Course) -> Void
     
     var PrimaryColor: Color
@@ -615,7 +617,7 @@ struct ContentSection: View {
     var TertiaryColor: Color
 
     private var nextPairs: [(Course, NextCourse)] {
-        Array(zip(nextCourses, nextCoursesRequierments))
+        Array(zip(nextCourses, nextCourseRequirements))
     }
 
     var body: some View {
@@ -635,8 +637,8 @@ struct ContentSection: View {
             Divider()
 
             VStack(alignment: .leading, spacing: 12) {
-                Requierments(
-                    requierments: requierments,
+                Requirements(
+                    requirements: requirements,
                     PrimaryColor: PrimaryColor,
                     SecondaryColor: SecondaryColor,
                     TertiaryColor: TertiaryColor
@@ -669,7 +671,7 @@ struct ContentSection: View {
                     CourseBtn(
                         course: course,
                         minGrade: meta.grade,
-                        requierments: meta.requirements,
+                        requirements: meta.requirements,
                         onTap: { onCourseSelected(course) },
                         PrimaryColor: PrimaryColor,
                         SecondaryColor: SecondaryColor,
@@ -689,58 +691,62 @@ struct FilterBar: View {
     var TertiaryColor: Color
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
+        HStack(spacing: 8) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
 
-                Menu {
-                    Picker("Subject", selection: $vm.selectedSubject) {
-                        ForEach(SubjectArea.allCases) { s in
-                            Text(s.rawValue).tag(s)
+                    Menu {
+                        Picker("Subject", selection: $vm.selectedSubject) {
+                            ForEach(SubjectArea.allCases) { s in
+                                Text(s.rawValue).tag(s)
+                            }
                         }
+                    } label: {
+                        chipLabel("Subject", value: vm.selectedSubject.rawValue)
                     }
-                } label: {
-                    chipLabel("Subject", value: vm.selectedSubject.rawValue)
-                }
 
-                Menu {
-                    Picker("Level", selection: $vm.selectedLevel) {
-                        ForEach(CourseLevel.allCases) { l in
-                            Text(l.rawValue).tag(l)
+                    Menu {
+                        Picker("Level", selection: $vm.selectedLevel) {
+                            ForEach(CourseLevel.allCases) { l in
+                                Text(l.rawValue).tag(l)
+                            }
                         }
+                    } label: {
+                        chipLabel("Level", value: vm.selectedLevel.rawValue)
                     }
-                } label: {
-                    chipLabel("Level", value: vm.selectedLevel.rawValue)
-                }
 
-                Menu {
-                    Picker("Grade", selection: $vm.selectedGrade) {
-                        ForEach(GradeFilter.allCases) { g in
-                            Text(g.rawValue).tag(g)
+                    Menu {
+                        Picker("Grade", selection: $vm.selectedGrade) {
+                            ForEach(GradeFilter.allCases) { g in
+                                Text(g.rawValue).tag(g)
+                            }
                         }
+                    } label: {
+                        chipLabel("Grade", value: vm.selectedGrade.rawValue)
                     }
-                } label: {
-                    chipLabel("Grade", value: vm.selectedGrade.rawValue)
-                }
-
-                Button {
-                    vm.clearFilters()
-                } label: {
-                    Text("Clear")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(PrimaryColor)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 8)
-                        .background(SecondaryColor)
-                        .clipShape(Capsule())
-                        .overlay(
-                            Capsule().stroke(PrimaryColor.opacity(0.35), lineWidth: 1)
-                        )
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.top, 8)
-            .padding(.bottom, 4)
+
+            Button {
+                vm.clearFilters()
+            } label: {
+                Text("Clear")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(PrimaryColor)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .background(SecondaryColor)
+                    .clipShape(Capsule())
+                    .overlay(
+                        Capsule().stroke(PrimaryColor.opacity(0.35), lineWidth: 1)
+                    )
+            }
+            .accessibilityIdentifier("course-filter.clear")
+            .fixedSize()
         }
+        .padding(.horizontal, 12)
+        .padding(.top, 8)
+        .padding(.bottom, 4)
     }
 
     private func chipLabel(_ title: String, value: String) -> some View {
@@ -764,4 +770,3 @@ struct FilterBar: View {
         )
     }
 }
-

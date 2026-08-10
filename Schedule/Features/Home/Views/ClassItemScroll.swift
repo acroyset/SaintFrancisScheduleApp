@@ -6,6 +6,13 @@
 import SwiftUI
 
 struct ClassItemScroll: View {
+    private struct SelectedClass: Identifiable {
+        let id: UUID
+        let item: ClassItem
+        let index: Int
+        let timeRange: String
+    }
+
     let scheduleLines: [ScheduleLine]
     let PrimaryColor: Color
     let SecondaryColor: Color
@@ -33,6 +40,7 @@ struct ClassItemScroll: View {
     @State private var editingReminder: CustomEvent?
     @State private var showingConflictAlert = false
     @State private var conflictingEvents: [CustomEvent] = []
+    @State private var selectedClass: SelectedClass?
     
     let currentDate: Date
     let classes: [ClassItem]
@@ -132,6 +140,21 @@ struct ClassItemScroll: View {
                 TertiaryColor: TertiaryColor
             )
         }
+        .sheet(item: $selectedClass) { selection in
+            ClassDetailView(
+                classItem: selection.item,
+                classIndex: selection.index,
+                timeRange: selection.timeRange,
+                classes: classes,
+                currentDate: currentDate,
+                PrimaryColor: PrimaryColor,
+                SecondaryColor: SecondaryColor,
+                TertiaryColor: TertiaryColor
+            )
+            .environmentObject(homeworkStore)
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+        }
         .sheet(item: $editingEvent) { event in
             AddEventView(
                 isPresented: Binding(
@@ -165,21 +188,26 @@ struct ClassItemScroll: View {
         .onChange(of: addEvent) { _, shouldAdd in
             if shouldAdd {
                 showingAddEvent = true
-                addEvent = false
             }
         }
         .onChange(of: addReminder) { _, shouldAdd in
             if shouldAdd {
                 showingAddReminder = true
-                addReminder = false
             }
         }
         .onChange(of: addHomework) { _, shouldAdd in
             if shouldAdd {
-                AppFeatureBadge.markSeen(.homework)
                 showingAddHomework = true
-                addHomework = false
             }
+        }
+        .onChange(of: showingAddEvent) { _, isPresented in
+            addEvent = isPresented
+        }
+        .onChange(of: showingAddReminder) { _, isPresented in
+            addReminder = isPresented
+        }
+        .onChange(of: showingAddHomework) { _, isPresented in
+            addHomework = isPresented
         }
         .onAppear {
             checkAllConflicts()
@@ -255,6 +283,20 @@ struct ClassItemScroll: View {
     
     @ViewBuilder
     private func classRowView(line: ScheduleLine) -> some View {
+        if let selection = selectedClass(for: line) {
+            Button {
+                selectedClass = selection
+            } label: {
+                classRowContent(line: line, showsDisclosureIndicator: true)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Opens grade and homework details")
+        } else {
+            classRowContent(line: line, showsDisclosureIndicator: false)
+        }
+    }
+
+    private func classRowContent(line: ScheduleLine, showsDisclosureIndicator: Bool) -> some View {
         HStack(spacing: 12) {
             if let progress = line.progress {
                 ClassProgressBar(
@@ -313,10 +355,39 @@ struct ClassItemScroll: View {
             }
             
             Spacer()
+
+            if showsDisclosureIndicator {
+                Image(systemName: "chevron.right")
+                    .appThemeFont(.primary, size: iPad ? 15 : 13, weight: .bold)
+                    .foregroundColor(line.isCurrentClass ? TertiaryColor.opacity(0.7) : PrimaryColor.opacity(0.45))
+            }
         }
         .padding(iPad ? 16 : 12)
         .background(line.isCurrentClass ? PrimaryColor : SecondaryColor)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private func selectedClass(for line: ScheduleLine) -> SelectedClass? {
+        let candidates = Array(classes.prefix(7).enumerated())
+
+        let exactMatch = candidates.first { _, item in
+            item.name == line.className &&
+            item.teacher == line.teacher &&
+            item.room == line.room
+        }
+
+        let match = exactMatch ?? candidates.first { _, item in
+            !line.className.isEmpty && item.name == line.className
+        }
+
+        guard let (index, item) = match else { return nil }
+
+        return SelectedClass(
+            id: line.id,
+            item: item,
+            index: index,
+            timeRange: line.timeRange
+        )
     }
     
     @ViewBuilder

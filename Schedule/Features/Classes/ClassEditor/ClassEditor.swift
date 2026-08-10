@@ -121,7 +121,7 @@ struct VphoneClassEditor: View {
                                 TertiaryColor: TertiaryColor
                             )
                             
-                            .frame(maxWidth: iPad ? .infinity : 60)
+                            .frame(maxWidth: iPad ? .infinity : 80)
                         }
                         .zIndex(Double(indices.count - position))
                     }
@@ -162,13 +162,13 @@ struct VphoneClassEditor: View {
                         Button(action: { window = .None }) {
                             Image(systemName: "xmark.circle.fill")
                                 .appThemeFont(.primary, size: iPad ? 30 : 26)
-                                .foregroundStyle(PrimaryColor)
+                                .foregroundStyle(TertiaryColor.maximumContrastTextColor())
                         }
                         .padding(iPad ? 16 : 12)
                     }
                     .frame(maxWidth: .infinity)
-                    .foregroundStyle(PrimaryColor)
-                    .glassEffect()
+                    .foregroundStyle(TertiaryColor.maximumContrastTextColor())
+                    .glassEffect(.regular.tint(TertiaryColor.opacity(0.62)))
                 } else {
                     HStack {
                         Text("Class Editor")
@@ -320,7 +320,7 @@ struct HphoneClassEditor: View {
                                     SecondaryColor: SecondaryColor,
                                     TertiaryColor: TertiaryColor
                                 )
-                                .frame(maxWidth: iPad ? .infinity : 60)
+                                .frame(maxWidth: iPad ? .infinity : 80)
                             }
                         }
                     }

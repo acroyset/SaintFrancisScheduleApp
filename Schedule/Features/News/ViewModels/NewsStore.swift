@@ -12,17 +12,20 @@ final class NewsStore: ObservableObject {
     @Published var lastUpdatedString: String = "—"
     @Published var htmlContent: String = ""
     @Published var latestVideo: LancerLiveVideo?
+    @Published var athleticsSchedule: AthleticsSchedule?
     @Published var errorMessage: String?
     @Published var isLoading: Bool = false
 
     private let announcementsService = DailyAnnouncementsService()
     private let lancerLiveService = LancerLiveService()
+    private let athleticsService = AthleticsService()
     private let refreshSeconds: UInt64 = 30
 
     private var pollTask: Task<Void, Never>?
     private var currentLoadID = UUID()
     private var cachedAnnouncementsHTML: String = ""
     private var cachedLancerLiveVideo: LancerLiveVideo?
+    private var cachedAthleticsSchedule: AthleticsSchedule?
 
     func startPolling() async {
         stopPolling()
@@ -58,18 +61,29 @@ final class NewsStore: ObservableObject {
         switch requestedSource {
         case .dailyAnnouncements:
             latestVideo = nil
+            athleticsSchedule = nil
             if !cachedAnnouncementsHTML.isEmpty {
                 htmlContent = cachedAnnouncementsHTML
             }
             await fetchDailyAnnouncements(loadID: loadID, source: requestedSource)
         case .lancerLive:
             htmlContent = ""
+            athleticsSchedule = nil
             if let cachedLancerLiveVideo {
                 latestVideo = cachedLancerLiveVideo
             } else {
                 latestVideo = nil
             }
             await fetchLancerLive(loadID: loadID, source: requestedSource)
+        case .athletics:
+            htmlContent = ""
+            latestVideo = nil
+            if let cachedAthleticsSchedule {
+                athleticsSchedule = cachedAthleticsSchedule
+            } else {
+                athleticsSchedule = nil
+            }
+            await fetchAthletics(loadID: loadID, source: requestedSource)
         }
     }
 
@@ -131,6 +145,44 @@ final class NewsStore: ObservableObject {
         } else {
             latestVideo = nil
             errorMessage = "Couldn’t load the latest Lancer Live video right now."
+        }
+    }
+
+    private func fetchAthletics(loadID: UUID, source: NewsSource) async {
+        var lastError: Error?
+
+        for attempt in 1...3 {
+            guard shouldApply(loadID: loadID, source: source) else { return }
+
+            do {
+                let schedule = try await athleticsService.fetchSchedule()
+                guard shouldApply(loadID: loadID, source: source) else { return }
+
+                athleticsSchedule = schedule
+                cachedAthleticsSchedule = schedule
+                isLoading = false
+                updateTimestamp()
+                return
+            } catch {
+                lastError = error
+                guard attempt < 3 else { break }
+                try? await Task.sleep(nanoseconds: UInt64(attempt) * 700_000_000)
+            }
+        }
+
+        if let lastError {
+            print("⚠️ Athletics schedule failed after retries: \(lastError)")
+        }
+
+        guard shouldApply(loadID: loadID, source: source) else { return }
+
+        isLoading = false
+        if let cachedAthleticsSchedule {
+            athleticsSchedule = cachedAthleticsSchedule
+            errorMessage = "Showing the last loaded Athletics schedule."
+        } else {
+            athleticsSchedule = nil
+            errorMessage = "Couldn’t load Athletics games right now."
         }
     }
 

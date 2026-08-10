@@ -26,13 +26,28 @@ class AuthenticationManager: ObservableObject {
     private var pendingPolicyUserId: String? = nil
     private var pendingPolicyIsNewUser: Bool = false
     let policyVersion = "2026-04-07"
-    private let dataManager = DataManager()
+    private lazy var dataManager = DataManager()
     private var authStateHandle: AuthStateDidChangeListenerHandle?
     private var isHandlingSignUp = false
     
     private var currentNonce: String?
 
     init() {
+        if AppRuntime.isUITesting {
+            isUsingDebugGuestSession = true
+            UserDefaults.standard.set(true, forKey: "HasCompletedOnboarding")
+            UserDefaults.standard.set(true, forKey: "HasLaunchedBefore")
+            UserDefaults.standard.set(version, forKey: "LastSeenVersion")
+            UserDefaults.standard.set(
+                true,
+                forKey: BackToSchoolPromptStorage.reminderPrompt2026
+            )
+            UserDefaults.standard.set(
+                true,
+                forKey: BackToSchoolPromptStorage.firstDayClassUpdateHandled2026
+            )
+            return
+        }
         setupAuthStateListener()
     }
 

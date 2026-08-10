@@ -25,7 +25,7 @@ func loadSFHSCourses() -> [Course] {
         Course(
             id: "en1h",
             name: "English 1 Honors",
-            requirements: ["Current Freshmen", "HSPT Placment Test Scores"],
+            requirements: ["Current Freshmen", "HSPT Placement Test Scores"],
             nextCourses: [
                 NextCourse(courseId: "en2h")
             ],
@@ -49,7 +49,7 @@ func loadSFHSCourses() -> [Course] {
         Course(
             id: "en2",
             name: "English 2",
-            requirements: ["Current Sophmore"],
+            requirements: ["Current Sophomore"],
             nextCourses: [
                 NextCourse(courseId: "en3"),
                 NextCourse(courseId: "APenLang", grade: "Any", requirements: ["Contract Required"])
@@ -61,7 +61,7 @@ func loadSFHSCourses() -> [Course] {
         Course(
             id: "en2h",
             name: "English 2 Honors",
-            requirements: ["Current Sophmore", "Current English 1 Honors Student", "Current English 1 Student with A-"],
+            requirements: ["Current Sophomore", "Current English 1 Honors Student", "Current English 1 Student with A-"],
             nextCourses: [
                 NextCourse(courseId: "en3"),
                 NextCourse(courseId: "APenLang", grade: "Any", requirements: ["Contract Required"])

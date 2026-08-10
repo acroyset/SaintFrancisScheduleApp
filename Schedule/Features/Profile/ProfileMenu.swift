@@ -31,6 +31,17 @@ struct ProfileMenu: View {
     @State private var showSyncMessage = false
     @State private var showSettings = false
     @State private var showAllItems = false
+    @State private var profileHeaderHeight: CGFloat = 0
+
+    private var profileHeaderTopSpacing: CGFloat {
+        max(profileHeaderHeight + (iPad ? 16 : 12), iPad ? 104 : 76)
+    }
+
+    private var readablePrimaryColor: Color {
+        PrimaryColor.accessibleForegroundColor(
+            against: SecondaryColor.composited(over: TertiaryColor)
+        )
+    }
     
     /// Detect Google accounts safely — only evaluated when the view
     /// is fully alive and authManager.user is already set.
@@ -49,7 +60,7 @@ struct ProfileMenu: View {
             VStack(spacing: 12) {
                 ScrollView {
                     
-                    Color.clear.frame(height: iPad ? 60 : 50)
+                    Color.clear.frame(height: profileHeaderTopSpacing)
                     
                     HStack {
                         VStack(alignment: .leading, spacing: 8) {
@@ -60,7 +71,7 @@ struct ProfileMenu: View {
                                 
                                 Text(user.displayName ?? "User")
                                     .appThemeFont(.primary, style: .headline, weight: .semibold)
-                                    .foregroundColor(PrimaryColor)
+                                    .foregroundColor(readablePrimaryColor)
                                 
                                 Text(user.email)
                                     .appThemeFont(.secondary, style: .caption)
@@ -68,7 +79,7 @@ struct ProfileMenu: View {
                             } else {
                                 Text("Debug Guest Mode")
                                     .appThemeFont(.primary, style: .headline, weight: .semibold)
-                                    .foregroundColor(PrimaryColor)
+                                    .foregroundColor(readablePrimaryColor)
 
                                 Text("Working locally on this device")
                                     .appThemeFont(.secondary, style: .caption)
@@ -84,8 +95,10 @@ struct ProfileMenu: View {
                             } label: {
                                 Label(iPad ? "Settings" : "", systemImage: "gearshape.fill")
                                     .appThemeFont(.primary, style: .title)
-                                    .foregroundStyle(PrimaryColor)
+                                    .foregroundStyle(readablePrimaryColor)
                             }
+                            .accessibilityLabel("Settings")
+                            .accessibilityIdentifier("profile.settings")
                         }
                         .padding()
                     }
@@ -123,7 +136,7 @@ struct ProfileMenu: View {
                         .frame(maxWidth: .infinity, minHeight: iPad ? 44 : 30)
                         .padding()
                         .background(SecondaryColor)
-                        .foregroundColor(PrimaryColor)
+                        .foregroundColor(readablePrimaryColor)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
                     .disabled(isSaving)
@@ -142,7 +155,7 @@ struct ProfileMenu: View {
                         .frame(maxWidth: .infinity, minHeight: iPad ? 44 : 30)
                         .padding()
                         .background(SecondaryColor)
-                        .foregroundColor(PrimaryColor)
+                        .foregroundColor(readablePrimaryColor)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
                     .disabled(isLoading)
@@ -160,7 +173,7 @@ struct ProfileMenu: View {
                             Image(systemName: "chevron.right")
                         }
                         .padding(12)
-                        .foregroundStyle(PrimaryColor)
+                        .foregroundStyle(readablePrimaryColor)
                         .background(SecondaryColor)
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                     }
@@ -176,7 +189,7 @@ struct ProfileMenu: View {
                             Image(systemName: "chevron.right")
                         }
                         .padding(12)
-                        .foregroundStyle(PrimaryColor)
+                        .foregroundStyle(readablePrimaryColor)
                         .background(SecondaryColor)
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                     }
@@ -219,7 +232,7 @@ struct ProfileMenu: View {
                             .frame(maxWidth: .infinity, minHeight: iPad ? 44 : 30)
                             .padding()
                             .background(SecondaryColor)
-                            .foregroundColor(PrimaryColor)
+                            .foregroundColor(readablePrimaryColor)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
                     
@@ -240,21 +253,33 @@ struct ProfileMenu: View {
             }
             
             VStack {
-                if #available(iOS 26.0, *), AppAvailability.liquidGlass {
-                    Text("Profile")
-                        .appThemeFont(.secondary, size: iPad ? 40 : 26, weight: .bold)
-                        .padding(.vertical, iPad ? 20 : 14)
-                        .padding(.horizontal, iPad ? 18 : 12)
-                        .frame(maxWidth: .infinity)
-                        .foregroundStyle(PrimaryColor)
-                        .glassEffect()
-                } else {
-                    Text("Profile")
-                        .appThemeFont(.secondary, size: iPad ? 40 : 26, weight: .bold)
-                        .padding(.vertical, iPad ? 20 : 14)
-                        .padding(.horizontal, iPad ? 18 : 12)
-                        .foregroundStyle(PrimaryColor)
+                Group {
+                    if #available(iOS 26.0, *), AppAvailability.liquidGlass {
+                        Text("Profile")
+                            .appThemeFont(.secondary, size: iPad ? 40 : 26, weight: .bold)
+                            .padding(.vertical, iPad ? 20 : 14)
+                            .padding(.horizontal, iPad ? 18 : 12)
+                            .frame(maxWidth: .infinity)
+                            .foregroundStyle(PrimaryColor)
+                            .glassEffect(.regular.tint(TertiaryColor.opacity(0.62)))
+                    } else {
+                        Text("Profile")
+                            .appThemeFont(.secondary, size: iPad ? 40 : 26, weight: .bold)
+                            .padding(.vertical, iPad ? 20 : 14)
+                            .padding(.horizontal, iPad ? 18 : 12)
+                            .frame(maxWidth: .infinity)
+                            .foregroundStyle(PrimaryColor)
+                    }
                 }
+                .background(
+                    GeometryReader { geo in
+                        Color.clear
+                            .onAppear { profileHeaderHeight = geo.size.height }
+                            .onChange(of: geo.size.height) { _, newHeight in
+                                profileHeaderHeight = newHeight
+                            }
+                    }
+                )
                 Spacer()
             }
         }
