@@ -14,22 +14,50 @@
 
 import FirebaseFirestore
 
-class CloudEventsDataManager {
+@MainActor
+final class CloudEventsDataManager {
+    static let shared = CloudEventsDataManager()
+
     private let firestore  = Firestore.firestore()
     private let encryption = EncryptionService.shared
+
+    private struct CloudSnapshot {
+        let events: [CustomEvent]
+        let isEncrypted: Bool
+    }
+
+    private struct PendingSave {
+        let id: UUID
+        let task: Task<Void, Error>
+    }
+
+    private static var snapshots: [String: CloudSnapshot] = [:]
+    private static var usersNeedingRewrite: Set<String> = []
+    private static var pendingSaves: [String: PendingSave] = [:]
 
     // -------------------------------------------------------------------------
     // MARK: Save
     // -------------------------------------------------------------------------
 
     func saveEvents(_ events: [CustomEvent], for userId: String) async throws {
-        let encryptedBlob = try encryption.encrypt(events, userId: userId)
+        let previousTask = Self.pendingSaves[userId]?.task
+        let saveID = UUID()
+        let task = Task { @MainActor [self] in
+            if let previousTask {
+                _ = try? await previousTask.value
+            }
+            try await writeEventsIfChanged(events, for: userId)
+        }
 
-        try await firestore.collection("users").document(userId).setData([
-            "eventsEncrypted":    true,         // ← migration flag
-            "customEvents":       encryptedBlob,
-            "eventsLastUpdated":  FieldValue.serverTimestamp()
-        ], merge: true)
+        Self.pendingSaves[userId] = PendingSave(id: saveID, task: task)
+
+        do {
+            try await task.value
+            clearPendingSave(saveID, for: userId)
+        } catch {
+            clearPendingSave(saveID, for: userId)
+            throw error
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -43,17 +71,50 @@ class CloudEventsDataManager {
         // ── Encrypted path ───────────────────────────────────────────────────
         if data["eventsEncrypted"] as? Bool == true,
            let blob = data["customEvents"] as? String {
-            return (try? encryption.decrypt(blob, as: [CustomEvent].self, userId: userId)) ?? []
+            let events = (try? encryption.decrypt(blob, as: [CustomEvent].self, userId: userId)) ?? []
+            Self.snapshots[userId] = CloudSnapshot(events: events, isEncrypted: true)
+            return events
         }
 
         // ── Legacy plaintext path ────────────────────────────────────────────
-        guard let eventsArray = data["customEvents"] as? [[String: Any]] else { return [] }
-        return eventsArray.compactMap { Self.eventFromDict($0) }
+        guard let eventsArray = data["customEvents"] as? [[String: Any]] else {
+            Self.snapshots[userId] = CloudSnapshot(events: [], isEncrypted: false)
+            return []
+        }
+        let events = eventsArray.compactMap { Self.eventFromDict($0) }
+        Self.snapshots[userId] = CloudSnapshot(events: events, isEncrypted: false)
+        Self.usersNeedingRewrite.insert(userId)
+        return events
     }
 
     // -------------------------------------------------------------------------
     // MARK: Private — legacy decoder (unchanged from original)
     // -------------------------------------------------------------------------
+
+    private func writeEventsIfChanged(_ events: [CustomEvent], for userId: String) async throws {
+        let previous = Self.snapshots[userId]
+        let needsRewrite = Self.usersNeedingRewrite.contains(userId)
+        guard previous?.events != events || previous?.isEncrypted != true || needsRewrite else {
+            return
+        }
+
+        var changedData: [String: Any] = [
+            "customEvents": try encryption.encrypt(events, userId: userId),
+            "eventsLastUpdated": FieldValue.serverTimestamp()
+        ]
+        if previous?.isEncrypted != true {
+            changedData["eventsEncrypted"] = true
+        }
+
+        try await firestore.collection("users").document(userId).setData(changedData, merge: true)
+        Self.snapshots[userId] = CloudSnapshot(events: events, isEncrypted: true)
+        Self.usersNeedingRewrite.remove(userId)
+    }
+
+    private func clearPendingSave(_ saveID: UUID, for userId: String) {
+        guard Self.pendingSaves[userId]?.id == saveID else { return }
+        Self.pendingSaves[userId] = nil
+    }
 
     private static func eventFromDict(_ eventDict: [String: Any]) -> CustomEvent? {
         guard

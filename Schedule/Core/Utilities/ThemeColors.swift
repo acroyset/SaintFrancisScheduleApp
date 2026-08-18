@@ -49,7 +49,7 @@ extension EnvironmentValues {
     }
 }
 
-struct ThemeColors: Codable {
+struct ThemeColors: Codable, Equatable {
     var primary: String
     var secondary: String
     var tertiary: String

@@ -111,6 +111,7 @@ struct Provider: TimelineProvider {
         }
         
         let dayCode = dayInfo[0]
+        let specialScheduleCode = dayInfo.count > 2 ? dayInfo[2] : ""
         
         // 4. Load the class data
         guard let data = loadScheduleData()?.normalized() else {
@@ -119,7 +120,12 @@ struct Provider: TimelineProvider {
         }
         
         // 5. Generate schedule lines for today
-        let lines = generateScheduleLines(for: dayCode, data: data, date: now)
+        let lines = generateScheduleLines(
+            for: dayCode,
+            specialScheduleCode: specialScheduleCode,
+            data: data,
+            date: now
+        )
         let nextClassText = lines.isEmpty
             ? nextWidgetClassDate(after: now, scheduleDict: scheduleDict, data: data)
                 .map { formattedWidgetNextClassText(for: $0, relativeTo: now) }
@@ -128,13 +134,22 @@ struct Provider: TimelineProvider {
         return (lines, dayCode, nextClassText)
     }
     
-    private func generateScheduleLines(for dayCode: String, data: ScheduleData, date: Date) -> [ScheduleLine] {
+    private func generateScheduleLines(
+        for dayCode: String,
+        specialScheduleCode: String,
+        data: ScheduleData,
+        date: Date
+    ) -> [ScheduleLine] {
         let map = ["g1":0,"b1":1,"g2":2,"b2":3,"a1":4,"a2":5,"a3":6,"a4":7,"l1":8,"l2":9,"s1":10]
         guard let di = map[dayCode.lowercased()], data.days.indices.contains(di) else {
             return []
         }
         
-        let day = data.days[di]
+        let day = resolvedWidgetDay(
+            dayCode: dayCode,
+            specialScheduleCode: specialScheduleCode,
+            data: data
+        ) ?? data.days[di]
         let now = Time.now()
         let nowSec = now.seconds
         

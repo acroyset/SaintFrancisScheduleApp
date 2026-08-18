@@ -148,47 +148,15 @@ struct VphoneClassEditor: View {
                 )
             }
             
-            VStack{
-                
-                if #available(iOS 26.0, *), AppAvailability.liquidGlass {
-                    HStack {
-                        Text("Class Editor")
-                            .appThemeFont(.secondary, size: iPad ? 34 : 22, weight: .bold)
-                            .padding(iPad ? 16 : 12)
-                            .padding(.horizontal, iPad ? 20 : 16)
-                        
-                        Spacer()
-                        
-                        Button(action: { window = .None }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .appThemeFont(.primary, size: iPad ? 30 : 26)
-                                .foregroundStyle(TertiaryColor.maximumContrastTextColor())
-                        }
-                        .padding(iPad ? 16 : 12)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .foregroundStyle(TertiaryColor.maximumContrastTextColor())
-                    .glassEffect(.regular.tint(TertiaryColor.opacity(0.62)))
-                } else {
-                    HStack {
-                        Text("Class Editor")
-                            .appThemeFont(.secondary, size: 24, weight: .bold)
-                            .foregroundStyle(PrimaryColor)
-                        
-                        Spacer()
-                        
-                        Button(action: { window = .None }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .appThemeFont(.primary, size: 24)
-                                .foregroundStyle(PrimaryColor)
-                        }
-                    }
-                    .padding(20)
-                    .background(SecondaryColor)
-                    .cornerRadius(16)
-                }
-                
-                
+            VStack {
+                ClassFeatureHeader(
+                    title: "Class Editor",
+                    PrimaryColor: PrimaryColor,
+                    SecondaryColor: SecondaryColor,
+                    TertiaryColor: TertiaryColor,
+                    onBack: { window = .None }
+                )
+
                 Spacer()
             }
             
@@ -198,7 +166,8 @@ struct VphoneClassEditor: View {
                     isPresented: $showSchoologyConnect,
                     data: $data,
                     PrimaryColor: PrimaryColor,
-                    SecondaryColor: SecondaryColor
+                    SecondaryColor: SecondaryColor,
+                    TertiaryColor: TertiaryColor
                 )
             }
         }
@@ -225,22 +194,13 @@ struct HphoneClassEditor: View {
     
     var body: some View {
         VStack {
-            HStack {
-                Text("Class Editor")
-                    .appThemeFont(.secondary, size: 24, weight: .bold)
-                    .foregroundStyle(PrimaryColor)
-                
-                Spacer()
-                
-                Button(action: { window = .None }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .appThemeFont(.primary, size: 24)
-                        .foregroundStyle(PrimaryColor)
-                }
-            }
-            .padding(20)
-            .background(SecondaryColor)
-            .cornerRadius(16)
+            ClassFeatureHeader(
+                title: "Class Editor",
+                PrimaryColor: PrimaryColor,
+                SecondaryColor: SecondaryColor,
+                TertiaryColor: TertiaryColor,
+                onBack: { window = .None }
+            )
             
             ScrollView {
                 VStack(spacing: 12) {

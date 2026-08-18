@@ -26,16 +26,25 @@ final class ScheduleRenderer {
         dayCode: String,
         selectedDate: Date,
         data: ScheduleData,
-        events: [CustomEvent]
+        events: [CustomEvent],
+        specialScheduleCode: String = ""
     ) -> [ScheduleLine] {
         let map = ["g1":0,"b1":1,"g2":2,"b2":3,"a1":4,"a2":5,"a3":6,"a4":7,"l1":8,"l2":9,"s1":10]
-        guard let di = map[dayCode.lowercased()], data.days.indices.contains(di) else {
+        guard let di = map[dayCode.lowercased()] else {
             return []
+        }
+
+        let d: Day
+        if dayCode.caseInsensitiveCompare("s1") == .orderedSame,
+           let specialSchedule = SpecialSchedule(code: specialScheduleCode) {
+            d = specialSchedule.day
+        } else {
+            guard data.days.indices.contains(di) else { return [] }
+            d = data.days[di]
         }
 
         let cal     = Calendar.current
         let isToday = cal.isDateInToday(selectedDate)
-        let d       = data.days[di]
         let now     = Time.now()
         let nowSec  = now.seconds
         let shouldSwap = shouldSwapLunchAndPeriod(dayIndex: di, isSecondLunch: data.isSecondLunch)

@@ -75,8 +75,13 @@ struct DayTypeProvider: TimelineProvider {
         }
         
         let dayCode = dayInfo[0]
+        let specialScheduleCode = dayInfo.count > 2 ? dayInfo[2] : ""
         let dayName = getDayName(dayCode)
-        let startTime = getSchoolStartTime(dayCode: dayCode, data: data)
+        let startTime = getSchoolStartTime(
+            dayCode: dayCode,
+            specialScheduleCode: specialScheduleCode,
+            data: data
+        )
         let hasClasses = startTime != "--:--"
         let emptyMessage = hasClasses
             ? nil
@@ -93,13 +98,15 @@ struct DayTypeProvider: TimelineProvider {
         }
         
         let dayCode = dayInfo[0]
-        let map = ["g1":0,"b1":1,"g2":2,"b2":3,"a1":4,"a2":5,"a3":6,"a4":7,"l1":8,"l2":9,"s1":10]
-        
-        guard let di = map[dayCode.lowercased()], data.days.indices.contains(di) else {
+        let specialScheduleCode = dayInfo.count > 2 ? dayInfo[2] : ""
+
+        guard let day = resolvedWidgetDay(
+            dayCode: dayCode,
+            specialScheduleCode: specialScheduleCode,
+            data: data
+        ) else {
             return false
         }
-        
-        let day = data.days[di]
         
         // Check if any class starts after current time
         for i in day.names.indices {
@@ -112,26 +119,31 @@ struct DayTypeProvider: TimelineProvider {
         return false
     }
     
-    private func getSchoolStartTime(dayCode: String, data: ScheduleData) -> String {
-        let map = ["g1":0,"b1":1,"g2":2,"b2":3,"a1":4,"a2":5,"a3":6,"a4":7,"l1":8,"l2":9,"s1":10]
-        guard let di = map[dayCode.lowercased()], data.days.indices.contains(di) else {
+    private func getSchoolStartTime(
+        dayCode: String,
+        specialScheduleCode: String,
+        data: ScheduleData
+    ) -> String {
+        guard let day = resolvedWidgetDay(
+            dayCode: dayCode,
+            specialScheduleCode: specialScheduleCode,
+            data: data
+        ) else {
             return "--:--"
         }
         
-        let day = data.days[di]
-        
-        // Find first $1, $2, or $6 class
+        // Find the first academic class, including arbitrary special-day orders.
         for i in day.names.indices {
             let name = day.names[i]
             if name.hasPrefix("$") {
                 if let num = Int(name.dropFirst()),
-                   (num == 1 || num == 2 || num == 6) {
+                   (1...7).contains(num) {
                     return day.startTimes[i].string()
                 }
             }
         }
         
-        // Fallback to first class if no $1, $2, or $6 found
+        // Fallback to the first scheduled item when there is no academic class.
         if day.names.indices.contains(0) {
             return day.startTimes[0].string()
         }

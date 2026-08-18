@@ -42,11 +42,13 @@ enum ScheduleSelectionResolver {
 
         let dayCode = day[0]
         let note = day.count > 1 ? day[1] : ""
+        let specialScheduleCode = day.count > 2 ? day[2] : ""
         let scheduleLines = renderedLines(
             dayCode: dayCode,
             selectedDate: selectedDate,
             data: data,
-            events: events
+            events: events,
+            specialScheduleCode: specialScheduleCode
         )
 
         return ResolvedScheduleSelection(
@@ -63,13 +65,15 @@ enum ScheduleSelectionResolver {
         dayCode: String,
         selectedDate: Date,
         data: ScheduleData?,
-        events: [CustomEvent]
+        events: [CustomEvent],
+        specialScheduleCode: String = ""
     ) -> [ScheduleLine] {
         ScheduleRenderer.shared.render(
             dayCode: dayCode,
             selectedDate: selectedDate,
             data: data ?? ScheduleData(classes: [], days: []),
-            events: events
+            events: events,
+            specialScheduleCode: specialScheduleCode
         )
     }
 

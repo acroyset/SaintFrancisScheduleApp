@@ -80,37 +80,18 @@ struct HomeworkListView: View {
     }
 
     private var header: some View {
-        HStack(spacing: 10) {
-            Button {
-                window.wrappedValue = .None
-            } label: {
-                Image(systemName: "chevron.left")
-                    .appThemeFont(.primary, size: 18, weight: .bold)
-                    .foregroundColor(PrimaryColor)
-                    .frame(width: 40, height: 40)
-                    .background(SecondaryColor)
-                    .clipShape(Circle())
-            }
-
-            Text("Homework")
-                .appThemeFont(.secondary, size: iPad ? 34 : 22, weight: .bold)
-                .foregroundStyle(PrimaryColor)
-
-            Spacer()
-
-            Button {
+        ClassFeatureHeader(
+            title: "Homework",
+            PrimaryColor: PrimaryColor,
+            SecondaryColor: SecondaryColor,
+            TertiaryColor: TertiaryColor,
+            onBack: { window.wrappedValue = .None },
+            trailingSystemImage: "plus",
+            trailingAccessibilityLabel: "Add homework",
+            trailingAction: {
                 showingAddHomework = true
-            } label: {
-                Image(systemName: "plus")
-                    .appThemeFont(.primary, size: 18, weight: .bold)
-                    .foregroundColor(TertiaryColor)
-                    .frame(width: 40, height: 40)
-                    .background(PrimaryColor)
-                    .clipShape(Circle())
             }
-        }
-        .padding(.horizontal, 12)
-        .padding(.top, 12)
+        )
     }
 
     @ViewBuilder

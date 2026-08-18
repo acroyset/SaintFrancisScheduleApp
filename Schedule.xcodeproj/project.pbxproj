@@ -84,6 +84,7 @@
 				App/AppAvailability.swift,
 				Core/Extensions/DateFormatterExtensions.swift,
 				Core/Models/ScheduleLine.swift,
+				Core/Models/SpecialSchedule.swift,
 				Core/Models/Time.swift,
 				Core/Services/CSVParser.swift,
 				Core/UI/Background.swift,
@@ -627,7 +628,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.20;
+				MARKETING_VERSION = 1.21;
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_BUNDLE_IDENTIFIER = Xcode.ScheduleApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -659,7 +660,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.20;
+				MARKETING_VERSION = 1.21;
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_BUNDLE_IDENTIFIER = Xcode.ScheduleApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -756,7 +757,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.20;
+				MARKETING_VERSION = 1.21;
 				PRODUCT_BUNDLE_IDENTIFIER = Xcode.ScheduleApp.ScheduleWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -784,7 +785,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.20;
+				MARKETING_VERSION = 1.21;
 				PRODUCT_BUNDLE_IDENTIFIER = Xcode.ScheduleApp.ScheduleWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;

@@ -116,6 +116,7 @@ struct WhatIfGradeCalculatorModal: View {
                         }
                         .pickerStyle(.menu)
                         .tint(PrimaryColor)
+                        .foregroundStyle(PrimaryColor)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
@@ -249,7 +250,7 @@ struct WhatIfGradeCalculatorModal: View {
 
                     Text("Your grade data is stored locally on this device. It is not sent to us, and we do not collect it.")
                         .appThemeFont(.secondary, style: .footnote)
-                        .foregroundStyle(TertiaryColor.highContrastTextColor())
+                        .foregroundStyle(PrimaryColor.opacity(0.72))
                 }
                 .padding(16)
 
@@ -271,47 +272,18 @@ struct WhatIfGradeCalculatorModal: View {
             }
 
             VStack {
-                if #available(iOS 26.0, *), AppAvailability.liquidGlass {
-                    HStack {
-                        Text("What-If Calculator")
-                            .appThemeFont(.secondary, size: iPad ? 34 : 18, weight: .bold)
-                            .padding(iPad ? 16 : 12)
-                            .padding(.horizontal, iPad ? 20 : 16)
-
-                        Spacer()
-
-                        Button(action: { window = .None }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .appThemeFont(.primary, size: iPad ? 30 : 22)
-                                .foregroundStyle(TertiaryColor.maximumContrastTextColor())
-                        }
-                        .padding(iPad ? 16 : 12)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .foregroundStyle(TertiaryColor.maximumContrastTextColor())
-                    .glassEffect(.regular.tint(TertiaryColor.opacity(0.62)))
-                } else {
-                    HStack {
-                        Text("What-If Calculator")
-                            .appThemeFont(.secondary, size: 24, weight: .bold)
-                            .foregroundStyle(PrimaryColor)
-
-                        Spacer()
-
-                        Button(action: { window = .None }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .appThemeFont(.primary, size: 24)
-                                .foregroundStyle(PrimaryColor)
-                        }
-                    }
-                    .padding(20)
-                    .background(SecondaryColor)
-                    .cornerRadius(16)
-                }
+                ClassFeatureHeader(
+                    title: "What-If Calculator",
+                    PrimaryColor: PrimaryColor,
+                    SecondaryColor: SecondaryColor,
+                    TertiaryColor: TertiaryColor,
+                    onBack: { window = .None }
+                )
 
                 Spacer()
             }
         }
+        .tint(PrimaryColor)
         .onAppear {
             if let initialClassIndex,
                classOptions.contains(where: { $0.index == initialClassIndex }) {
@@ -332,7 +304,12 @@ struct WhatIfGradeCalculatorModal: View {
 
     private func percentageField(text: Binding<String>, placeholder: String) -> some View {
         HStack(spacing: 8) {
-            TextField(placeholder, text: text)
+            TextField(
+                "",
+                text: text,
+                prompt: Text(placeholder)
+                    .foregroundStyle(PrimaryColor.opacity(0.7))
+            )
                 .keyboardType(.decimalPad)
                 .appThemeFont(.secondary, size: iPad ? 18 : 14, weight: .semibold)
                 .padding(12)

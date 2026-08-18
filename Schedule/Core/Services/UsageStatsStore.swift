@@ -44,6 +44,12 @@ enum UsageItemAction: String, Codable, CaseIterable {
     case open
 }
 
+enum UsageNewsTab: String, Codable, CaseIterable {
+    case dailyAnnouncements
+    case lancerLive
+    case athletics
+}
+
 struct UsageSessionRecord: Codable, Equatable, Hashable {
     let id: String
     let startedAt: Date
@@ -52,40 +58,52 @@ struct UsageSessionRecord: Codable, Equatable, Hashable {
     let lastPage: String?
     let pageDurations: [String: TimeInterval]
     let featureDurations: [String: TimeInterval]
-    let featureCounts: [String: Int]
+    let featureViewCounts: [String: Int]
     let itemActionCounts: [String: [String: Int]]
+    let newsTabDurations: [String: TimeInterval]
+    let newsTabViewCounts: [String: Int]
     let notificationsEnabled: Bool
     let liveActivitiesEnabled: Bool
     let liveActivityActive: Bool
-
-    var duration: TimeInterval {
-        max(0, endedAt.timeIntervalSince(startedAt))
-    }
 }
 
 @MainActor
 final class UsageStatsStore: ObservableObject {
     static let shared = UsageStatsStore()
 
+    private var userScope: String?
     private var activeSessionId: String?
     private var activeSessionStart: Date?
     private var currentPage: UsagePage?
     private var currentFeature: UsageFeature?
+    private var currentNewsTab: UsageNewsTab?
     private var currentPageStartedAt: Date?
     private var currentFeatureStartedAt: Date?
+    private var currentNewsTabStartedAt: Date?
     private var pageDurations: [String: TimeInterval] = UsagePage.defaultDurations
     private var featureDurations: [String: TimeInterval] = UsageFeature.defaultDurations
-    private var featureCounts: [String: Int] = UsageFeature.defaultCounts
+    private var featureViewCounts: [String: Int] = UsageFeature.defaultCounts
     private var itemActionCounts: [String: [String: Int]] = UsageItemKind.defaultActionCounts
+    private var newsTabDurations: [String: TimeInterval] = UsageNewsTab.defaultDurations
+    private var newsTabViewCounts: [String: Int] = UsageNewsTab.defaultCounts
 
     func setUserScope(_ userId: String?) {
+        guard userScope != userId else { return }
+        userScope = userId
         resetSession()
     }
 
     func beginSession(at date: Date = Date()) {
-        if activeSessionStart == nil {
+        let isNewSession = activeSessionStart == nil
+        if isNewSession {
             activeSessionId = UUID().uuidString
             activeSessionStart = date
+            if let currentFeature {
+                featureViewCounts[currentFeature.rawValue, default: 0] += 1
+            }
+            if let currentNewsTab {
+                newsTabViewCounts[currentNewsTab.rawValue, default: 0] += 1
+            }
         }
         if currentPageStartedAt == nil, currentPage != nil {
             currentPageStartedAt = date
@@ -93,11 +111,25 @@ final class UsageStatsStore: ObservableObject {
         if currentFeatureStartedAt == nil, currentFeature != nil {
             currentFeatureStartedAt = date
         }
+        if currentNewsTabStartedAt == nil, currentNewsTab != nil {
+            currentNewsTabStartedAt = date
+        }
     }
 
-    func currentSessionRecord(at date: Date = Date()) -> UsageSessionRecord? {
+    func pauseSession(at date: Date = Date()) -> UsageSessionRecord? {
+        guard let session = snapshotSession(at: date) else { return nil }
+        currentPageStartedAt = nil
+        currentFeatureStartedAt = nil
+        currentNewsTabStartedAt = nil
+        return session
+    }
+
+    func snapshotSession(at date: Date = Date()) -> UsageSessionRecord? {
         guard let activeSessionStart,
               let activeSessionId else { return nil }
+        accumulatePageDuration(until: date)
+        accumulateFeatureDuration(until: date)
+        accumulateNewsTabDuration(until: date)
 
         return makeSession(
             id: activeSessionId,
@@ -111,6 +143,7 @@ final class UsageStatsStore: ObservableObject {
               let activeSessionId else { return nil }
         accumulatePageDuration(until: date)
         accumulateFeatureDuration(until: date)
+        accumulateNewsTabDuration(until: date)
 
         let endedAt = max(date, activeSessionStart)
         let session = makeSession(id: activeSessionId, startedAt: activeSessionStart, endedAt: endedAt)
@@ -130,10 +163,20 @@ final class UsageStatsStore: ObservableObject {
         guard currentFeature != feature else { return }
         accumulateFeatureDuration(until: date)
         currentFeature = feature
-        if let feature {
-            featureCounts[feature.rawValue, default: 0] += 1
+        if let feature, activeSessionStart != nil {
+            featureViewCounts[feature.rawValue, default: 0] += 1
         }
         currentFeatureStartedAt = activeSessionStart != nil && feature != nil ? date : nil
+    }
+
+    func setCurrentNewsTab(_ tab: UsageNewsTab?, at date: Date = Date()) {
+        guard currentNewsTab != tab else { return }
+        accumulateNewsTabDuration(until: date)
+        currentNewsTab = tab
+        if let tab, activeSessionStart != nil {
+            newsTabViewCounts[tab.rawValue, default: 0] += 1
+        }
+        currentNewsTabStartedAt = activeSessionStart != nil && tab != nil ? date : nil
     }
 
     func recordItemAction(_ action: UsageItemAction, for kind: UsageItemKind) {
@@ -164,17 +207,31 @@ final class UsageStatsStore: ObservableObject {
         currentFeatureStartedAt = date
     }
 
+    private func accumulateNewsTabDuration(until date: Date) {
+        guard let tab = currentNewsTab,
+              let startedAt = currentNewsTabStartedAt else { return }
+
+        let duration = max(0, date.timeIntervalSince(startedAt))
+        guard duration > 0 else { return }
+        newsTabDurations[tab.rawValue, default: 0] += duration
+        currentNewsTabStartedAt = date
+    }
+
     private func resetSession() {
         activeSessionId = nil
         activeSessionStart = nil
         currentPage = nil
         currentFeature = nil
+        currentNewsTab = nil
         currentPageStartedAt = nil
         currentFeatureStartedAt = nil
+        currentNewsTabStartedAt = nil
         pageDurations = UsagePage.defaultDurations
         featureDurations = UsageFeature.defaultDurations
-        featureCounts = UsageFeature.defaultCounts
+        featureViewCounts = UsageFeature.defaultCounts
         itemActionCounts = UsageItemKind.defaultActionCounts
+        newsTabDurations = UsageNewsTab.defaultDurations
+        newsTabViewCounts = UsageNewsTab.defaultCounts
     }
 
     private func makeSession(id: String, startedAt: Date, endedAt: Date) -> UsageSessionRecord {
@@ -186,8 +243,10 @@ final class UsageStatsStore: ObservableObject {
             lastPage: currentPage?.rawValue,
             pageDurations: pageDurations,
             featureDurations: featureDurations,
-            featureCounts: featureCounts,
+            featureViewCounts: featureViewCounts,
             itemActionCounts: itemActionCounts,
+            newsTabDurations: newsTabDurations,
+            newsTabViewCounts: newsTabViewCounts,
             notificationsEnabled: NotificationSettings.isEnabled,
             liveActivitiesEnabled: liveActivitiesEnabled,
             liveActivityActive: liveActivityActive
@@ -241,6 +300,16 @@ private extension UsageItemKind {
 }
 
 private extension UsageItemAction {
+    static var defaultCounts: [String: Int] {
+        Dictionary(uniqueKeysWithValues: allCases.map { ($0.rawValue, 0) })
+    }
+}
+
+private extension UsageNewsTab {
+    static var defaultDurations: [String: TimeInterval] {
+        Dictionary(uniqueKeysWithValues: allCases.map { ($0.rawValue, 0) })
+    }
+
     static var defaultCounts: [String: Int] {
         Dictionary(uniqueKeysWithValues: allCases.map { ($0.rawValue, 0) })
     }

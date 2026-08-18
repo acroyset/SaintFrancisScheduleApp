@@ -33,12 +33,6 @@ struct GPACalculatorModal: View {
         }
     }
 
-    private var prominentActionColor: Color {
-        PrimaryColor.luminance() > 0.7 && TertiaryColor.luminance() < 0.3
-            ? Color(hex: "#48484AFF")
-            : PrimaryColor
-    }
-    
     func percentageToLetter(_ percentage: Double) -> String {
         switch percentage {
         case 92.5...100: return "A"
@@ -115,7 +109,9 @@ struct GPACalculatorModal: View {
                             )
                         }
                         
-                        Divider()
+                        Rectangle()
+                            .fill(PrimaryColor.opacity(0.18))
+                            .frame(height: 1)
                             .padding(.vertical, 8)
 
                         if reviewableLegacyIndices.count > 1 {
@@ -127,7 +123,7 @@ struct GPACalculatorModal: View {
                             if configuredClassIndices.isEmpty {
                                 Text("Add your classes in Class Editor to calculate your GPA.")
                                     .appThemeFont(.secondary, size: 14, weight: .semibold)
-                                    .foregroundStyle(TertiaryColor.highContrastTextColor())
+                                    .foregroundStyle(PrimaryColor)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(16)
                                     .background(SecondaryColor)
@@ -157,7 +153,12 @@ struct GPACalculatorModal: View {
                                                 .foregroundStyle(PrimaryColor.opacity(0.7))
 
                                             HStack(spacing: 8) {
-                                                TextField("Grade", text: percentageBinding)
+                                                TextField(
+                                                    "",
+                                                    text: percentageBinding,
+                                                    prompt: Text("Grade")
+                                                        .foregroundStyle(PrimaryColor.opacity(0.7))
+                                                )
                                                     .keyboardType(.decimalPad)
                                                     .appThemeFont(.secondary, size: 14, weight: .semibold)
                                                     .padding(10)
@@ -221,7 +222,7 @@ struct GPACalculatorModal: View {
 
                                             Text("An older version prefilled 95%. Choose whether to keep it as your grade or clear it.")
                                                 .appThemeFont(.secondary, size: 12, weight: .regular)
-                                                .foregroundStyle(TertiaryColor.highContrastTextColor())
+                                                .foregroundStyle(PrimaryColor.opacity(0.72))
 
                                             HStack(spacing: 8) {
                                                 Button("Keep 95%") {
@@ -231,16 +232,17 @@ struct GPACalculatorModal: View {
                                                     )
                                                 }
                                                 .buttonStyle(.borderedProminent)
-                                                .tint(prominentActionColor)
+                                                .tint(PrimaryColor)
                                                 .accessibilityIdentifier("gpa.legacy-95.keep.\(index)")
 
-                                                Button("Clear grade", role: .destructive) {
+                                                Button("Clear grade") {
                                                     localGradeStore.resolveLegacyNinetyFiveReview(
                                                         for: index,
                                                         keepGrade: false
                                                     )
                                                 }
                                                 .buttonStyle(.bordered)
+                                                .tint(PrimaryColor)
                                                 .accessibilityIdentifier("gpa.legacy-95.clear.\(index)")
                                             }
                                         }
@@ -255,13 +257,13 @@ struct GPACalculatorModal: View {
                                 .padding(12)
                                 .background(SecondaryColor)
                                 .cornerRadius(16)
-                                .shadow(radius: 20)
+                                .shadow(color: PrimaryColor.opacity(0.12), radius: 20)
                             }
                         }
                         
                         Text("Your grade data is stored locally on this device. It is not sent to us, and we do not collect it.")
                             .appThemeFont(.secondary, style: .footnote)
-                            .foregroundStyle(TertiaryColor.highContrastTextColor())
+                            .foregroundStyle(PrimaryColor.opacity(0.72))
                         
                     }
                     .padding(16)
@@ -286,47 +288,15 @@ struct GPACalculatorModal: View {
                 }
             }
             
-            VStack{
-                
-                if #available(iOS 26.0, *), AppAvailability.liquidGlass {
-                    HStack {
-                        Text("GPA Calculator")
-                            .appThemeFont(.secondary, size: iPad ? 34 : 22, weight: .bold)
-                            .padding(iPad ? 16 : 12)
-                            .padding(.horizontal, iPad ? 20 : 16)
-                        
-                        Spacer()
-                        
-                        Button(action: { window = .None }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .appThemeFont(.primary, size: iPad ? 30 : 26)
-                                .foregroundStyle(TertiaryColor.maximumContrastTextColor())
-                        }
-                        .padding(iPad ? 16 : 12)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .foregroundStyle(TertiaryColor.maximumContrastTextColor())
-                    .glassEffect(.regular.tint(TertiaryColor.opacity(0.62)))
-                } else {
-                    HStack {
-                        Text("GPA Calculator")
-                            .appThemeFont(.secondary, size: 24, weight: .bold)
-                            .foregroundStyle(PrimaryColor)
-                        
-                        Spacer()
-                        
-                        Button(action: { window = .None }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .appThemeFont(.primary, size: 24)
-                                .foregroundStyle(PrimaryColor)
-                        }
-                    }
-                    .padding(20)
-                    .background(SecondaryColor)
-                    .cornerRadius(16)
-                }
-                
-                
+            VStack {
+                ClassFeatureHeader(
+                    title: "GPA Calculator",
+                    PrimaryColor: PrimaryColor,
+                    SecondaryColor: SecondaryColor,
+                    TertiaryColor: TertiaryColor,
+                    onBack: { window = .None }
+                )
+
                 Spacer()
             }
         }
@@ -363,7 +333,7 @@ struct GPACalculatorModal: View {
 
             Text("An older version prefilled 95% for \(reviewableLegacyIndices.count) classes. You can resolve them together or review each class separately.")
                 .appThemeFont(.secondary, size: 12, weight: .regular)
-                .foregroundStyle(TertiaryColor.highContrastTextColor())
+                .foregroundStyle(PrimaryColor.opacity(0.72))
 
             HStack(spacing: 8) {
                 Button("Keep all 95%") {
@@ -373,16 +343,17 @@ struct GPACalculatorModal: View {
                     )
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(prominentActionColor)
+                .tint(PrimaryColor)
                 .accessibilityIdentifier("gpa.legacy-95.keep-all")
 
-                Button("Clear all grades", role: .destructive) {
+                Button("Clear all grades") {
                     localGradeStore.resolveLegacyNinetyFiveReviews(
                         for: reviewableLegacyIndices,
                         keepGrades: false
                     )
                 }
                 .buttonStyle(.bordered)
+                .tint(PrimaryColor)
                 .accessibilityIdentifier("gpa.legacy-95.clear-all")
             }
 

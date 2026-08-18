@@ -244,9 +244,20 @@ struct CustomEvent: Identifiable, Codable, Equatable {
         return !(selfEnd <= otherStart || selfStart >= otherEnd)
     }
     
-    // Equatable implementation
+    // Compare the full persisted value. Comparing only IDs made edited events
+    // look unchanged to SwiftUI and to the cloud-write deduplication layer.
     static func == (lhs: CustomEvent, rhs: CustomEvent) -> Bool {
-        return lhs.id == rhs.id
+        lhs.id == rhs.id &&
+            lhs.title == rhs.title &&
+            lhs.startTime == rhs.startTime &&
+            lhs.endTime == rhs.endTime &&
+            lhs.location == rhs.location &&
+            lhs.note == rhs.note &&
+            lhs.color == rhs.color &&
+            lhs.repeatPattern == rhs.repeatPattern &&
+            lhs.kind == rhs.kind &&
+            lhs.reminderOffsets == rhs.reminderOffsets &&
+            lhs.applicableDays == rhs.applicableDays
     }
 }
 

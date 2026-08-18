@@ -62,6 +62,7 @@ struct DirectionalScrollView<Content: View>: UIViewRepresentable {
             target: context.coordinator,
             action: #selector(Coordinator.handlePan(_:))
         )
+        pan.cancelsTouchesInView = true
         pan.delegate = context.coordinator
         scrollView.addGestureRecognizer(pan)
         context.coordinator.horizontalPan = pan
@@ -102,6 +103,7 @@ struct DirectionalScrollView<Content: View>: UIViewRepresentable {
         var hostController: UIHostingController<Content>?
         var minHeightConstraint: NSLayoutConstraint?
         private var isHorizontal: Bool? = nil
+        private var isSuppressingHostedTouches = false
         var lastResetToken: Int = -1
 
         init(_ parent: DirectionalScrollView) {
@@ -121,6 +123,9 @@ struct DirectionalScrollView<Content: View>: UIViewRepresentable {
 
                 if isHorizontal == nil && (abs(tx) > 6 || abs(ty) > 6) {
                     isHorizontal = abs(tx) > abs(ty)
+                    if isHorizontal == true {
+                        suppressHostedTouches()
+                    }
                 }
 
                 guard isHorizontal == true else { return }
@@ -130,6 +135,7 @@ struct DirectionalScrollView<Content: View>: UIViewRepresentable {
             case .ended, .cancelled:
                 guard isHorizontal == true else {
                     isHorizontal = nil
+                    restoreHostedTouches()
                     return
                 }
 
@@ -137,6 +143,11 @@ struct DirectionalScrollView<Content: View>: UIViewRepresentable {
                 let vel = gr.velocity(in: sv).x
                 parent.onHorizontalEnd(tx, vel)
                 isHorizontal = nil
+                restoreHostedTouches(after: 0.15)
+
+            case .failed:
+                isHorizontal = nil
+                restoreHostedTouches()
 
             default:
                 break
@@ -147,11 +158,38 @@ struct DirectionalScrollView<Content: View>: UIViewRepresentable {
             _ gr: UIGestureRecognizer,
             shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer
         ) -> Bool {
-            true
+            // The custom recognizer must cooperate with the scroll view's
+            // vertical pan, but not with buttons inside the hosted SwiftUI
+            // content. This lets a horizontal swipe cancel a class-card tap.
+            guard let scrollPan = scrollView?.panGestureRecognizer else {
+                return false
+            }
+            return gr === scrollPan || other === scrollPan
         }
 
         func gestureRecognizerShouldBegin(_ gr: UIGestureRecognizer) -> Bool {
             true
+        }
+
+        private func suppressHostedTouches() {
+            guard !isSuppressingHostedTouches else { return }
+            isSuppressingHostedTouches = true
+            hostController?.view.isUserInteractionEnabled = false
+        }
+
+        private func restoreHostedTouches(after delay: TimeInterval = 0) {
+            guard isSuppressingHostedTouches else { return }
+
+            let restore = { [weak self] in
+                self?.hostController?.view.isUserInteractionEnabled = true
+                self?.isSuppressingHostedTouches = false
+            }
+
+            if delay > 0 {
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: restore)
+            } else {
+                restore()
+            }
         }
     }
 }

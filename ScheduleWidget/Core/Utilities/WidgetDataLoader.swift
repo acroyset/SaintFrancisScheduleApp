@@ -41,22 +41,52 @@ func widgetDayCode(for date: Date, scheduleDict: [String: [String]]) -> String? 
 }
 
 func widgetDayHasClasses(on date: Date, scheduleDict: [String: [String]], data: ScheduleData) -> Bool {
-    guard let dayCode = widgetDayCode(for: date, scheduleDict: scheduleDict) else {
+    guard let dayInfo = scheduleDict[getKeyForDate(date)],
+          let dayCode = dayInfo.first else {
         return false
     }
-    return widgetDayHasClasses(dayCode: dayCode, data: data)
+    let specialScheduleCode = dayInfo.count > 2 ? dayInfo[2] : ""
+    return widgetDayHasClasses(
+        dayCode: dayCode,
+        specialScheduleCode: specialScheduleCode,
+        data: data
+    )
 }
 
-func widgetDayHasClasses(dayCode: String, data: ScheduleData) -> Bool {
+func widgetDayHasClasses(
+    dayCode: String,
+    specialScheduleCode: String = "",
+    data: ScheduleData
+) -> Bool {
+    guard let day = resolvedWidgetDay(
+        dayCode: dayCode,
+        specialScheduleCode: specialScheduleCode,
+        data: data
+    ) else {
+        return false
+    }
+
+    return !day.names.isEmpty && !day.startTimes.isEmpty
+}
+
+func resolvedWidgetDay(
+    dayCode: String,
+    specialScheduleCode: String = "",
+    data: ScheduleData
+) -> Day? {
     let map = ["g1":0,"b1":1,"g2":2,"b2":3,"a1":4,"a2":5,"a3":6,"a4":7,"l1":8,"l2":9,"s1":10]
 
     guard let index = map[dayCode.lowercased()],
           data.days.indices.contains(index) else {
-        return false
+        return nil
     }
 
-    let day = data.days[index]
-    return !day.names.isEmpty && !day.startTimes.isEmpty
+    if dayCode.caseInsensitiveCompare("s1") == .orderedSame,
+       let specialSchedule = SpecialSchedule(code: specialScheduleCode) {
+        return specialSchedule.day
+    }
+
+    return data.days[index]
 }
 
 func nextWidgetClassDate(after date: Date, scheduleDict: [String: [String]], data: ScheduleData) -> Date? {

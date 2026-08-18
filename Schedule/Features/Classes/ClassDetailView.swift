@@ -291,14 +291,20 @@ struct ClassDetailView: View {
                     systemImage: "chart.bar.fill",
                     tool: .gpa
                 )
-                Divider().padding(.leading, 44)
+                Rectangle()
+                    .fill(PrimaryColor.opacity(0.18))
+                    .frame(height: 1)
+                    .padding(.leading, 44)
                 gradeToolButton(
                     title: "What-If Calculator",
                     subtitle: "Preview the impact of an assignment",
                     systemImage: "wand.and.stars",
                     tool: .whatIf
                 )
-                Divider().padding(.leading, 44)
+                Rectangle()
+                    .fill(PrimaryColor.opacity(0.18))
+                    .frame(height: 1)
+                    .padding(.leading, 44)
                 gradeToolButton(
                     title: "Final Grade Calculator",
                     subtitle: "Calculate the score needed on your final",

@@ -32,7 +32,9 @@ enum NightlyNotificationBuilder {
     ) -> NightlyNotificationContext {
         let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date())!
         let key = ScheduleSelectionResolver.scheduleKey(for: tomorrow)
-        let rawCode = (scheduleDict?[key] ?? ["", ""])[0]
+        let dayInfo = scheduleDict?[key] ?? ["", ""]
+        let rawCode = dayInfo[0]
+        let specialScheduleCode = dayInfo.count > 2 ? dayInfo[2] : ""
 
         var firstName = ""
         var firstTime = ""
@@ -42,7 +44,9 @@ enum NightlyNotificationBuilder {
             let dayMap = ["g1":0,"b1":1,"g2":2,"b2":3,"a1":4,"a2":5,"a3":6,"a4":7,"l1":8,"l2":9,"s1":10]
             if let dayIndex = dayMap[rawCode.lowercased()],
                scheduleData.days.indices.contains(dayIndex) {
-                let day = scheduleData.days[dayIndex]
+                let day = rawCode.caseInsensitiveCompare("s1") == .orderedSame
+                    ? SpecialSchedule(code: specialScheduleCode)?.day ?? scheduleData.days[dayIndex]
+                    : scheduleData.days[dayIndex]
                 for i in day.names.indices {
                     let nameRaw = day.names[i]
                     if nameRaw.hasPrefix("$"),

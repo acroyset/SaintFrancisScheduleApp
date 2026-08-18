@@ -14,16 +14,12 @@ struct MapView: View {
     var onEditClasses: () -> Void = {}
 
     @State private var mapZoomScale: CGFloat = 1
-    @State private var selectedLayer: CampusMapLayer = .first
+    @State private var selectedLayer: CampusMapLayer = .all
 
     private let mapAspectRatio: CGFloat = 1403 / 1121
     private var mapVerticalFillScale: CGFloat { iPad ? 1.22 : 1.35 }
     private var mapScrollPadding: CGFloat { iPad ? 260 : 160 }
     private var labelScale: CGFloat { iPad ? 1.02 : 0.88 }
-    private var readablePrimaryColor: Color {
-        PrimaryColor.accessibleForegroundColor(against: TertiaryColor)
-    }
-
     private var classLocations: [CampusClassLocation] {
         CampusMapData.locations(for: data?.normalized().classes ?? [])
     }
@@ -35,7 +31,10 @@ struct MapView: View {
     }
 
     private var visibleRoomMarkers: [CampusRoomMarker] {
-        CampusMapData.roomMarkers.filter { $0.layer == selectedLayer }
+        CampusMapData.roomMarkers(
+            for: selectedLayer,
+            classLocations: classLocations
+        )
     }
 
     private var roomLayerByKey: [String: CampusMapLayer] {
@@ -45,10 +44,14 @@ struct MapView: View {
     }
 
     private var classCountsByLayer: [CampusMapLayer: Int] {
-        Dictionary(grouping: classLocations.filter(\.countsTowardClassTotal)) { location in
+        let countedLocations = classLocations.filter(\.countsTowardClassTotal)
+        var counts = Dictionary(grouping: countedLocations) { location in
             roomLayerByKey[CampusMapData.roomKey(for: location.room)] ?? .first
         }
         .mapValues(\.count)
+
+        counts[.all] = countedLocations.count
+        return counts
     }
 
     private var unplacedClassCount: Int {
@@ -84,7 +87,7 @@ struct MapView: View {
                 MapLayerControl(
                     selectedLayer: $selectedLayer,
                     classCountsByLayer: classCountsByLayer,
-                    PrimaryColor: readablePrimaryColor,
+                    PrimaryColor: PrimaryColor,
                     SecondaryColor: SecondaryColor,
                     TertiaryColor: TertiaryColor
                 )
@@ -95,7 +98,7 @@ struct MapView: View {
                 if unplacedClassCount > 0 {
                     MapPlacementPrompt(
                         count: unplacedClassCount,
-                        PrimaryColor: readablePrimaryColor,
+                        PrimaryColor: PrimaryColor,
                         TertiaryColor: TertiaryColor,
                         action: onEditClasses
                     )
@@ -114,7 +117,7 @@ struct MapView: View {
                             zoomScale: $mapZoomScale,
                             minZoomScale: 0.45,
                             maxZoomScale: 5,
-                            PrimaryColor: readablePrimaryColor,
+                            PrimaryColor: PrimaryColor,
                             TertiaryColor: TertiaryColor
                         )
                     }
@@ -130,6 +133,22 @@ struct MapView: View {
     }
 
     private func mapCanvas(width: CGFloat, height: CGFloat) -> some View {
+        let highlightedMarkers = visibleRoomMarkers.filter(isHighlighted)
+        let calloutOffsets = MapCalloutLayoutEngine.offsets(
+            for: highlightedMarkers.map { marker in
+                let direction = preferredCalloutDirection(for: marker)
+                return MapCalloutLayoutItem(
+                    id: marker.id,
+                    anchor: markerPosition(for: marker, width: width, height: height),
+                    preferredHorizontalDirection: direction.dx,
+                    preferredVerticalDirection: direction.dy
+                )
+            },
+            cardSize: CGSize(width: 190 * labelScale, height: 36 * labelScale),
+            connectorLength: 28 * labelScale,
+            bounds: CGRect(x: 0, y: 0, width: width, height: height)
+        )
+
         return ZStack(alignment: .topLeading) {
             Image("CampusMap")
                 .resizable()
@@ -139,29 +158,30 @@ struct MapView: View {
                 RoomNumberMarker(
                     marker: marker,
                     locations: classLocationsByRoom[CampusMapData.roomKey(for: marker.room)] ?? [],
-                    PrimaryColor: readablePrimaryColor,
+                    PrimaryColor: PrimaryColor,
                     TertiaryColor: TertiaryColor,
-                    scale: labelScale
+                    scale: labelScale,
+                    cardOffsetOverride: nil
                 )
                 .position(
-                    x: marker.normalizedX * width,
-                    y: marker.normalizedY * height
+                    markerPosition(for: marker, width: width, height: height)
                 )
+                .zIndex(markerZIndex(for: marker, isHighlighted: false))
             }
 
-            ForEach(visibleRoomMarkers.filter { isHighlighted($0) }) { marker in
+            ForEach(highlightedMarkers) { marker in
                 RoomNumberMarker(
                     marker: marker,
                     locations: classLocationsByRoom[CampusMapData.roomKey(for: marker.room)] ?? [],
-                    PrimaryColor: readablePrimaryColor,
+                    PrimaryColor: PrimaryColor,
                     TertiaryColor: TertiaryColor,
-                    scale: labelScale
+                    scale: labelScale,
+                    cardOffsetOverride: calloutOffsets[marker.id]
                 )
                 .position(
-                    x: marker.normalizedX * width,
-                    y: marker.normalizedY * height
+                    markerPosition(for: marker, width: width, height: height)
                 )
-                .zIndex(10)
+                .zIndex(markerZIndex(for: marker, isHighlighted: true))
             }
         }
         .frame(width: width, height: height)
@@ -170,6 +190,285 @@ struct MapView: View {
 
     private func isHighlighted(_ marker: CampusRoomMarker) -> Bool {
         !(classLocationsByRoom[CampusMapData.roomKey(for: marker.room)] ?? []).isEmpty
+    }
+
+    private func preferredCalloutDirection(for marker: CampusRoomMarker) -> CGVector {
+        let roomNumber = Int(marker.room.filter(\.isNumber)) ?? 0
+        let horizontalDifference = marker.normalizedX - marker.building.normalizedX
+        let verticalDifference = marker.normalizedY - marker.building.normalizedY
+
+        let horizontalDirection: CGFloat
+        if abs(horizontalDifference) > 0.008 {
+            horizontalDirection = horizontalDifference < 0 ? -1 : 1
+        } else {
+            horizontalDirection = roomNumber.isMultiple(of: 2) ? -1 : 1
+        }
+
+        let verticalDirection: CGFloat
+        if abs(verticalDifference) > 0.012 {
+            verticalDirection = verticalDifference < 0 ? -1 : 1
+        } else {
+            verticalDirection = roomNumber.isMultiple(of: 2) ? -1 : 1
+        }
+
+        return CGVector(dx: horizontalDirection, dy: verticalDirection)
+    }
+
+    private func markerPosition(
+        for marker: CampusRoomMarker,
+        width: CGFloat,
+        height: CGFloat
+    ) -> CGPoint {
+        let showsCombinedLayers = selectedLayer == .all
+        let isSecondFloor = marker.layer == .second
+        let secondFloorOffset = showsCombinedLayers && isSecondFloor
+            ? CGPoint(x: -0.014, y: -0.014)
+            : .zero
+
+        return CGPoint(
+            x: (marker.normalizedX + secondFloorOffset.x) * width,
+            y: (marker.normalizedY + secondFloorOffset.y) * height
+        )
+    }
+
+    private func markerZIndex(
+        for marker: CampusRoomMarker,
+        isHighlighted: Bool
+    ) -> Double {
+        let highlightPriority = isHighlighted ? 10.0 : 0
+        let secondFloorPriority = selectedLayer == .all && marker.layer == .second ? 20.0 : 0
+        return highlightPriority + secondFloorPriority
+    }
+}
+
+struct MapCalloutLayoutItem: Equatable {
+    let id: String
+    let anchor: CGPoint
+    let preferredHorizontalDirection: CGFloat
+    let preferredVerticalDirection: CGFloat
+}
+
+enum MapCalloutLayoutEngine {
+    /// Greedily places nearby labels into deterministic lanes, then falls back to
+    /// the nearest open grid cell when a cluster is too dense for those lanes.
+    static func offsets(
+        for items: [MapCalloutLayoutItem],
+        cardSize: CGSize,
+        connectorLength: CGFloat,
+        bounds: CGRect,
+        spacing: CGFloat = 10
+    ) -> [String: CGSize] {
+        guard !items.isEmpty, cardSize.width > 0, cardSize.height > 0 else {
+            return [:]
+        }
+
+        let orderedItems = items.sorted {
+            if $0.anchor.y != $1.anchor.y { return $0.anchor.y < $1.anchor.y }
+            if $0.anchor.x != $1.anchor.x { return $0.anchor.x < $1.anchor.x }
+            return $0.id < $1.id
+        }
+        let anchorObstacles = orderedItems.map { item in
+            CGRect(
+                x: item.anchor.x - 9,
+                y: item.anchor.y - 9,
+                width: 18,
+                height: 18
+            )
+        }
+        var placedRects: [CGRect] = []
+        var resolvedOffsets: [String: CGSize] = [:]
+
+        for (itemIndex, item) in orderedItems.enumerated() {
+            let candidates = candidateOffsets(
+                for: item,
+                cardSize: cardSize,
+                connectorLength: connectorLength,
+                bounds: bounds,
+                spacing: spacing
+            )
+
+            var bestFallback: (offset: CGSize, score: CGFloat)?
+            for candidate in candidates {
+                let rect = cardRect(
+                    anchor: item.anchor,
+                    offset: candidate,
+                    cardSize: cardSize
+                )
+                let paddedRect = rect.insetBy(dx: -spacing / 2, dy: -spacing / 2)
+                let overlapsTitle = placedRects.contains { $0.intersects(paddedRect) }
+                let coversAnotherPin = anchorObstacles.enumerated().contains { index, obstacle in
+                    index != itemIndex && paddedRect.intersects(obstacle)
+                }
+
+                if !overlapsTitle && !coversAnotherPin {
+                    resolvedOffsets[item.id] = candidate
+                    placedRects.append(paddedRect)
+                    bestFallback = nil
+                    break
+                }
+
+                let overlapArea = placedRects.reduce(CGFloat.zero) { partial, placedRect in
+                    partial + intersectionArea(of: paddedRect, and: placedRect)
+                }
+                let coveredPins = anchorObstacles.enumerated().reduce(0) { partial, entry in
+                    let (index, obstacle) = entry
+                    return partial + ((index != itemIndex && paddedRect.intersects(obstacle)) ? 1 : 0)
+                }
+                let distance = hypot(candidate.width, candidate.height)
+                let score = overlapArea * 10_000 + CGFloat(coveredPins) * 1_000_000 + distance
+
+                if bestFallback == nil || score < bestFallback!.score {
+                    bestFallback = (candidate, score)
+                }
+            }
+
+            if resolvedOffsets[item.id] == nil, let bestFallback {
+                resolvedOffsets[item.id] = bestFallback.offset
+                placedRects.append(
+                    cardRect(
+                        anchor: item.anchor,
+                        offset: bestFallback.offset,
+                        cardSize: cardSize
+                    )
+                    .insetBy(dx: -spacing / 2, dy: -spacing / 2)
+                )
+            }
+        }
+
+        return resolvedOffsets
+    }
+
+    private static func candidateOffsets(
+        for item: MapCalloutLayoutItem,
+        cardSize: CGSize,
+        connectorLength: CGFloat,
+        bounds: CGRect,
+        spacing: CGFloat
+    ) -> [CGSize] {
+        let horizontalDirection: CGFloat = item.preferredHorizontalDirection < 0 ? -1 : 1
+        let verticalDirection: CGFloat = item.preferredVerticalDirection < 0 ? -1 : 1
+        let horizontalDistance = cardSize.width / 2 + connectorLength
+        let verticalDistance = cardSize.height / 2 + connectorLength
+        let verticalStep = cardSize.height + spacing
+        let horizontalStep = cardSize.width + spacing
+        var candidates: [CGSize] = []
+
+        let laneOrder = [0, -1, 1, -2, 2, -3, 3, -4, 4, -5, 5, -6, 6]
+        for side in [horizontalDirection, -horizontalDirection] {
+            for lane in laneOrder {
+                candidates.append(
+                    CGSize(
+                        width: side * horizontalDistance,
+                        height: verticalDirection * verticalDistance + CGFloat(lane) * verticalStep
+                    )
+                )
+            }
+        }
+
+        for side in [verticalDirection, -verticalDirection] {
+            for lane in laneOrder {
+                candidates.append(
+                    CGSize(
+                        width: horizontalDirection * horizontalDistance + CGFloat(lane) * horizontalStep,
+                        height: side * verticalDistance
+                    )
+                )
+            }
+        }
+
+        candidates.append(contentsOf: gridOffsets(
+            near: item.anchor,
+            cardSize: cardSize,
+            bounds: bounds,
+            spacing: spacing
+        ))
+
+        var seenCenters: Set<String> = []
+        return candidates.compactMap { candidate in
+            let clamped = clampedOffset(
+                candidate,
+                anchor: item.anchor,
+                cardSize: cardSize,
+                bounds: bounds,
+                margin: spacing
+            )
+            let center = CGPoint(
+                x: item.anchor.x + clamped.width,
+                y: item.anchor.y + clamped.height
+            )
+            let key = "\(Int(center.x.rounded())):\(Int(center.y.rounded()))"
+            return seenCenters.insert(key).inserted ? clamped : nil
+        }
+    }
+
+    private static func gridOffsets(
+        near anchor: CGPoint,
+        cardSize: CGSize,
+        bounds: CGRect,
+        spacing: CGFloat
+    ) -> [CGSize] {
+        let minimumX = bounds.minX + spacing + cardSize.width / 2
+        let maximumX = bounds.maxX - spacing - cardSize.width / 2
+        let minimumY = bounds.minY + spacing + cardSize.height / 2
+        let maximumY = bounds.maxY - spacing - cardSize.height / 2
+        guard minimumX <= maximumX, minimumY <= maximumY else { return [] }
+
+        var offsets: [CGSize] = []
+        var y = minimumY
+        while y <= maximumY {
+            var x = minimumX
+            while x <= maximumX {
+                offsets.append(CGSize(width: x - anchor.x, height: y - anchor.y))
+                x += cardSize.width + spacing
+            }
+            y += cardSize.height + spacing
+        }
+
+        return offsets.sorted {
+            hypot($0.width, $0.height) < hypot($1.width, $1.height)
+        }
+    }
+
+    private static func clampedOffset(
+        _ offset: CGSize,
+        anchor: CGPoint,
+        cardSize: CGSize,
+        bounds: CGRect,
+        margin: CGFloat
+    ) -> CGSize {
+        let halfWidth = cardSize.width / 2
+        let halfHeight = cardSize.height / 2
+        let minimumCenterX = bounds.minX + margin + halfWidth
+        let maximumCenterX = bounds.maxX - margin - halfWidth
+        let minimumCenterY = bounds.minY + margin + halfHeight
+        let maximumCenterY = bounds.maxY - margin - halfHeight
+
+        guard minimumCenterX <= maximumCenterX, minimumCenterY <= maximumCenterY else {
+            return offset
+        }
+
+        let centerX = min(max(anchor.x + offset.width, minimumCenterX), maximumCenterX)
+        let centerY = min(max(anchor.y + offset.height, minimumCenterY), maximumCenterY)
+        return CGSize(width: centerX - anchor.x, height: centerY - anchor.y)
+    }
+
+    private static func cardRect(
+        anchor: CGPoint,
+        offset: CGSize,
+        cardSize: CGSize
+    ) -> CGRect {
+        CGRect(
+            x: anchor.x + offset.width - cardSize.width / 2,
+            y: anchor.y + offset.height - cardSize.height / 2,
+            width: cardSize.width,
+            height: cardSize.height
+        )
+    }
+
+    private static func intersectionArea(of first: CGRect, and second: CGRect) -> CGFloat {
+        let intersection = first.intersection(second)
+        guard !intersection.isNull else { return 0 }
+        return intersection.width * intersection.height
     }
 }
 
@@ -426,7 +725,7 @@ private struct MapLayerControl: View {
             Capsule()
                 .stroke(PrimaryColor.opacity(0.18), lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.14), radius: 8, y: 3)
+        .shadow(color: PrimaryColor.opacity(0.14), radius: 8, y: 3)
     }
 
     private func accessibilityText(for layer: CampusMapLayer) -> String {
@@ -465,7 +764,7 @@ private struct MapPlacementPrompt: View {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .stroke(PrimaryColor.opacity(0.18), lineWidth: 1)
             )
-            .shadow(color: .black.opacity(0.14), radius: 8, y: 3)
+            .shadow(color: PrimaryColor.opacity(0.14), radius: 8, y: 3)
         }
         .buttonStyle(.plain)
         .frame(maxWidth: 360)
@@ -501,9 +800,10 @@ private struct MapZoomControl: View {
             .accessibilityLabel("Zoom in")
             .accessibilityIdentifier("map.zoom-in")
 
-            Divider()
+            Rectangle()
+                .fill(PrimaryColor.opacity(0.18))
                 .frame(width: 24)
-                .background(PrimaryColor.opacity(0.18))
+                .frame(height: 1)
 
             Button {
                 zoomScale = max(minZoomScale, zoomScale / 1.35)
@@ -523,7 +823,7 @@ private struct MapZoomControl: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .stroke(PrimaryColor.opacity(0.18), lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.16), radius: 8, y: 3)
+        .shadow(color: PrimaryColor.opacity(0.16), radius: 8, y: 3)
     }
 }
 
@@ -701,6 +1001,7 @@ private struct RoomNumberMarker: View {
     let PrimaryColor: Color
     let TertiaryColor: Color
     let scale: CGFloat
+    let cardOffsetOverride: CGSize?
 
     private var hasClasses: Bool {
         !locations.isEmpty
@@ -752,25 +1053,37 @@ private struct RoomNumberMarker: View {
         return roomNumber.isMultiple(of: 2) ? -1 : 1
     }
 
-    private var cardOffset: CGSize {
+    private var preferredCardOffset: CGSize {
         CGSize(
             width: horizontalDirection * ((cardWidth / 2) + connectorHeight),
             height: verticalDirection * ((cardHeight / 2) + connectorHeight)
         )
     }
 
+    private var cardOffset: CGSize {
+        cardOffsetOverride ?? preferredCardOffset
+    }
+
     private var leaderEnd: CGSize {
-        CGSize(
-            width: cardOffset.width - horizontalDirection * ((cardWidth / 2) - cornerRadius),
-            height: cardOffset.height - verticalDirection * (cardHeight / 2)
+        let horizontalScale = abs(cardOffset.width) > 0.001
+            ? max(1, cardWidth / 2 - cornerRadius) / abs(cardOffset.width)
+            : CGFloat.greatestFiniteMagnitude
+        let verticalScale = abs(cardOffset.height) > 0.001
+            ? max(1, cardHeight / 2 - cornerRadius / 2) / abs(cardOffset.height)
+            : CGFloat.greatestFiniteMagnitude
+        let edgeScale = min(horizontalScale, verticalScale, 1)
+
+        return CGSize(
+            width: cardOffset.width * (1 - edgeScale),
+            height: cardOffset.height * (1 - edgeScale)
         )
     }
 
     private var calloutCanvasSize: CGSize {
         let shadowAllowance = (hasClasses ? 14 : 9) * scale
         return CGSize(
-            width: 2 * (cardWidth + connectorHeight + shadowAllowance),
-            height: 2 * (cardHeight + connectorHeight + shadowAllowance)
+            width: 2 * (abs(cardOffset.width) + cardWidth / 2 + shadowAllowance),
+            height: 2 * (abs(cardOffset.height) + cardHeight / 2 + shadowAllowance)
         )
     }
 
@@ -782,7 +1095,7 @@ private struct RoomNumberMarker: View {
         ZStack {
             MapCalloutLeader(end: leaderEnd, startInset: anchorDiameter / 2)
                 .stroke(
-                    Color.black.opacity(hasClasses ? 0.24 : 0.14),
+                    PrimaryColor.opacity(hasClasses ? 0.24 : 0.14),
                     style: StrokeStyle(lineWidth: max(2.5, 3.5 * scale), lineCap: .round)
                 )
                 .offset(y: 1.5 * scale)
@@ -813,7 +1126,7 @@ private struct RoomNumberMarker: View {
                             lineWidth: max(0.75, 1 * scale)
                         )
                 )
-                .shadow(color: .black.opacity(0.28), radius: 2.5 * scale, y: 1.5 * scale)
+                .shadow(color: PrimaryColor.opacity(0.28), radius: 2.5 * scale, y: 1.5 * scale)
         }
         .frame(width: calloutCanvasSize.width, height: calloutCanvasSize.height)
         .accessibilityElement(children: .ignore)
@@ -852,7 +1165,7 @@ private struct RoomNumberMarker: View {
         .background {
             ZStack {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(Color.black.opacity(hasClasses ? 0.3 : 0.2))
+                    .fill(PrimaryColor.opacity(hasClasses ? 0.3 : 0.2))
                     .offset(y: 3.5 * scale)
 
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -871,13 +1184,13 @@ private struct RoomNumberMarker: View {
         )
         .overlay(alignment: .top) {
             Capsule()
-                .fill(Color.white.opacity(hasClasses ? 0.22 : 0.38))
+                .fill(TertiaryColor.opacity(hasClasses ? 0.22 : 0.38))
                 .frame(height: max(0.7, 0.9 * scale))
                 .padding(.horizontal, 6 * scale)
                 .padding(.top, 2 * scale)
         }
         .shadow(
-            color: .black.opacity(hasClasses ? 0.32 : 0.2),
+            color: PrimaryColor.opacity(hasClasses ? 0.32 : 0.2),
             radius: (hasClasses ? 9 : 5) * scale,
             y: (hasClasses ? 7 : 4) * scale
         )

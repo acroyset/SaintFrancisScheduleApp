@@ -22,6 +22,7 @@ class CustomEventsManager: ObservableObject {
     private let eventsKey    = "CustomEvents"
     private var authManager: AuthenticationManager?
     private var isPurgingExpiredReminders = false
+    private var cloudSaveTask: Task<Void, Never>?
 
     init() {
         loadEvents()
@@ -33,15 +34,17 @@ class CustomEventsManager: ObservableObject {
 
     // MARK: - Persistence
 
-    func saveEvents() {
+    func saveEvents(syncToCloud: Bool = true) {
         do {
             let data = try JSONEncoder().encode(events)
-            userDefaults.set(data, forKey: eventsKey)
-            SharedGroup.defaults.set(data, forKey: "CustomEvents")
-            NotificationManager.shared.scheduleReminderNotifications(for: events)
+            if userDefaults.data(forKey: eventsKey) != data {
+                userDefaults.set(data, forKey: eventsKey)
+                SharedGroup.defaults.set(data, forKey: "CustomEvents")
+                NotificationManager.shared.scheduleReminderNotifications(for: events)
+            }
 
-            if authManager?.user != nil {
-                Task { await saveToCloudAsync() }
+            if syncToCloud {
+                queueCloudSave()
             }
         } catch {
             print("❌ Failed to save custom events: \(error)")
@@ -61,29 +64,18 @@ class CustomEventsManager: ObservableObject {
 
     // MARK: - Cloud Sync
 
-    func saveToCloud(using authManager: AuthenticationManager) {
-        guard let user = authManager.user else { return }
-        let userId       = user.id
-        let eventsToSave = events
-        Task {
-            do {
-                try await CloudEventsDataManager().saveEvents(eventsToSave, for: userId)
-            } catch {
-                print("❌ Failed to save events to cloud: \(error)")
-            }
-        }
-    }
-
     func loadFromCloud(using authManager: AuthenticationManager) {
         guard let user = authManager.user else { return }
         let userId = user.id
         Task {
             do {
-                let cloudEvents = try await CloudEventsDataManager().loadEvents(for: userId)
+                let cloudEvents = try await CloudEventsDataManager.shared.loadEvents(for: userId)
                 if !cloudEvents.isEmpty {
                     events = cloudEvents
                     purgeExpiredReminders()
-                    saveEvents()
+                    // Loading cloud state is not itself a user change, so only
+                    // persist it locally. A purge still queues its real change.
+                    saveEvents(syncToCloud: false)
                 } else {
                     NotificationManager.shared.scheduleReminderNotifications(for: events)
                 }
@@ -93,12 +85,22 @@ class CustomEventsManager: ObservableObject {
         }
     }
 
-    private func saveToCloudAsync() async {
-        guard let user = authManager?.user else { return }
-        do {
-            try await CloudEventsDataManager().saveEvents(events, for: user.id)
-        } catch {
-            print("❌ Failed to auto-save events to cloud: \(error)")
+    private func queueCloudSave() {
+        cloudSaveTask?.cancel()
+        guard let userId = authManager?.user?.id else { return }
+        let eventsToSave = events
+
+        cloudSaveTask = Task { [weak self] in
+            do {
+                try await Task.sleep(for: .milliseconds(750))
+                guard !Task.isCancelled,
+                      self?.authManager?.user?.id == userId else { return }
+                try await CloudEventsDataManager.shared.saveEvents(eventsToSave, for: userId)
+            } catch is CancellationError {
+                // A newer event change replaced this pending save.
+            } catch {
+                print("❌ Failed to auto-save events to cloud: \(error)")
+            }
         }
     }
 
@@ -114,6 +116,7 @@ class CustomEventsManager: ObservableObject {
     /// Updates an existing event in-place.
     func updateEvent(_ event: CustomEvent) {
         guard let index = events.firstIndex(where: { $0.id == event.id }) else { return }
+        guard events[index] != event else { return }
         events[index] = event
         saveEvents()
         UsageStatsStore.shared.recordItemAction(.edit, for: usageItemKind(for: event))

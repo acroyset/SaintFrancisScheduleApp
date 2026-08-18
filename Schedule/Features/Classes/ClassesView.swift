@@ -18,6 +18,61 @@ enum classWindow: Int{
     case Homework = 6
 }
 
+struct ClassFeatureHeader: View {
+    let title: String
+    let PrimaryColor: Color
+    let SecondaryColor: Color
+    let TertiaryColor: Color
+    let onBack: () -> Void
+    var backAccessibilityLabel = "Back to Classes"
+    var trailingSystemImage: String? = nil
+    var trailingAccessibilityLabel: String? = nil
+    var trailingAction: (() -> Void)? = nil
+
+    var body: some View {
+        ZStack {
+            Text(title)
+                .appThemeFont(.secondary, size: iPad ? 34 : 22, weight: .bold)
+                .foregroundStyle(PrimaryColor)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.horizontal, 52)
+
+            HStack {
+                Button(action: onBack) {
+                    Image(systemName: "chevron.left")
+                        .appThemeFont(.primary, size: 18, weight: .bold)
+                        .foregroundStyle(PrimaryColor)
+                        .frame(width: 40, height: 40)
+                        .background(SecondaryColor)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(backAccessibilityLabel)
+
+                Spacer()
+
+                if let trailingSystemImage, let trailingAction {
+                    Button(action: trailingAction) {
+                        Image(systemName: trailingSystemImage)
+                            .appThemeFont(.primary, size: 18, weight: .bold)
+                            .foregroundStyle(TertiaryColor)
+                            .frame(width: 40, height: 40)
+                            .background(PrimaryColor)
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(trailingAccessibilityLabel ?? title)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 12)
+        .padding(.top, 12)
+    }
+}
+
 func inferClassLevel(from className: String) -> String {
     let lowerName = className.lowercased()
     
@@ -222,10 +277,15 @@ struct ClassesView: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 14)
         }
+        .buttonStyle(.plain)
+        .tint(PrimaryColor)
     }
 
     private var menuDivider: some View {
-        Divider().padding(.leading, 48)
+        Rectangle()
+            .fill(PrimaryColor.opacity(0.18))
+            .frame(height: 1)
+            .padding(.leading, 48)
     }
 
     private func feature(for window: classWindow) -> UsageFeature? {

@@ -261,9 +261,6 @@ struct CourseSchedulingView: View {
                         onCourseSelected: { course in
                             courseViewModel.selectedCourse = course
                         },
-                        onBack: {
-                            courseViewModel.selectedCourse = nil
-                        },
                         PrimaryColor: PrimaryColor,
                         SecondaryColor: SecondaryColor,
                         TertiaryColor: TertiaryColor
@@ -296,54 +293,28 @@ struct CourseSchedulingView: View {
             }
             .padding(.top, iPad ? 60 : 50)
             
-            VStack{
-                
-                if #available(iOS 26.0, *), AppAvailability.liquidGlass {
-                    HStack {
-                        Text("Course Scheduler")
-                            .font(.system(
-                                size: iPad ? 34 : 22,
-                                weight: .bold,
-                                design: .monospaced
-                            ))
-                            .padding(iPad ? 16 : 12)
-                            .padding(.horizontal, iPad ? 20 : 16)
-                        
-                        Spacer()
-                        
-                        Button(action: { window = .None }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: iPad ? 30 : 26))
-                                .foregroundStyle(TertiaryColor.maximumContrastTextColor())
+            VStack {
+                ClassFeatureHeader(
+                    title: "Course Scheduler",
+                    PrimaryColor: PrimaryColor,
+                    SecondaryColor: SecondaryColor,
+                    TertiaryColor: TertiaryColor,
+                    onBack: {
+                        if courseViewModel.selectedCourse == nil {
+                            window = .None
+                        } else {
+                            courseViewModel.selectedCourse = nil
                         }
-                        .padding(iPad ? 16 : 12)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .foregroundStyle(TertiaryColor.maximumContrastTextColor())
-                    .glassEffect(.regular.tint(TertiaryColor.opacity(0.62)))
-                } else {
-                    HStack {
-                        Text("Course Scheduler")
-                            .font(.system(size: 24, weight: .bold, design: .monospaced))
-                            .foregroundStyle(PrimaryColor)
-                        
-                        Spacer()
-                        
-                        Button(action: { window = .None }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 24))
-                                .foregroundStyle(PrimaryColor)
-                        }
-                    }
-                    .padding(20)
-                    .background(SecondaryColor)
-                    .cornerRadius(16)
-                }
-                
-                
+                    },
+                    backAccessibilityLabel: courseViewModel.selectedCourse == nil
+                        ? "Back to Classes"
+                        : "Back to Courses"
+                )
+
                 Spacer()
             }
         }
+        .tint(PrimaryColor)
     }
 }
 
@@ -411,11 +382,7 @@ struct CourseListView: View {
                                 .fontWeight(.bold)
                                 .foregroundColor(TertiaryColor)
                                 .padding(4)
-                                .background(
-                                    course.name.contains("AP")
-                                    ? Color.orange
-                                    : Color.purple
-                                )
+                                .background(PrimaryColor)
                                 .cornerRadius(3)
                         }
                     }
@@ -429,6 +396,7 @@ struct CourseListView: View {
             }
             .padding(.bottom, 16)
             .listStyle(.plain)
+            .tint(PrimaryColor)
             .scrollContentBackground(.hidden)
             .mask{
                 LinearGradient(
@@ -450,7 +418,6 @@ struct CourseDetailView: View {
     let course: Course
     let viewModel: CourseViewModel
     let onCourseSelected: (Course) -> Void
-    let onBack: () -> Void
     
     var PrimaryColor: Color
     var SecondaryColor: Color
@@ -471,18 +438,6 @@ struct CourseDetailView: View {
     var body: some View {
         ZStack(alignment: .top) {
             VStack(spacing: 0) {
-                HStack {
-                    Button(action: onBack) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "chevron.left")
-                            Text("Back")
-                        }
-                        .foregroundColor(PrimaryColor)
-                    }
-                    Spacer()
-                }
-                .padding(.top, 16)
-                
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
                         ContentSection(
@@ -524,16 +479,16 @@ struct CourseBtn: View {
                 
                 VStack(spacing: 6) {
                     if minGrade != "Any" {
-                        Text("Min: \(minGrade)").font(.caption2).fontWeight(.semibold).foregroundColor(.white).padding(.horizontal, 6).padding(.vertical, 2).background(PrimaryColor).cornerRadius(4)
+                        Text("Min: \(minGrade)").font(.caption2).fontWeight(.semibold).foregroundColor(TertiaryColor).padding(.horizontal, 6).padding(.vertical, 2).background(PrimaryColor).cornerRadius(4)
                     }
                     
                     ForEach(requirements, id: \.self) { req in
-                        Text(req).font(.caption).foregroundColor(TertiaryColor.highContrastTextColor())
+                        Text(req).font(.caption).foregroundColor(PrimaryColor.opacity(0.72))
                     }
                 }
                 .padding(.horizontal, 8)
                 
-                Image(systemName: "chevron.right").font(.caption).foregroundColor(TertiaryColor.highContrastTextColor())
+                Image(systemName: "chevron.right").font(.caption).foregroundColor(PrimaryColor.opacity(0.72))
             }
             .padding(12)
             .overlay(
@@ -541,6 +496,7 @@ struct CourseBtn: View {
                     .stroke(PrimaryColor, lineWidth: 2)
             )
         }
+        .buttonStyle(.plain)
     }
 }
 
@@ -562,11 +518,11 @@ struct Info: View {
                     .font(.caption)
                     .foregroundStyle(TertiaryColor)
                     .padding(6)
-                    .background(course.name.contains("AP") ? Color.orange : Color.purple)
+                    .background(PrimaryColor)
                     .cornerRadius(4)
             }
         }
-        Text(course.semester).font(.caption2).foregroundColor(TertiaryColor.highContrastTextColor())
+        Text(course.semester).font(.caption2).foregroundColor(PrimaryColor.opacity(0.72))
     }
 }
 
@@ -588,7 +544,7 @@ struct Requirements: View {
             if requirements.isEmpty {
                 Text("No prerequisites")
                     .font(.subheadline)
-                    .foregroundColor(TertiaryColor.highContrastTextColor())
+                    .foregroundColor(PrimaryColor.opacity(0.72))
                     .padding(12).frame(maxWidth: .infinity, alignment: .leading)
                     .cornerRadius(6)
             } else {
@@ -596,7 +552,7 @@ struct Requirements: View {
                     ForEach(requirements, id: \.self) { req in
                         Text(req)
                             .font(.caption)
-                            .foregroundColor(TertiaryColor.highContrastTextColor())
+                            .foregroundColor(PrimaryColor.opacity(0.72))
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
@@ -634,7 +590,9 @@ struct ContentSection: View {
             .padding(.horizontal)
             .padding(.top)
 
-            Divider()
+            Rectangle()
+                .fill(PrimaryColor.opacity(0.18))
+                .frame(height: 1)
 
             VStack(alignment: .leading, spacing: 12) {
                 Requirements(
@@ -646,7 +604,9 @@ struct ContentSection: View {
             }
             .padding(.horizontal)
             
-            Divider()
+            Rectangle()
+                .fill(PrimaryColor.opacity(0.18))
+                .frame(height: 1)
 
             nextCoursesSection
                 .padding(.horizontal)
@@ -661,7 +621,7 @@ struct ContentSection: View {
         if nextPairs.isEmpty {
             Text("No follow-up courses")
                 .font(.subheadline)
-                .foregroundColor(TertiaryColor.highContrastTextColor())
+                .foregroundColor(PrimaryColor.opacity(0.72))
                 .padding(12)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .cornerRadius(6)

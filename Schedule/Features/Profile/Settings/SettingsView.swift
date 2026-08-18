@@ -41,10 +41,6 @@ struct Settings: View {
         PrimaryColor.accessibleForegroundColor(against: TertiaryColor)
     }
 
-    private var glassHeaderTextColor: Color {
-        TertiaryColor.luminance() > 0.5 ? .black : .white
-    }
-
     var body: some View {
         ZStack {
             VStack {
@@ -145,13 +141,13 @@ struct Settings: View {
                         .appThemeFont(.secondary, size: iPad ? 34 : 22, weight: .bold)
                         .padding(iPad ? 16 : 12)
                         .frame(maxWidth: .infinity)
-                        .foregroundStyle(glassHeaderTextColor)
+                        .foregroundStyle(PrimaryColor)
                         .glassEffect(.regular.tint(TertiaryColor.opacity(0.62)))
                 } else {
                     Text("Settings")
                         .appThemeFont(.secondary, size: iPad ? 34 : 22, weight: .bold)
                         .padding(12)
-                        .foregroundStyle(readableTextColor)
+                        .foregroundStyle(PrimaryColor)
                 }
                 Spacer()
             }

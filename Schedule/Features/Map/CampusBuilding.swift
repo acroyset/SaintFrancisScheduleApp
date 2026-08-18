@@ -47,6 +47,7 @@ struct CampusRoomMarker: Identifiable, Equatable {
 }
 
 enum CampusMapLayer: Int, CaseIterable, Identifiable {
+    case all = 0
     case first = 1
     case second = 2
 
@@ -54,6 +55,8 @@ enum CampusMapLayer: Int, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        case .all:
+            return "All"
         case .first:
             return "1st Floor"
         case .second:
@@ -63,6 +66,8 @@ enum CampusMapLayer: Int, CaseIterable, Identifiable {
 
     var shortTitle: String {
         switch self {
+        case .all:
+            return "All"
         case .first:
             return "1"
         case .second:
@@ -72,6 +77,18 @@ enum CampusMapLayer: Int, CaseIterable, Identifiable {
 }
 
 enum CampusMapData {
+    static func roomMarkers(
+        for layer: CampusMapLayer,
+        classLocations: [CampusClassLocation]
+    ) -> [CampusRoomMarker] {
+        guard layer == .all else {
+            return roomMarkers.filter { $0.layer == layer }
+        }
+
+        let classRoomKeys = Set(classLocations.map { roomKey(for: $0.room) })
+        return roomMarkers.filter { classRoomKeys.contains(roomKey(for: $0.room)) }
+    }
+
     static func unplacedAcademicClassCount(in classes: [ClassItem]) -> Int {
         classes.enumerated().filter { index, classItem in
             guard (0...6).contains(index) else { return false }

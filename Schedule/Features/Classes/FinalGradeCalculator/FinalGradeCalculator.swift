@@ -89,7 +89,12 @@ struct FinalGradeCalculatorModal: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                         
                         HStack(spacing: 8) {
-                            TextField("Enter percentage", text: currentGradeBinding)
+                            TextField(
+                                "",
+                                text: currentGradeBinding,
+                                prompt: Text("Enter percentage")
+                                    .foregroundStyle(PrimaryColor.opacity(0.7))
+                            )
                                 .keyboardType(.decimalPad)
                                 .font(.system(size: iPad ? 18 : 14, weight: .semibold, design: .monospaced))
                                 .padding(12)
@@ -119,7 +124,12 @@ struct FinalGradeCalculatorModal: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                         
                         HStack(spacing: 8) {
-                            TextField("Enter weight", text: finalExamWeightBinding)
+                            TextField(
+                                "",
+                                text: finalExamWeightBinding,
+                                prompt: Text("Enter weight")
+                                    .foregroundStyle(PrimaryColor.opacity(0.7))
+                            )
                                 .keyboardType(.decimalPad)
                                 .font(.system(size: iPad ? 18 : 14, weight: .semibold, design: .monospaced))
                                 .padding(12)
@@ -144,19 +154,38 @@ struct FinalGradeCalculatorModal: View {
                             .foregroundStyle(PrimaryColor)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         
-                        Picker("Desired Grade", selection: desiredGradeBinding) {
-                            ForEach(grades, id: \.self) { grade in
-                                Text(grade).tag(grade)
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(grades, id: \.self) { grade in
+                                    let isSelected = selectedRecord.desiredFinalGrade == grade
+
+                                    Button {
+                                        desiredGradeBinding.wrappedValue = grade
+                                    } label: {
+                                        Text(grade)
+                                            .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                            .foregroundStyle(isSelected ? TertiaryColor : PrimaryColor)
+                                            .padding(.horizontal, 11)
+                                            .padding(.vertical, 8)
+                                            .background(isSelected ? PrimaryColor : PrimaryColor.opacity(0.10))
+                                            .clipShape(Capsule())
+                                            .overlay(
+                                                Capsule()
+                                                    .stroke(PrimaryColor.opacity(isSelected ? 1 : 0.28), lineWidth: 1)
+                                            )
+                                    }
+                                    .buttonStyle(.plain)
+                                }
                             }
                         }
-                        .pickerStyle(.segmented)
-                        .tint(PrimaryColor)
                     }
                     .padding(12)
                     .background(SecondaryColor)
                     .cornerRadius(12)
                     
-                    Divider()
+                    Rectangle()
+                        .fill(PrimaryColor.opacity(0.18))
+                        .frame(height: 1)
                         .padding(.vertical, 8)
                     
                     // Required Final Grade Result
@@ -207,7 +236,7 @@ struct FinalGradeCalculatorModal: View {
 
                     Text("Your grade data is stored locally on this device. It is not sent to us, and we do not collect it.")
                         .font(.system(size: 12, weight: .medium, design: .monospaced))
-                        .foregroundStyle(TertiaryColor.highContrastTextColor())
+                        .foregroundStyle(PrimaryColor.opacity(0.72))
                 }
                 .padding(16)
                 
@@ -230,54 +259,19 @@ struct FinalGradeCalculatorModal: View {
                 )
             }
             
-            VStack{
-                
-                if #available(iOS 26.0, *), AppAvailability.liquidGlass {
-                    HStack {
-                        Text("Final Grade Calculator")
-                            .font(.system(
-                                size: iPad ? 34 : 18,
-                                weight: .bold,
-                                design: .monospaced
-                            ))
-                            .padding(iPad ? 16 : 12)
-                            .padding(.horizontal, iPad ? 20 : 16)
-                        
-                        Spacer()
-                        
-                        Button(action: { window = .None }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: iPad ? 30 : 22))
-                                .foregroundStyle(TertiaryColor.maximumContrastTextColor())
-                        }
-                        .padding(iPad ? 16 : 12)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .foregroundStyle(TertiaryColor.maximumContrastTextColor())
-                    .glassEffect(.regular.tint(TertiaryColor.opacity(0.62)))
-                } else {
-                    HStack {
-                        Text("Final Grade Calculator")
-                            .font(.system(size: 24, weight: .bold, design: .monospaced))
-                            .foregroundStyle(PrimaryColor)
-                        
-                        Spacer()
-                        
-                        Button(action: { window = .None }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 24))
-                                .foregroundStyle(PrimaryColor)
-                        }
-                    }
-                    .padding(20)
-                    .background(SecondaryColor)
-                    .cornerRadius(16)
-                }
-                
-                
+            VStack {
+                ClassFeatureHeader(
+                    title: "Final Grade Calculator",
+                    PrimaryColor: PrimaryColor,
+                    SecondaryColor: SecondaryColor,
+                    TertiaryColor: TertiaryColor,
+                    onBack: { window = .None }
+                )
+
                 Spacer()
             }
         }
+        .tint(PrimaryColor)
         .onAppear {
             if let initialClassIndex,
                classOptions.contains(where: { $0.index == initialClassIndex }) {

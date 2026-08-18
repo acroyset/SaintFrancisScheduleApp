@@ -19,6 +19,7 @@ struct NewsMenu: View {
     @State private var webHeight: CGFloat = 1
     @State private var fullscreenVideo: LancerLiveVideo?
     @State private var headerHeight: CGFloat = 0
+    @Environment(\.scenePhase) private var scenePhase
 
     init(
         PrimaryColor: Color,
@@ -75,7 +76,24 @@ struct NewsMenu: View {
             guard startsPolling else { return }
             await store.startPolling()
         }
+        .onAppear {
+            UsageStatsStore.shared.setCurrentNewsTab(store.selectedSource.usageTab)
+        }
+        .onChange(of: store.selectedSource) { _, source in
+            UsageStatsStore.shared.setCurrentNewsTab(source.usageTab)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            switch phase {
+            case .active:
+                UsageStatsStore.shared.setCurrentNewsTab(store.selectedSource.usageTab)
+            case .inactive, .background:
+                break
+            @unknown default:
+                break
+            }
+        }
         .onDisappear {
+            UsageStatsStore.shared.setCurrentNewsTab(nil)
             guard startsPolling else { return }
             store.stopPolling()
         }
@@ -245,6 +263,19 @@ struct NewsMenu: View {
     private var headerTitle: some View {
         Text("Saint Francis News")
             .appThemeFont(.secondary, size: iPad ? 34 : 22, weight: .bold)
+    }
+}
+
+private extension NewsSource {
+    var usageTab: UsageNewsTab {
+        switch self {
+        case .dailyAnnouncements:
+            .dailyAnnouncements
+        case .lancerLive:
+            .lancerLive
+        case .athletics:
+            .athletics
+        }
     }
 }
 

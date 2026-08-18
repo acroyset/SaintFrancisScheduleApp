@@ -26,11 +26,12 @@ final class GlobalDataStore: ObservableObject {
 
     private let persistence = CloudService()
 
-    private var themeDebounceTask: Task<Void, Never>?
-    private var lastSavedTheme: ThemeColors?
+    private var cloudSaveTask: Task<Void, Never>?
     private var hasTriedFetchingSchedule = false
     private var hasLoadedFromCloud = false
     private var scheduleFetchTask: Task<Void, Never>?
+    private var specialCodeFetchTask: Task<Void, Never>?
+    private var specialCodeFetchKey: String?
 
     var currentTheme: ThemeColors {
         ThemeColors(
@@ -77,38 +78,14 @@ final class GlobalDataStore: ObservableObject {
         guard !AppRuntime.isUITesting else { return }
         saveThemeLocally(currentTheme)
         if authManager.user != nil {
-            debouncedCloudSave(authManager: authManager, theme: currentTheme)
+            queueCloudSave(authManager: authManager)
         }
     }
 
     func saveSchedule(authManager: AuthenticationManager) {
         guard let data else { return }
         overwriteClassesFile(with: data.classes)
-        guard let user = authManager.user else { return }
-
-        Task {
-            do {
-                try await persistence.saveScheduleToCloud(
-                    classes: data.classes,
-                    theme: currentTheme,
-                    isSecondLunch: data.isSecondLunch,
-                    userId: user.id
-                )
-            } catch {
-                print("❌ Failed to save classes to cloud: \(error)")
-            }
-        }
-    }
-
-    func touchLastUpdated(authManager: AuthenticationManager) {
-        guard let userId = authManager.user?.id else { return }
-        Task {
-            do {
-                try await persistence.touchCloudLastUpdated(for: userId)
-            } catch {
-                print("❌ Failed to update lastUpdated: \(error)")
-            }
-        }
+        queueCloudSave(authManager: authManager)
     }
 
     func getDayInfo(for currentDay: String) -> Day? {
@@ -130,6 +107,11 @@ final class GlobalDataStore: ObservableObject {
         output = resolved.output
         scheduleLines = resolved.scheduleLines
         SharedGroup.defaults.set(dayCode == "None" ? "" : dayCode, forKey: "CurrentDayCode")
+
+        if dayCode.caseInsensitiveCompare("s1") == .orderedSame,
+           (scheduleDict?[ScheduleSelectionResolver.scheduleKey(for: date)]?.count ?? 0) < 3 {
+            fetchSpecialCode(for: date, events: events)
+        }
     }
 
     func syncDerivedOutputs(events: [CustomEvent]) {
@@ -213,7 +195,7 @@ final class GlobalDataStore: ObservableObject {
     }
 
     func handleUserChange(_ userId: String?) {
-        themeDebounceTask?.cancel()
+        cloudSaveTask?.cancel()
         hasLoadedFromCloud = false
     }
 
@@ -283,26 +265,31 @@ final class GlobalDataStore: ObservableObject {
         persistence.saveThemeLocally(theme)
     }
 
-    private func debouncedCloudSave(authManager: AuthenticationManager, theme: ThemeColors) {
-        themeDebounceTask?.cancel()
+    private func queueCloudSave(authManager: AuthenticationManager) {
+        cloudSaveTask?.cancel()
+        guard let data,
+              let userId = authManager.user?.id else { return }
 
-        if let lastSavedTheme,
-           lastSavedTheme.primary == theme.primary,
-           lastSavedTheme.secondary == theme.secondary,
-           lastSavedTheme.tertiary == theme.tertiary,
-           lastSavedTheme.primaryFont == theme.primaryFont,
-           lastSavedTheme.secondaryFont == theme.secondaryFont {
-            return
-        }
-
-        themeDebounceTask = Task {
+        let classes = data.classes
+        let theme = currentTheme
+        let isSecondLunch = data.isSecondLunch
+        cloudSaveTask = Task { [weak self] in
             do {
-                try await Task.sleep(nanoseconds: 2_000_000_000)
-                if !Task.isCancelled, authManager.user != nil {
-                    saveSchedule(authManager: authManager)
-                    lastSavedTheme = theme
-                }
-            } catch {}
+                try await Task.sleep(for: .seconds(1))
+                guard !Task.isCancelled,
+                      authManager.user?.id == userId,
+                      let self else { return }
+                try await self.persistence.saveScheduleToCloud(
+                    classes: classes,
+                    theme: theme,
+                    isSecondLunch: isSecondLunch,
+                    userId: userId
+                )
+            } catch is CancellationError {
+                // A newer edit replaced this pending save.
+            } catch {
+                print("❌ Failed to save schedule to cloud: \(error)")
+            }
         }
     }
 
@@ -355,16 +342,82 @@ final class GlobalDataStore: ObservableObject {
     }
 
     private func refreshRenderedSchedule(events: [CustomEvent]) {
+        let key = ScheduleSelectionResolver.scheduleKey(for: selectedDate)
+        let specialScheduleCode = scheduleDict?[key].flatMap { $0.count > 2 ? $0[2] : nil } ?? ""
         scheduleLines = ScheduleSelectionResolver.renderedLines(
             dayCode: dayCode,
             selectedDate: selectedDate,
             data: data,
-            events: events
+            events: events,
+            specialScheduleCode: specialScheduleCode
         )
     }
 
     private func fetchScheduleFromGoogleSheets(events: [CustomEvent]) {
         retryScheduleLoad(events: events)
+    }
+
+    /// Legacy caches contain only `[dayCode, note]`. For an S1 date, fetch just
+    /// Sheet columns A and E for that date and merge E into the cached row.
+    /// This query is much smaller than downloading the full sheet again.
+    private func fetchSpecialCode(for date: Date, events: [CustomEvent]) {
+        let key = ScheduleSelectionResolver.scheduleKey(for: date)
+        guard specialCodeFetchKey != key else { return }
+
+        specialCodeFetchTask?.cancel()
+        specialCodeFetchKey = key
+        specialCodeFetchTask = Task { [weak self] in
+            guard let self else { return }
+            defer {
+                if self.specialCodeFetchKey == key {
+                    self.specialCodeFetchKey = nil
+                }
+            }
+
+            guard var components = URLComponents(
+                string: "https://docs.google.com/spreadsheets/d/1vrodfGZP7wNooj8VYgpNejPaLvOl8PUyg82hwWz_uU4/gviz/tq"
+            ) else { return }
+            components.queryItems = [
+                URLQueryItem(name: "tqx", value: "out:csv"),
+                URLQueryItem(name: "gid", value: "0"),
+                URLQueryItem(name: "tq", value: "select A,E where A = '\(key)'")
+            ]
+            guard let url = components.url else { return }
+
+            do {
+                var request = URLRequest(url: url)
+                request.timeoutInterval = 5
+                request.cachePolicy = .reloadRevalidatingCacheData
+
+                let (responseData, response) = try await URLSession.shared.data(for: request)
+                if let http = response as? HTTPURLResponse, http.statusCode != 200 {
+                    throw URLError(.badServerResponse)
+                }
+                guard let csv = String(data: responseData, encoding: .utf8),
+                      let specialCode = CSVParser.parseSpecialCodeCSV(csv, dateKey: key),
+                      var row = scheduleDict?[key] else {
+                    return
+                }
+
+                while row.count < 3 { row.append("") }
+                row[2] = specialCode
+                scheduleDict?[key] = row
+
+                if let dict = scheduleDict,
+                   let dictData = try? JSONEncoder().encode(dict) {
+                    SharedGroup.defaults.set(dictData, forKey: "ScheduleDict")
+                }
+
+                if Calendar.current.isDate(selectedDate, inSameDayAs: date) {
+                    applySelectedDate(date, events: events)
+                    syncDerivedOutputs(events: events)
+                }
+            } catch is CancellationError {
+                return
+            } catch {
+                print("⚠️ Fifth-column fetch failed: \(error.localizedDescription)")
+            }
+        }
     }
 
     private func fetchScheduleFromGoogleSheetsAsync(events: [CustomEvent]) async {

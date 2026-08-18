@@ -13,6 +13,7 @@ struct SchoologyConnectSheet: View {
     
     var PrimaryColor: Color
     var SecondaryColor: Color
+    var TertiaryColor: Color
     
     @State private var isLoading = false
     @State private var selectedClasses: [SchoolClassItem] = []
@@ -56,7 +57,7 @@ struct SchoologyConnectSheet: View {
                                     
                                     Text("Securely authenticate to import your class list")
                                         .font(.system(size: 14, weight: .regular, design: .monospaced))
-                                        .foregroundStyle(.gray)
+                                        .foregroundStyle(PrimaryColor.opacity(0.68))
                                         .multilineTextAlignment(.center)
                                 }
                                 
@@ -79,7 +80,7 @@ struct SchoologyConnectSheet: View {
                                 .frame(maxWidth: .infinity)
                                 .padding(12)
                                 .background(PrimaryColor)
-                                .foregroundColor(.white)
+                                .foregroundStyle(TertiaryColor)
                                 .cornerRadius(8)
                                 .disabled(isLoading)
                                 
@@ -92,7 +93,7 @@ struct SchoologyConnectSheet: View {
                                 HStack {
                                     Image(systemName: "checkmark.circle.fill")
                                         .font(.system(size: 20))
-                                        .foregroundStyle(.green)
+                                        .foregroundStyle(PrimaryColor)
                                     
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text("Connected to Schoology")
@@ -100,7 +101,7 @@ struct SchoologyConnectSheet: View {
                                             .foregroundStyle(PrimaryColor)
                                         Text("Select classes to import in period order")
                                             .font(.system(size: 12, weight: .regular, design: .monospaced))
-                                            .foregroundStyle(.gray)
+                                            .foregroundStyle(PrimaryColor.opacity(0.68))
                                     }
                                     
                                     Spacer()
@@ -122,6 +123,7 @@ struct SchoologyConnectSheet: View {
                                         isSelected: selectedClasses.contains(where: { $0.id == schoolClass.id }),
                                         primaryColor: PrimaryColor,
                                         secondaryColor: SecondaryColor,
+                                        tertiaryColor: TertiaryColor,
                                         index: selectedIndex,
                                         action: {
                                             toggleClassSelection(schoolClass)
@@ -143,8 +145,8 @@ struct SchoologyConnectSheet: View {
                             .font(.system(size: 16, weight: .semibold, design: .monospaced))
                             .frame(maxWidth: .infinity)
                             .padding(12)
-                            .background(selectedClasses.isEmpty ? Color.gray : PrimaryColor)
-                            .foregroundColor(.white)
+                            .background(PrimaryColor.opacity(selectedClasses.isEmpty ? 0.35 : 1))
+                            .foregroundStyle(TertiaryColor)
                             .cornerRadius(8)
                     }
                     .disabled(selectedClasses.isEmpty)
@@ -152,6 +154,7 @@ struct SchoologyConnectSheet: View {
                     .background(SecondaryColor)
                 }
             }
+            .background(TertiaryColor)
         }
         
         .onAppear(){
@@ -210,6 +213,7 @@ struct ClassSelectionRow: View {
     var isSelected: Bool
     var primaryColor: Color
     var secondaryColor: Color
+    var tertiaryColor: Color
     var index: Int?
     var action: () -> Void
     
@@ -224,7 +228,7 @@ struct ClassSelectionRow: View {
                     if isSelected {
                         Text("\((index ?? 0) + 1)")
                             .font(.system(size: 16, weight: .bold, design: .monospaced))
-                            .foregroundColor(.white)
+                            .foregroundStyle(tertiaryColor)
                     }
                 }
                 
@@ -236,14 +240,14 @@ struct ClassSelectionRow: View {
                     HStack(spacing: 8) {
                         Text(schoolClass.teacher)
                             .font(.system(size: 12, weight: .regular, design: .monospaced))
-                            .foregroundStyle(.gray)
+                            .foregroundStyle(primaryColor.opacity(0.68))
                         
                         Text("•")
-                            .foregroundStyle(.gray)
+                            .foregroundStyle(primaryColor.opacity(0.68))
                         
                         Text("Room \(schoolClass.room)")
                             .font(.system(size: 12, weight: .regular, design: .monospaced))
-                            .foregroundStyle(.gray)
+                            .foregroundStyle(primaryColor.opacity(0.68))
                     }
                 }
                 

@@ -40,7 +40,7 @@ struct PersistedAppState {
 @MainActor
 final class CloudService {
     private lazy var dataManager = DataManager()
-    private lazy var eventsDataManager = CloudEventsDataManager()
+    private lazy var eventsDataManager = CloudEventsDataManager.shared
     private let userDefaults = UserDefaults.standard
     private let customEventsKey = "CustomEvents"
 
@@ -205,10 +205,6 @@ final class CloudService {
             isSecondLunch: isSecondLunch,
             theme: PersistedThemeState(theme: theme)
         )
-    }
-
-    func touchCloudLastUpdated(for userId: String) async throws {
-        try await dataManager.touchLastUpdated(for: userId)
     }
 
     func appendUsageSessionToCloud(_ session: UsageSessionRecord, for userId: String) async throws {

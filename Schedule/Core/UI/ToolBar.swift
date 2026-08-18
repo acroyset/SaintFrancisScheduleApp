@@ -25,6 +25,8 @@ enum AppFeatureBadge: String {
 }
 
 struct NewBadge: ViewModifier {
+    @Environment(\.appTheme) private var theme
+
     let isShown: Bool
     private let overhang: CGFloat = 4
 
@@ -37,10 +39,10 @@ struct NewBadge: ViewModifier {
             if isShown {
                 Text("NEW")
                     .appThemeFont(.secondary, style: .caption2, weight: .bold)
-                    .foregroundColor(.white)
+                    .foregroundStyle(Color(hex: theme.tertiary))
                     .padding(.horizontal, 7)
                     .padding(.vertical, 4)
-                    .background(Color.red)
+                    .background(Color(hex: theme.primary))
                     .clipShape(Capsule())
                     .offset(x: overhang, y: -overhang)
             }
@@ -82,41 +84,12 @@ struct ToolBar: View {
     @State private var displayedToolIndex: Int?
 
     private var toolbarPadding: CGFloat { iPad ? 14 : 8 }
-    private var selectedForegroundColor: Color {
-        maximumContrastColor(against: PrimaryColor)
-    }
+    private var selectedForegroundColor: Color { TertiaryColor }
     private var selectionAnimation: Animation {
         .spring(response: 0.34, dampingFraction: 0.82)
     }
     private let coordinateSpaceName = "ToolBarCoordinateSpace"
 
-    private func maximumContrastColor(against background: Color) -> Color {
-        var red: CGFloat = 0
-        var green: CGFloat = 0
-        var blue: CGFloat = 0
-        var alpha: CGFloat = 0
-
-        guard UIColor(background).getRed(
-            &red,
-            green: &green,
-            blue: &blue,
-            alpha: &alpha
-        ) else {
-            return .primary
-        }
-
-        func linearized(_ component: CGFloat) -> CGFloat {
-            component <= 0.04045
-                ? component / 12.92
-                : pow((component + 0.055) / 1.055, 2.4)
-        }
-
-        let luminance = 0.2126 * linearized(red)
-            + 0.7152 * linearized(green)
-            + 0.0722 * linearized(blue)
-        return luminance > 0.179 ? .black : .white
-    }
-    
     var body: some View {
         toolbarButtons
             .frame(maxWidth: .infinity)
@@ -238,7 +211,7 @@ struct ToolBar: View {
     private var selectionMask: some View {
         if let frame = selectionBubbleFrame {
             Capsule()
-                .fill(.white)
+                .fill(TertiaryColor)
                 .frame(width: frame.width, height: frame.height)
                 .position(x: frame.midX, y: frame.midY)
         }

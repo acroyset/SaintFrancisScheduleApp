@@ -135,7 +135,7 @@ struct CourseAutocompleteMenu: View {
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(primaryColor.opacity(0.36), lineWidth: 1)
                 )
-                .shadow(color: .black.opacity(0.18), radius: 14, y: 8)
+                .shadow(color: primaryColor.opacity(0.18), radius: 14, y: 8)
         } else {
             menuContent
                 .background(secondaryColor.opacity(0.99))
@@ -181,7 +181,10 @@ struct CourseAutocompleteMenu: View {
                 .buttonStyle(.plain)
 
                 if course.id != suggestions.last?.id || customName != nil {
-                    Divider().padding(.leading, 36)
+                    Rectangle()
+                        .fill(primaryColor.opacity(0.18))
+                        .frame(height: 1)
+                        .padding(.leading, 36)
                 }
             }
 
@@ -192,7 +195,7 @@ struct CourseAutocompleteMenu: View {
                     HStack(spacing: 8) {
                         Image(systemName: "plus.circle.fill")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(.green)
+                            .foregroundStyle(primaryColor)
                             .frame(width: 18)
 
                         Text("Add \"\(customName)\"")

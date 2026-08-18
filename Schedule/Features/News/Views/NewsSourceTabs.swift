@@ -32,7 +32,7 @@ struct NewsSourceTabs: View {
                             .foregroundStyle(
                                 selectedSource == source
                                 ? selectedTextColor
-                                : tertiaryColor.highContrastTextColor()
+                                : primaryColor
                             )
                             .padding(.horizontal, iPad ? 12 : 6)
                     }
@@ -48,10 +48,7 @@ struct NewsSourceTabs: View {
     }
 
     private var selectedTextColor: Color {
-        if usesDarkGraphiteSelection {
-            return .white
-        }
-        return primaryColor.luminance() > 0.5 ? .black : .white
+        usesDarkGraphiteSelection ? primaryColor : tertiaryColor
     }
 
     private var usesDarkGraphiteSelection: Bool {

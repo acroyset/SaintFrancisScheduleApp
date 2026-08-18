@@ -7,13 +7,13 @@ import SwiftUI
 import Foundation
 import UserNotifications
 
-let version = "1.20"
+let version = "1.21"
 let whatsNew = """
- - Redesigned Home & class details
- - New grade & GPA tools
- - Athletics schedules in News
- - Homework, reminder & map improvements
- - Bug fixes & performance improvements
+ - Custom schedules for special school days
+ - Clearer campus map labels and room filtering
+ - More reliable class, theme & event cloud sync
+ - More accurate widgets and nightly notifications
+ - Grade-tool, landscape & accessibility fixes
 """
 
 enum ContentOverlayVisibility {
@@ -181,7 +181,10 @@ struct ContentView: View {
                     scrollTarget = currentTarget
                 }
             }
-            .onReceive(widgetRequestTicker) { _ in handleWidgetRefreshRequest() }
+            .onReceive(widgetRequestTicker) { _ in
+                handleWidgetRefreshRequest()
+                syncCurrentUsageSession()
+            }
             .onReceive(NotificationCenter.default.publisher(for: .backToSchoolPromptEligibilityChanged)) { _ in
                 handleBackToSchoolReminders()
             }
@@ -559,22 +562,8 @@ struct ContentView: View {
         )
     }
 
-    private func syncCurrentUsageSession() {
-        guard let userId = authManager.user?.id,
-              let session = usageStats.currentSessionRecord() else { return }
-
-        Task {
-            do {
-                try await CloudService().appendUsageSessionToCloud(session, for: userId)
-            } catch {
-                print("❌ Failed to sync usage session: \(error)")
-            }
-        }
-    }
-
-    private func appendEndedUsageSession() {
-        guard let userId = authManager.user?.id,
-              let session = usageStats.endSession() else { return }
+    private func uploadUsageSession(_ session: UsageSessionRecord) {
+        guard let userId = authManager.user?.id else { return }
 
         Task {
             do {
@@ -585,13 +574,25 @@ struct ContentView: View {
         }
     }
 
+    private func checkpointUsageSession() {
+        guard let session = usageStats.pauseSession() else { return }
+        uploadUsageSession(session)
+    }
+
+    private func syncCurrentUsageSession() {
+        guard scenePhase == .active,
+              let session = usageStats.snapshotSession() else { return }
+        uploadUsageSession(session)
+    }
+
+    private func appendEndedUsageSession() {
+        guard let session = usageStats.endSession() else { return }
+        uploadUsageSession(session)
+    }
+
     private func updateOrientation(for size: CGSize) {
         guard size.width > 0, size.height > 0 else { return }
         isPortrait = size.height > size.width
-    }
-
-    private func saveEventsToCloud() {
-        eventsManager.saveToCloud(using: authManager)
     }
 
     private func handleWidgetRefreshRequest() {
@@ -620,7 +621,6 @@ struct ContentView: View {
             }
             usageStats.setCurrentPage(usagePage(for: window))
             usageStats.setCurrentFeature(nil)
-            appStore.touchLastUpdated(authManager: authManager)
             syncCurrentUsageSession()
         }
 
@@ -655,7 +655,6 @@ struct ContentView: View {
     private func handleEventsChange(_: [CustomEvent], _: [CustomEvent]) {
         appStore.syncDerivedOutputs(events: eventsManager.events)
         scrollTarget = appStore.scrollTargetForCurrentSchedule()
-        saveEventsToCloud()
     }
 
     private func handleClassesChange(_: [ClassItem]?, newClasses: [ClassItem]?) {
@@ -681,9 +680,8 @@ struct ContentView: View {
         case .active:
             usageStats.beginSession()
             usageStats.setCurrentPage(usagePage(for: window))
-            usageStats.setCurrentFeature(nil)
-            appStore.touchLastUpdated(authManager: authManager)
             syncCurrentUsageSession()
+            appStore.retryScheduleLoad(events: eventsManager.events)
             appStore.updateCurrentScheduleProgress()
             appStore.updateNightlyNotification()
             eventsManager.purgeExpiredReminders()
@@ -694,7 +692,7 @@ struct ContentView: View {
             appendEndedUsageSession()
             appStore.updateNightlyNotification()
         case .inactive:
-            appendEndedUsageSession()
+            checkpointUsageSession()
         default:
             break
         }
@@ -758,6 +756,7 @@ struct ContentView: View {
         guard oldWindow != newWindow else { return }
         usageStats.setCurrentPage(usagePage(for: newWindow))
         usageStats.setCurrentFeature(nil)
+        syncCurrentUsageSession()
         withAnimation(.snappy) {
             showCalendarGrid = false
             isHomeAddSelectorExpanded = false
@@ -778,7 +777,6 @@ struct ContentView: View {
         }
         usageStats.setCurrentPage(usagePage(for: window))
         usageStats.setCurrentFeature(nil)
-        appStore.touchLastUpdated(authManager: authManager)
         syncCurrentUsageSession()
     }
 
