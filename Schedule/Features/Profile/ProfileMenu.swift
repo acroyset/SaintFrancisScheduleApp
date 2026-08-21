@@ -21,6 +21,10 @@ struct ProfileMenu: View {
     @Binding var TertiaryColor: Color
     @Binding var primaryFontChoice: AppFontChoice
     @Binding var secondaryFontChoice: AppFontChoice
+    var scheduleCloudPhase: CloudSyncPhase
+    var lastScheduleCloudSync: Date?
+    var pendingScheduleCloudChanges: Int
+    var syncCloudNow: () -> Void
     var iPad: Bool
     var isPortrait: Bool
     
@@ -30,7 +34,7 @@ struct ProfileMenu: View {
     @State private var syncMessage = ""
     @State private var showSyncMessage = false
     @State private var showSettings = false
-    @State private var showAllItems = false
+    @State private var showCloud = false
     @State private var profileHeaderHeight: CGFloat = 0
 
     private var profileHeaderTopSpacing: CGFloat {
@@ -43,15 +47,15 @@ struct ProfileMenu: View {
         )
     }
     
-    /// Detect Google accounts safely — only evaluated when the view
-    /// is fully alive and authManager.user is already set.
-    private var isGoogleAccount: Bool {
+    /// Choose a linked provider that can issue a fresh credential for account
+    /// deletion. Apple accounts must not be sent through the password form.
+    private var accountReauthenticationMethod: AccountReauthenticationMethod {
 #if canImport(FirebaseAuth)
-        guard authManager.user != nil else { return false }
-        return Auth.auth().currentUser?.providerData
-            .contains(where: { $0.providerID == "google.com" }) ?? false
+        guard authManager.user != nil else { return .password }
+        let providerIDs = Auth.auth().currentUser?.providerData.map(\.providerID) ?? []
+        return AccountReauthenticationMethod(providerIDs: providerIDs)
 #else
-        return false
+        return .password
 #endif
     }
     
@@ -107,58 +111,37 @@ struct ProfileMenu: View {
                     .background(SecondaryColor)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
 
-                    // Sync Status Message
-                    if showSyncMessage {
-                        HStack {
-                            Image(systemName: syncMessage.contains("✅") ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                                .foregroundColor(syncMessage.contains("✅") ? .green : .red)
-                            Text(syncMessage.dropFirst())
-                                .appThemeFont(.secondary, style: .footnote)
-                                .foregroundStyle(TertiaryColor.highContrastTextColor())
+                    Button {
+                        showCloud = true
+                    } label: {
+                        HStack(spacing: 14) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(readablePrimaryColor.opacity(0.12))
+                                    .frame(width: 48, height: 48)
+                                Image(systemName: cloudSummaryPhase.systemImage)
+                                    .font(.system(size: 23, weight: .semibold))
+                                    .foregroundStyle(cloudSummaryColor)
+                            }
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Cloud")
+                                    .appThemeFont(.primary, size: iPad ? 22 : 17, weight: .bold)
+                                Text(cloudSummaryDetail)
+                                    .appThemeFont(.secondary, size: iPad ? 15 : 12)
+                                    .opacity(0.72)
+                            }
                             Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.footnote.weight(.bold))
+                                .opacity(0.55)
                         }
-                        .padding(.vertical, 4)
-                        .transition(.opacity)
-                    }
-                    
-                    // Manual Save Button
-                    Button {
-                        save()
-                    } label: {
-                        HStack {
-                            if isSaving {
-                                ProgressView().scaleEffect(0.8)
-                            } else {
-                                Image(systemName: "square.and.arrow.down")
-                            }
-                            Text("Save")
-                        }
-                        .frame(maxWidth: .infinity, minHeight: iPad ? 44 : 30)
-                        .padding()
+                        .padding(14)
                         .background(SecondaryColor)
                         .foregroundColor(readablePrimaryColor)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
                     }
-                    .disabled(isSaving)
-                    
-                    Button {
-                        load()
-                    } label: {
-                        HStack {
-                            if isLoading {
-                                ProgressView().scaleEffect(0.8)
-                            } else {
-                                Image(systemName: "arrow.down.circle")
-                            }
-                            Text("Load")
-                        }
-                        .frame(maxWidth: .infinity, minHeight: iPad ? 44 : 30)
-                        .padding()
-                        .background(SecondaryColor)
-                        .foregroundColor(readablePrimaryColor)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                    }
-                    .disabled(isLoading)
+                    .accessibilityIdentifier("profile.cloud")
                     
                     Divider()
                     
@@ -178,22 +161,6 @@ struct ProfileMenu: View {
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                     }
 
-                    Button {
-                        showAllItems = true
-                    } label: {
-                        HStack {
-                            Image(systemName: "tray.full")
-                            Text("View Events & Reminders")
-                                .appThemeFont(.secondary, size: iPad ? 28 : 18, weight: .bold)
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                        }
-                        .padding(12)
-                        .foregroundStyle(readablePrimaryColor)
-                        .background(SecondaryColor)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                    }
-                    
                     #if DEBUG
                     Button {
                         fatalError("Crashlytics test crash")
@@ -299,19 +266,29 @@ struct ProfileMenu: View {
                 .background(TertiaryColor)
             }
         )
-        .sheet(isPresented: $showAllItems) {
-            AllItemsView(
-                scheduleDict: nil,
-                PrimaryColor: PrimaryColor,
-                SecondaryColor: SecondaryColor,
-                TertiaryColor: TertiaryColor
+        .sheet(isPresented: $showCloud) {
+            CloudSyncView(
+                email: authManager.user?.email,
+                schedulePhase: scheduleCloudPhase,
+                eventsPhase: eventsManager.cloudSyncPhase,
+                lastScheduleSync: lastScheduleCloudSync,
+                lastEventsSync: eventsManager.lastCloudSyncDate,
+                pendingScheduleChanges: pendingScheduleCloudChanges,
+                classCount: data?.classes.filter {
+                    !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        && $0.name.caseInsensitiveCompare("None") != .orderedSame
+                }.count ?? 0,
+                eventCount: eventsManager.events.count,
+                primaryColor: PrimaryColor,
+                secondaryColor: SecondaryColor,
+                backgroundColor: TertiaryColor,
+                syncNow: syncCloudNow
             )
-            .environmentObject(eventsManager)
         }
         .sheet(isPresented: $authManager.needsReauthForDeletion) {
             ReauthDeleteSheet(
                 authManager: authManager,
-                isGoogleAccount: isGoogleAccount
+                method: accountReauthenticationMethod
             )
         }
         .alert("Delete Account", isPresented: $showingDeleteAlert) {
@@ -328,52 +305,54 @@ struct ProfileMenu: View {
         .onChange(of: showSettings) { _, _ in
             syncTrackedFeature()
         }
-        .onChange(of: showAllItems) { _, _ in
+        .onChange(of: showCloud) { _, _ in
             syncTrackedFeature()
+        }
+    }
+
+    private var cloudSummaryPhase: CloudSyncPhase {
+        guard authManager.user != nil else { return .disconnected }
+        if case .failed(let message) = scheduleCloudPhase { return .failed(message) }
+        if case .failed(let message) = eventsManager.cloudSyncPhase { return .failed(message) }
+        if scheduleCloudPhase == .loading || eventsManager.cloudSyncPhase == .loading { return .loading }
+        if scheduleCloudPhase == .pending || eventsManager.cloudSyncPhase == .pending { return .pending }
+        return .synced
+    }
+
+    private var cloudSummaryDetail: String {
+        authManager.user == nil ? "Sign in to sync across devices" : "\(cloudSummaryPhase.title) • Automatic"
+    }
+
+    private var cloudSummaryColor: Color {
+        switch cloudSummaryPhase {
+        case .disconnected: .secondary
+        case .loading, .pending: .orange
+        case .synced: .green
+        case .failed: .red
         }
     }
     
     // MARK: - Save / Load
     
     private func save() {
-        guard let scheduleData = data else {
+        guard data != nil else {
             showMessage("❌ No data to save")
             return
         }
         
         isSaving = true
         showSyncMessage = false
-        
-        Task {
-            do {
-                let theme = ThemeColors(
-                    primary: PrimaryColor.toHex() ?? "#00A5FFFF",
-                    secondary: SecondaryColor.toHex() ?? "#00A5FF19",
-                    tertiary: TertiaryColor.toHex() ?? "#FFFFFFFF",
-                    primaryFont: primaryFontChoice,
-                    secondaryFont: secondaryFontChoice
-                )
-                try await persistence.saveAppState(
-                    classes: scheduleData.classes,
-                    theme: theme,
-                    isSecondLunch: scheduleData.isSecondLunch,
-                    events: eventsManager.events,
-                    userId: authManager.user?.id
-                )
-                await MainActor.run {
-                    let message = authManager.user == nil
-                        ? "✅ Saved on this device"
-                        : "✅ Saved on this device and the cloud"
-                    showMessage(message)
-                    isSaving = false
-                }
-            } catch {
-                await MainActor.run {
-                    showMessage(" Save failed: \(error.localizedDescription)")
-                    isSaving = false
-                }
-            }
-        }
+
+        // This closure is owned by ContentView and routes through
+        // GlobalDataStore and CustomEventsManager. Both managers validate the
+        // active account's durable snapshot before touching local or cloud
+        // data, so a corrupt activation cannot be saved as an empty account.
+        syncCloudNow()
+        let message = authManager.user == nil
+            ? "✅ Saved on this device"
+            : "✅ Sync requested"
+        showMessage(message)
+        isSaving = false
     }
     
     private func load() {
@@ -427,10 +406,8 @@ struct ProfileMenu: View {
     }
 
     private func syncTrackedFeature() {
-        if showSettings {
+        if showSettings || showCloud {
             UsageStatsStore.shared.setCurrentFeature(.settings)
-        } else if showAllItems {
-            UsageStatsStore.shared.setCurrentFeature(.eventsReminders)
         } else {
             UsageStatsStore.shared.setCurrentFeature(nil)
         }
@@ -545,6 +522,10 @@ private struct ProfileMenuPreviewWrapper: View {
             TertiaryColor: $tertiaryColor,
             primaryFontChoice: $primaryFontChoice,
             secondaryFontChoice: $secondaryFontChoice,
+            scheduleCloudPhase: .synced,
+            lastScheduleCloudSync: Date(),
+            pendingScheduleCloudChanges: 0,
+            syncCloudNow: {},
             iPad: false,
             isPortrait: true
         )

@@ -1,0 +1,330 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function userPath(userId) {
+      return /databases/$(database)/documents/users/$(userId);
+    }
+
+    function deletionRequestPath(userId) {
+      return /databases/$(database)/documents/accountDeletionRequests/$(userId);
+    }
+
+    function owns(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    function accountMayRead(userId) {
+      return exists(userPath(userId))
+        ? !("accountDeletion" in get(userPath(userId)).data)
+        : !exists(deletionRequestPath(userId));
+    }
+
+    // Account deletion is requested by placing a tombstone on the user's root
+    // document. getAfter() also fences writes in a batch that creates the
+    // tombstone, so no client can race a final write into the account.
+    function accountIsActiveAfter(userId) {
+      return existsAfter(userPath(userId))
+        && !(
+          "accountDeletion" in getAfter(userPath(userId)).data
+        );
+    }
+
+    function recentlyReauthenticated() {
+      return request.auth != null
+        && "auth_time" in request.auth.token
+        && request.auth.token.auth_time is int
+        && timestamp.value(request.auth.token.auth_time * 1000) <= request.time
+        && timestamp.value(request.auth.token.auth_time * 1000)
+          >= request.time - duration.value(5, "m");
+    }
+
+    function validDeletionPayload(payload) {
+      return payload is map
+        && payload.keys().hasAll([
+          "state",
+          "requestedAt",
+          "workflowVersion"
+        ])
+        && payload.keys().hasOnly([
+          "state",
+          "requestedAt",
+          "workflowVersion"
+        ])
+        && payload.state == "requested"
+        && payload.requestedAt is timestamp
+        && payload.requestedAt == request.time
+        && payload.workflowVersion == 1;
+    }
+
+    function hasMatchingDeletionRequestAfter(userId, payload) {
+      return owns(userId)
+        && recentlyReauthenticated()
+        && validDeletionPayload(payload)
+        && !exists(deletionRequestPath(userId))
+        && existsAfter(deletionRequestPath(userId))
+        && getAfter(deletionRequestPath(userId)).data == payload;
+    }
+
+    function createsDeletionRequest(userId) {
+      return request.resource.data.keys().hasOnly(["accountDeletion"])
+        && hasMatchingDeletionRequestAfter(
+          userId,
+          request.resource.data.accountDeletion
+        );
+    }
+
+    function addsDeletionRequest(userId) {
+      return !("accountDeletion" in resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["accountDeletion"])
+        && hasMatchingDeletionRequestAfter(
+          userId,
+          request.resource.data.accountDeletion
+        );
+    }
+
+    function createsMatchingDeletionRequest(userId) {
+      return owns(userId)
+        && recentlyReauthenticated()
+        && validDeletionPayload(request.resource.data)
+        && existsAfter(userPath(userId))
+        && "accountDeletion" in getAfter(userPath(userId)).data
+        && getAfter(userPath(userId)).data.accountDeletion
+          == request.resource.data;
+    }
+
+    // Usage-history clearing first commits usageSessionsClearedAt and then
+    // deletes only records covered by that cutoff. Account deletion is the
+    // only other client-side bulk delete in older releases, and is denied.
+    function mayDeleteClearedUsageSession(userId) {
+      return owns(userId)
+        && accountIsActiveAfter(userId)
+        && existsAfter(userPath(userId))
+        && "usageSessionsClearedAt" in getAfter(userPath(userId)).data
+        && resource.data.startedAt is timestamp
+        && resource.data.startedAt
+          <= getAfter(userPath(userId)).data.usageSessionsClearedAt;
+    }
+
+    function preservesVersionedField(field) {
+      return !(field in resource.data)
+        || (
+          field in request.resource.data
+          && request.resource.data[field] == resource.data[field]
+        )
+        || (
+          resource.data[field] is map
+          && "schemaVersion" in resource.data[field]
+          && (
+            resource.data[field].schemaVersion is int
+            || resource.data[field].schemaVersion is float
+          )
+          && field in request.resource.data
+          && request.resource.data[field] is map
+          && "schemaVersion" in request.resource.data[field]
+          && (
+            request.resource.data[field].schemaVersion is int
+            || request.resource.data[field].schemaVersion is float
+          )
+          && request.resource.data[field].schemaVersion
+            >= resource.data[field].schemaVersion
+        );
+    }
+
+    function preservesFutureSchema() {
+      return preservesVersionedField("cloudData")
+        && preservesVersionedField("cloudDataV5")
+        && (
+          !("cloudData" in resource.data)
+          || !(resource.data.cloudData is map)
+          || !("schemaVersion" in resource.data.cloudData)
+          || !(
+            resource.data.cloudData.schemaVersion is int
+            || resource.data.cloudData.schemaVersion is float
+          )
+          || resource.data.cloudData.schemaVersion <= 5
+          || (
+            (!("cloudDataV5" in resource.data)
+              && !("cloudDataV5" in request.resource.data))
+            || (
+              "cloudDataV5" in resource.data
+              && "cloudDataV5" in request.resource.data
+              && request.resource.data.cloudDataV5 == resource.data.cloudDataV5
+            )
+          )
+        );
+    }
+
+    function embeddedUsageIsEmpty(data) {
+      return (
+          !("usageStats.sessions" in data)
+          || (
+            data["usageStats.sessions"] is list
+            && data["usageStats.sessions"].size() == 0
+          )
+        )
+        && (
+          !("usageStats" in data)
+          || (
+            data.usageStats is map
+            && (
+              !("sessions" in data.usageStats)
+              || (
+                data.usageStats.sessions is list
+                && data.usageStats.sessions.size() == 0
+              )
+            )
+          )
+        )
+        && (
+          !("sessions" in data)
+          || (
+            data.sessions is map
+            && (
+              !("records" in data.sessions)
+              || (
+                data.sessions.records is list
+                && data.sessions.records.size() == 0
+              )
+            )
+          )
+        );
+    }
+
+    function preservesUsageClear() {
+      return !("usageSessionsClearedAt" in resource.data)
+        || (
+          "usageSessionsClearedAt" in request.resource.data
+          && request.resource.data.usageSessionsClearedAt is timestamp
+          && request.resource.data.usageSessionsClearedAt
+            >= resource.data.usageSessionsClearedAt
+          && embeddedUsageIsEmpty(request.resource.data)
+        );
+    }
+
+    function preservesFutureEncryptedCarrier() {
+      return !("encrypted" in resource.data)
+        || !(resource.data.encrypted is map)
+        || (
+          "encrypted" in request.resource.data
+          && request.resource.data.encrypted == resource.data.encrypted
+          && (
+            !("schemaVersion" in resource.data.encrypted)
+            || resource.data.encrypted.schemaVersion != 4
+            || (
+              (!(("cloudDataV5" in resource.data))
+                && !(("cloudDataV5" in request.resource.data)))
+              || (
+                "cloudDataV5" in resource.data
+                && "cloudDataV5" in request.resource.data
+                && request.resource.data.cloudDataV5
+                  == resource.data.cloudDataV5
+              )
+            )
+          )
+        )
+        || (
+          "schemaVersion" in resource.data.encrypted
+          && resource.data.encrypted.schemaVersion == 4
+          && "encrypted" in request.resource.data
+          && request.resource.data.encrypted == true
+          && "cloudDataV5" in request.resource.data
+          && request.resource.data.cloudDataV5 is map
+          && request.resource.data.cloudDataV5.schemaVersion == 5
+          && "migrationRecoveryV4" in request.resource.data
+          && request.resource.data.migrationRecoveryV4
+            == resource.data.encrypted
+        );
+    }
+
+    function legacySyncIsOpenAfter(userId) {
+      return !("legacySyncMigrationVersion" in getAfter(userPath(userId)).data)
+        || getAfter(userPath(userId)).data.legacySyncMigrationVersion < 5;
+    }
+
+    match /users/{userId} {
+      allow read: if owns(userId)
+        && (
+          exists(userPath(userId))
+            ? !("accountDeletion" in resource.data)
+            : !exists(deletionRequestPath(userId))
+        );
+      allow create: if owns(userId)
+        && (
+          (
+            !("accountDeletion" in request.resource.data)
+            && !exists(deletionRequestPath(userId))
+          )
+          || createsDeletionRequest(userId)
+        );
+      allow update: if owns(userId)
+        && (
+          (
+            !("accountDeletion" in resource.data)
+            && !("accountDeletion" in request.resource.data)
+            && preservesFutureSchema()
+            && preservesFutureEncryptedCarrier()
+            && preservesUsageClear()
+          )
+          || addsDeletionRequest(userId)
+        );
+      // Only the Admin SDK worker removes account data. It retains this root
+      // as a minimal tombstone so still-valid ID tokens cannot recreate data.
+      allow delete: if false;
+    }
+
+    match /users/{userId}/sessions/{sessionId} {
+      allow read: if owns(userId) && accountMayRead(userId);
+      allow delete: if mayDeleteClearedUsageSession(userId);
+      allow create, update: if owns(userId)
+        && accountIsActiveAfter(userId)
+        && (
+          !("usageSessionsClearedAt" in
+            getAfter(userPath(userId)).data)
+          || (
+            request.resource.data.startedAt is timestamp
+            && request.resource.data.startedAt
+              > getAfter(userPath(userId)).data.usageSessionsClearedAt
+          )
+        );
+    }
+
+    match /users/{userId}/sync/{document} {
+      allow read: if owns(userId) && accountMayRead(userId);
+      allow create: if owns(userId)
+        && accountIsActiveAfter(userId)
+        && legacySyncIsOpenAfter(userId);
+      allow update: if owns(userId)
+        && accountIsActiveAfter(userId)
+        && legacySyncIsOpenAfter(userId);
+      allow delete: if false;
+    }
+
+    match /users/{userId}/sync/state/sessions/{sessionId} {
+      allow read: if owns(userId) && accountMayRead(userId);
+      allow delete: if mayDeleteClearedUsageSession(userId);
+      allow create, update: if owns(userId)
+        && accountIsActiveAfter(userId)
+        && legacySyncIsOpenAfter(userId)
+        && (
+          !("usageSessionsClearedAt" in getAfter(userPath(userId)).data)
+          || (
+            request.resource.data.startedAt is timestamp
+            && request.resource.data.startedAt
+              > getAfter(userPath(userId)).data.usageSessionsClearedAt
+          )
+        );
+    }
+
+    match /accountDeletionRequests/{userId} {
+      allow get: if owns(userId);
+      allow list: if false;
+      allow create: if createsMatchingDeletionRequest(userId);
+      allow update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

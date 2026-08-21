@@ -226,6 +226,52 @@ final class RegressionFixesTests: XCTestCase {
         XCTAssertEqual(normalized.classes[0].room, "")
     }
 
+    @MainActor
+    func testSecondLunchPreferencePersistsLocallyAndNormalizes() throws {
+        let suiteName = "RegressionFixesTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let service = CloudService(userDefaults: defaults)
+
+        service.saveLunchPreferenceLocally([true])
+
+        XCTAssertEqual(service.loadLunchPreferenceLocally(), [true, false])
+    }
+
+    @MainActor
+    func testDirectWholeAppSaveCannotBypassManagedCorruptionFences() async throws {
+        let suiteName = "RegressionFixesTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let corruptTheme = Data([0x00, 0xFF, 0x01])
+        let corruptLunch = Data([0xFE, 0x00, 0xFD])
+        let corruptEvents = Data([0x80, 0x81, 0x82])
+        defaults.set(corruptTheme, forKey: "LocalTheme")
+        defaults.set(corruptLunch, forKey: "LocalIsSecondLunch")
+        defaults.set(corruptEvents, forKey: "CustomEvents")
+
+        let service = CloudService(userDefaults: defaults)
+        do {
+            try await service.saveAppState(
+                classes: [],
+                theme: .defaultTheme,
+                isSecondLunch: [],
+                events: [],
+                userId: "corrupt-target-user"
+            )
+            XCTFail("A direct blank save must be rejected before it can overwrite data")
+        } catch let error as CloudAppStateSaveError {
+            XCTAssertEqual(error, .managedSyncRequired)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+
+        XCTAssertEqual(defaults.data(forKey: "LocalTheme"), corruptTheme)
+        XCTAssertEqual(defaults.data(forKey: "LocalIsSecondLunch"), corruptLunch)
+        XCTAssertEqual(defaults.data(forKey: "CustomEvents"), corruptEvents)
+    }
+
     func testNewGradeRecordStartsBlank() {
         XCTAssertEqual(LocalClassGradeRecord().gpaPercentage, "")
     }
@@ -500,51 +546,31 @@ final class RegressionFixesTests: XCTestCase {
         )
     }
 
-    func testRefreshStatusIsHiddenBehindCreationSurfaces() {
-        XCTAssertTrue(
-            ContentOverlayVisibility.showsCompactRefreshStatus(
-                retryAttempt: 1,
+    func testRefreshFailureOnlyShowsWithoutCachedSchedule() {
+        XCTAssertFalse(
+            ContentOverlayVisibility.showsScheduleLoadError(
                 hasCachedSchedule: true,
                 isCreationSheetPresented: false,
                 isAddSelectorExpanded: false
             )
         )
         XCTAssertFalse(
-            ContentOverlayVisibility.showsCompactRefreshStatus(
-                retryAttempt: 1,
+            ContentOverlayVisibility.showsScheduleLoadError(
                 hasCachedSchedule: true,
                 isCreationSheetPresented: true,
                 isAddSelectorExpanded: false
             )
         )
         XCTAssertFalse(
-            ContentOverlayVisibility.showsCompactRefreshStatus(
-                retryAttempt: 1,
+            ContentOverlayVisibility.showsScheduleLoadError(
                 hasCachedSchedule: true,
                 isCreationSheetPresented: false,
                 isAddSelectorExpanded: true
             )
         )
-    }
-
-    func testRefreshFailureIsHiddenBehindCreationSurfaces() {
-        XCTAssertTrue(
-            ContentOverlayVisibility.showsScheduleLoadError(
-                hasCachedSchedule: true,
-                isCreationSheetPresented: false,
-                isAddSelectorExpanded: false
-            )
-        )
         XCTAssertFalse(
             ContentOverlayVisibility.showsScheduleLoadError(
-                hasCachedSchedule: true,
-                isCreationSheetPresented: true,
-                isAddSelectorExpanded: false
-            )
-        )
-        XCTAssertFalse(
-            ContentOverlayVisibility.showsScheduleLoadError(
-                hasCachedSchedule: true,
+                hasCachedSchedule: false,
                 isCreationSheetPresented: false,
                 isAddSelectorExpanded: true
             )
@@ -553,7 +579,7 @@ final class RegressionFixesTests: XCTestCase {
             ContentOverlayVisibility.showsScheduleLoadError(
                 hasCachedSchedule: false,
                 isCreationSheetPresented: false,
-                isAddSelectorExpanded: true
+                isAddSelectorExpanded: false
             )
         )
     }

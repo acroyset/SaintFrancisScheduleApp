@@ -5,6 +5,8 @@
 
 import SwiftUI
 import FirebaseCore
+import FirebaseAuth
+import FirebaseFirestore
 import FirebaseAnalytics
 import FirebaseCrashlytics
 import FirebasePerformance
@@ -23,6 +25,15 @@ enum AppRuntime {
 #if DEBUG
         isUITesting
             && ProcessInfo.processInfo.arguments.contains("-ui-testing-active-schedule-retry")
+#else
+        false
+#endif
+    }()
+
+    static let simulatesUncachedScheduleRetry: Bool = {
+#if DEBUG
+        isUITesting
+            && ProcessInfo.processInfo.arguments.contains("-ui-testing-uncached-schedule-retry")
 #else
         false
 #endif
@@ -83,7 +94,23 @@ private final class AppStartupController: ObservableObject {
 
     private func configureProductionServices() {
         FirebaseConfiguration.shared.setLoggerLevel(.min)
-        FirebaseApp.configure()
+        if FirebaseApp.app() == nil {
+            FirebaseApp.configure()
+        }
+
+#if FIREBASE_EMULATOR_TESTS
+        // The integration-test fixture configures the same default Firebase
+        // instances before its first read. Reconfiguring them from the app's
+        // delayed startup task crashes once Firestore has started.
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil {
+            Auth.auth().useEmulator(withHost: "localhost", port: 9099)
+            Firestore.firestore().useEmulator(withHost: "localhost", port: 8080)
+            let emulatorSettings = Firestore.firestore().settings
+            emulatorSettings.isSSLEnabled = false
+            emulatorSettings.cacheSettings = MemoryCacheSettings()
+            Firestore.firestore().settings = emulatorSettings
+        }
+#endif
 
         if let clientID = FirebaseApp.app()?.options.clientID {
             GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)

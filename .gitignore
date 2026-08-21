@@ -1,1 +1,6 @@
 Schedule/GoogleService-Info.plist
+firebase-debug*.log
+firestore-debug.log
+/build/
+functions/lib/
+functions/node_modules/

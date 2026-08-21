@@ -5,18 +5,17 @@
 //  Created by Andreas Royset on 3/21/26.
 //
 //
-//  Shown when Firebase rejects an account deletion with
-//  ERROR_REQUIRES_RECENT_LOGIN. The user re-authenticates here
-//  and the deletion is retried automatically on success.
+//  Shown before the app creates a durable deletion marker. A retryable backend
+//  removes Firebase Auth first and Firestore data second.
 //
 
 import SwiftUI
+import AuthenticationServices
 
 struct ReauthDeleteSheet: View {
     @ObservedObject var authManager: AuthenticationManager
 
-    /// True when the account was signed in with Google (no password field shown).
-    var isGoogleAccount: Bool
+    var method: AccountReauthenticationMethod
 
     @State private var password = ""
 
@@ -45,7 +44,20 @@ struct ReauthDeleteSheet: View {
                     .padding(.horizontal)
             }
 
-            if isGoogleAccount {
+            if method == .apple {
+                SignInWithAppleButton(.continue) { request in
+                    request.requestedScopes = [.fullName, .email]
+                    request.nonce = authManager.prepareAppleReauthentication()
+                } onCompletion: { result in
+                    Task { await authManager.reauthWithAppleAndDelete(result: result) }
+                }
+                .signInWithAppleButtonStyle(.black)
+                .frame(maxWidth: .infinity, minHeight: 52)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .disabled(authManager.isLoading)
+                .padding(.horizontal)
+
+            } else if method == .google {
                 // Google re-auth
                 Button {
                     Task {

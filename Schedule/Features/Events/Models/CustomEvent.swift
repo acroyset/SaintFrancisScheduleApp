@@ -272,4 +272,24 @@ enum RepeatPattern: String, CaseIterable, Codable {
     var description: String {
         return self.rawValue
     }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let rawValue = try container.decode(String.self)
+        if rawValue == "Weekly" {
+            self = .weekly
+        } else if let value = Self(rawValue: rawValue) {
+            self = value
+        } else {
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unsupported repeat pattern: \(rawValue)"
+            )
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
 }

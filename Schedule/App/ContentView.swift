@@ -6,36 +6,22 @@
 import SwiftUI
 import Foundation
 import UserNotifications
+import UIKit
 
-let version = "1.21"
+let version = "1.21.2"
 let whatsNew = """
- - Custom schedules for special school days
- - Clearer campus map labels and room filtering
- - More reliable class, theme & event cloud sync
- - More accurate widgets and nightly notifications
- - Grade-tool, landscape & accessibility fixes
+ - Bug Fixes, Improved Cloud Sync
 """
 
 enum ContentOverlayVisibility {
-    static func showsCompactRefreshStatus(
-        retryAttempt: Int,
-        hasCachedSchedule: Bool,
-        isCreationSheetPresented: Bool,
-        isAddSelectorExpanded: Bool
-    ) -> Bool {
-        retryAttempt > 0
-            && hasCachedSchedule
-            && !isCreationSheetPresented
-            && !isAddSelectorExpanded
-    }
-
     static func showsScheduleLoadError(
         hasCachedSchedule: Bool,
         isCreationSheetPresented: Bool,
         isAddSelectorExpanded: Bool
     ) -> Bool {
         !hasCachedSchedule
-            || (!isCreationSheetPresented && !isAddSelectorExpanded)
+            && !isCreationSheetPresented
+            && !isAddSelectorExpanded
     }
 }
 
@@ -96,29 +82,18 @@ struct ContentView: View {
 
                     GeometryReader { geo in
                         ZStack {
-                            if let outgoingWindow {
-                                mainContentView(for: outgoingWindow)
+                            ForEach(displayedWindows, id: \.rawValue) { displayedWindow in
+                                mainContentView(for: displayedWindow)
                                     .environmentObject(eventsManager)
                                     .environmentObject(homeworkStore)
-                                    .id(outgoingWindow.rawValue)
                                     .offset(
-                                        x: -pageSlideDirection
-                                            * pageSlideProgress
-                                            * geo.size.width
+                                        x: pageOffset(
+                                            for: displayedWindow,
+                                            width: geo.size.width
+                                        )
                                     )
+                                    .allowsHitTesting(displayedWindow == window)
                             }
-
-                            mainContentView(for: window)
-                                .environmentObject(eventsManager)
-                                .environmentObject(homeworkStore)
-                                .id(window.rawValue)
-                                .offset(
-                                    x: outgoingWindow == nil
-                                        ? 0
-                                        : pageSlideDirection
-                                            * (1 - pageSlideProgress)
-                                            * geo.size.width
-                                )
                         }
                         .frame(width: geo.size.width, height: geo.size.height)
                         .clipped()
@@ -153,6 +128,7 @@ struct ContentView: View {
                 .zIndex(1000)
 
                 overlays
+                    .allowsHitTesting(allowsOverlayHitTesting)
             }
             .padding(.top, window == .Map ? 0 : 16)
             .padding(.horizontal, window == .Map ? 0 : 16)
@@ -166,11 +142,6 @@ struct ContentView: View {
             .onChange(of: scenePhase, handleScenePhaseChange)
             .onChange(of: window, handleWindowChange)
             .onChange(of: onboardingClasses, handleOnboardingClassesChange)
-            .onChange(of: appStore.primaryColor) { _, _ in appStore.saveTheme(authManager: authManager) }
-            .onChange(of: appStore.secondaryColor) { _, _ in appStore.saveTheme(authManager: authManager) }
-            .onChange(of: appStore.tertiaryColor) { _, _ in appStore.saveTheme(authManager: authManager) }
-            .onChange(of: appStore.primaryFontChoice) { _, _ in appStore.saveTheme(authManager: authManager) }
-            .onChange(of: appStore.secondaryFontChoice) { _, _ in appStore.saveTheme(authManager: authManager) }
             .onChange(of: NotificationSettings.isEnabled) { _, _ in appStore.updateNightlyNotification() }
             .onChange(of: NotificationSettings.time) { _, _ in appStore.updateNightlyNotification() }
             .onChange(of: authManager.user?.id, handleUserChange)
@@ -183,7 +154,6 @@ struct ContentView: View {
             }
             .onReceive(widgetRequestTicker) { _ in
                 handleWidgetRefreshRequest()
-                syncCurrentUsageSession()
             }
             .onReceive(NotificationCenter.default.publisher(for: .backToSchoolPromptEligibilityChanged)) { _ in
                 handleBackToSchoolReminders()
@@ -278,43 +248,20 @@ struct ContentView: View {
             .zIndex(3000)
         }
 
-        if appStore.scheduleRetryAttempt > 0 {
-            if appStore.scheduleDict == nil {
-                VStack(spacing: 8) {
-                    SpinningGear(color: appStore.primaryColor)
-                    Text("Loading schedule…")
-                        .appThemeFont(.secondary, size: 13, weight: .medium)
-                        .foregroundStyle(appStore.primaryColor.opacity(0.8))
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if ContentOverlayVisibility.showsCompactRefreshStatus(
-                retryAttempt: appStore.scheduleRetryAttempt,
-                hasCachedSchedule: true,
-                isCreationSheetPresented: isCreationSheetPresented,
-                isAddSelectorExpanded: isHomeAddSelectorExpanded
-            ) {
-                Label("Refreshing schedule…", systemImage: "arrow.clockwise")
-                    .accessibilityIdentifier("schedule.refresh-status")
-                    .appThemeFont(.secondary, size: 12, weight: .semibold)
-                    .foregroundStyle(
-                        appStore.tertiaryColor.maximumContrastTextColor()
-                    )
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background {
-                        Capsule()
-                            .fill(appStore.tertiaryColor.opacity(0.94))
-                            .overlay {
-                                Capsule()
-                                    .stroke(
-                                        appStore.primaryColor.opacity(0.32),
-                                        lineWidth: 1
-                                    )
-                            }
-                    }
-                    .padding(.bottom, compactRefreshBottomPadding)
+        if window == .Home,
+           appStore.scheduleRetryAttempt > 0,
+           appStore.scheduleDict == nil {
+            VStack(spacing: 8) {
+                SpinningGear(color: appStore.primaryColor)
+                Text("Loading schedule…")
+                    .appThemeFont(.secondary, size: 13, weight: .medium)
+                    .foregroundStyle(appStore.primaryColor.opacity(0.8))
             }
-        } else if let error = appStore.scheduleLoadError,
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .allowsHitTesting(false)
+        } else if window == .Home,
+                  appStore.scheduleDict == nil,
+                  let error = appStore.scheduleLoadError,
                   ContentOverlayVisibility.showsScheduleLoadError(
                     hasCachedSchedule: appStore.scheduleDict != nil,
                     isCreationSheetPresented: isCreationSheetPresented,
@@ -339,14 +286,7 @@ struct ContentView: View {
             .padding(20)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
             .padding(24)
-            .frame(
-                maxWidth: .infinity,
-                maxHeight: appStore.scheduleDict == nil ? .infinity : nil
-            )
-            .padding(
-                .bottom,
-                appStore.scheduleDict == nil ? 0 : compactRefreshBottomPadding
-            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
@@ -354,16 +294,18 @@ struct ContentView: View {
         addEvent || addReminder || addHomework
     }
 
-    private var compactRefreshBottomPadding: CGFloat {
-        let defaultPadding = toolbarHeight + 8
-        guard window == .Home,
-              isPortrait,
-              appStore.scheduleDict != nil else {
-            return defaultPadding
-        }
-
-        let minimumSelectorHeight: CGFloat = iPad ? 86 : 64
-        return toolbarHeight + max(homeAddSelectorHeight, minimumSelectorHeight) + 12
+    private var allowsOverlayHitTesting: Bool {
+        tutorial != .Hidden
+            || whatsNewPopup
+            || (window == .Home
+                && appStore.scheduleRetryAttempt == 0
+                && appStore.scheduleDict == nil
+                && appStore.scheduleLoadError != nil
+                && ContentOverlayVisibility.showsScheduleLoadError(
+                    hasCachedSchedule: appStore.scheduleDict != nil,
+                    isCreationSheetPresented: isCreationSheetPresented,
+                    isAddSelectorExpanded: isHomeAddSelectorExpanded
+                ))
     }
 
     private var orientationReader: some View {
@@ -381,6 +323,24 @@ struct ContentView: View {
 
     private var displaysFullScreenMap: Bool {
         window == .Map || outgoingWindow == .Map
+    }
+
+    private var displayedWindows: [Window] {
+        guard let outgoingWindow, outgoingWindow != window else {
+            return [window]
+        }
+
+        return [outgoingWindow, window]
+    }
+
+    private func pageOffset(for displayedWindow: Window, width: CGFloat) -> CGFloat {
+        guard let outgoingWindow else { return 0 }
+
+        if displayedWindow == outgoingWindow {
+            return -pageSlideDirection * pageSlideProgress * width
+        }
+
+        return pageSlideDirection * (1 - pageSlideProgress) * width
     }
 
     private var pageTransitionAnimation: Animation {
@@ -475,6 +435,22 @@ struct ContentView: View {
                     appStore.applySelectedDate(date, events: eventsManager.events)
                     appStore.syncDerivedOutputs(events: eventsManager.events)
                     scrollTarget = appStore.scrollTargetForCurrentSchedule()
+                },
+                onRefresh: {
+                    async let scheduleRefresh: Void = appStore.refreshSchedule(
+                        events: eventsManager.events
+                    )
+                    async let scheduleCloudRefresh: Void = appStore.refreshCloudSync(
+                        authManager: authManager
+                    )
+                    async let eventsCloudRefresh: Void = eventsManager.refreshCloudSync()
+                    _ = await (
+                        scheduleRefresh,
+                        scheduleCloudRefresh,
+                        eventsCloudRefresh
+                    )
+                    appStore.syncDerivedOutputs(events: eventsManager.events)
+                    scrollTarget = appStore.scrollTargetForCurrentSchedule()
                 }
             )
             .onTapGesture {
@@ -498,15 +474,17 @@ struct ContentView: View {
                 data: Binding(
                     get: { (appStore.data ?? ScheduleData(classes: [], days: [])).normalized() },
                     set: { newValue in
-                        appStore.data = newValue.normalized()
-                        appStore.saveSchedule(authManager: authManager)
+                        appStore.updateSchedule(newValue, authManager: authManager)
                     }
                 ),
                 PrimaryColor: appStore.primaryColor,
                 SecondaryColor: appStore.secondaryColor,
                 TertiaryColor: appStore.tertiaryColor,
                 isPortrait: isPortrait,
-                openClassEditor: $openClassEditorFromMap
+                openClassEditor: $openClassEditorFromMap,
+                commitChanges: {
+                    appStore.saveSchedule(authManager: authManager)
+                }
             )
             .environmentObject(homeworkStore)
 
@@ -531,24 +509,51 @@ struct ContentView: View {
                 tutorial: $tutorial,
                 PrimaryColor: Binding(
                     get: { appStore.primaryColor },
-                    set: { appStore.primaryColor = $0 }
+                    set: {
+                        appStore.primaryColor = $0
+                        appStore.saveTheme(authManager: authManager)
+                    }
                 ),
                 SecondaryColor: Binding(
                     get: { appStore.secondaryColor },
-                    set: { appStore.secondaryColor = $0 }
+                    set: {
+                        appStore.secondaryColor = $0
+                        appStore.saveTheme(authManager: authManager)
+                    }
                 ),
                 TertiaryColor: Binding(
                     get: { appStore.tertiaryColor },
-                    set: { appStore.tertiaryColor = $0 }
+                    set: {
+                        appStore.tertiaryColor = $0
+                        appStore.saveTheme(authManager: authManager)
+                    }
                 ),
                 primaryFontChoice: Binding(
                     get: { appStore.primaryFontChoice },
-                    set: { appStore.primaryFontChoice = $0 }
+                    set: {
+                        appStore.primaryFontChoice = $0
+                        appStore.saveTheme(authManager: authManager)
+                    }
                 ),
                 secondaryFontChoice: Binding(
                     get: { appStore.secondaryFontChoice },
-                    set: { appStore.secondaryFontChoice = $0 }
+                    set: {
+                        appStore.secondaryFontChoice = $0
+                        appStore.saveTheme(authManager: authManager)
+                    }
                 ),
+                scheduleCloudPhase: appStore.cloudSyncPhase,
+                lastScheduleCloudSync: appStore.lastCloudSyncDate,
+                pendingScheduleCloudChanges: appStore.pendingCloudChangeCount,
+                syncCloudNow: {
+                    // A manual sync is an explicit request to upload the
+                    // current local state, even if an earlier edit callback
+                    // was interrupted while the keyboard was still active.
+                    appStore.saveSchedule(authManager: authManager)
+                    eventsManager.saveEvents()
+                    appStore.retryCloudSync(authManager: authManager, force: true)
+                    eventsManager.retryCloudSync(force: true)
+                },
                 iPad: iPad,
                 isPortrait: isPortrait
             )
@@ -572,17 +577,6 @@ struct ContentView: View {
                 print("❌ Failed to append usage session: \(error)")
             }
         }
-    }
-
-    private func checkpointUsageSession() {
-        guard let session = usageStats.pauseSession() else { return }
-        uploadUsageSession(session)
-    }
-
-    private func syncCurrentUsageSession() {
-        guard scenePhase == .active,
-              let session = usageStats.snapshotSession() else { return }
-        uploadUsageSession(session)
     }
 
     private func appendEndedUsageSession() {
@@ -621,7 +615,6 @@ struct ContentView: View {
             }
             usageStats.setCurrentPage(usagePage(for: window))
             usageStats.setCurrentFeature(nil)
-            syncCurrentUsageSession()
         }
 
         appStore.resetHomeDateToToday(events: eventsManager.events)
@@ -680,8 +673,8 @@ struct ContentView: View {
         case .active:
             usageStats.beginSession()
             usageStats.setCurrentPage(usagePage(for: window))
-            syncCurrentUsageSession()
-            appStore.retryScheduleLoad(events: eventsManager.events)
+            appStore.retryCloudSync(authManager: authManager)
+            eventsManager.retryCloudSync()
             appStore.updateCurrentScheduleProgress()
             appStore.updateNightlyNotification()
             eventsManager.purgeExpiredReminders()
@@ -690,11 +683,37 @@ struct ContentView: View {
             handleFirstDayClassUpdatePrompt()
         case .background:
             appendEndedUsageSession()
+            flushCloudBeforeSuspension()
             appStore.updateNightlyNotification()
         case .inactive:
-            checkpointUsageSession()
+            // Pause counters locally so time spent in Control Center, app
+            // switching, etc. is not counted. This intentionally does not
+            // perform a Firestore write.
+            _ = usageStats.pauseSession()
         default:
             break
+        }
+    }
+
+    private func flushCloudBeforeSuspension() {
+        var backgroundTask = UIBackgroundTaskIdentifier.invalid
+        backgroundTask = UIApplication.shared.beginBackgroundTask(
+            withName: "Flush cloud data"
+        ) {
+            if backgroundTask != .invalid {
+                UIApplication.shared.endBackgroundTask(backgroundTask)
+                backgroundTask = .invalid
+            }
+        }
+
+        Task { @MainActor in
+            async let scheduleFlush: Void = appStore.flushCloudSync(authManager: authManager)
+            async let eventsFlush: Void = eventsManager.flushCloudSync()
+            _ = await (scheduleFlush, eventsFlush)
+            if backgroundTask != .invalid {
+                UIApplication.shared.endBackgroundTask(backgroundTask)
+                backgroundTask = .invalid
+            }
         }
     }
 
@@ -756,7 +775,6 @@ struct ContentView: View {
         guard oldWindow != newWindow else { return }
         usageStats.setCurrentPage(usagePage(for: newWindow))
         usageStats.setCurrentFeature(nil)
-        syncCurrentUsageSession()
         withAnimation(.snappy) {
             showCalendarGrid = false
             isHomeAddSelectorExpanded = false
@@ -770,14 +788,14 @@ struct ContentView: View {
     }
 
     private func handleUserChange(_: String?, userId: String?) {
-        appStore.handleUserChange(userId)
+        appStore.handleUserChange(userId, authManager: authManager)
+        eventsManager.handleUserChange(using: authManager)
         usageStats.setUserScope(userId)
         if scenePhase == .active {
             usageStats.beginSession()
         }
         usageStats.setCurrentPage(usagePage(for: window))
         usageStats.setCurrentFeature(nil)
-        syncCurrentUsageSession()
     }
 
     private func usagePage(for window: Window) -> UsagePage {

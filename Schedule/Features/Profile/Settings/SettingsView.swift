@@ -167,7 +167,7 @@ struct Settings: View {
     /// The enable/disable toggle — adapts based on system permission status.
     @ViewBuilder
     private func notificationToggleRow() -> some View {
-        switch permissionStatus {
+        switch AppRuntime.isUITesting ? .notDetermined : permissionStatus {
 
         case .denied:
             // Can't prompt again — send user to iOS Settings

@@ -93,11 +93,14 @@ struct ClassesView: View {
     
     var isPortrait: Bool
     var openClassEditor: Binding<Bool> = .constant(false)
+    var commitChanges: () -> Void = {}
     
     @State var window = classWindow.None
+    @State private var showAllItems = false
     @StateObject private var courseViewModel = CourseViewModel()
     @StateObject private var localGradeStore = LocalGradeStore.shared
     @EnvironmentObject private var homeworkStore: HomeworkStore
+    @EnvironmentObject private var eventsManager: CustomEventsManager
     
     var body: some View {
         ZStack{
@@ -120,6 +123,11 @@ struct ClassesView: View {
                             menuButton(title: "Homework", systemImage: "checklist") {
                                 window = .Homework
                             }
+                            menuDivider
+                            menuButton(title: "Events & Reminders", systemImage: "tray.full") {
+                                showAllItems = true
+                            }
+                            .accessibilityIdentifier("classes.events-reminders")
                             menuDivider
                             menuButton(title: "Browse Courses", systemImage: "book.fill") {
                                 window = .CoursesList
@@ -218,16 +226,36 @@ struct ClassesView: View {
             courseViewModel.allCourses = loadSFHSCourses()
             localGradeStore.seedClassTypes(from: data)
             openRequestedClassEditor()
-            UsageStatsStore.shared.setCurrentFeature(feature(for: window))
+            syncTrackedFeature()
         })
         .onChange(of: openClassEditor.wrappedValue) { _, _ in
             openRequestedClassEditor()
         }
-        .onChange(of: window) { _, newWindow in
-            UsageStatsStore.shared.setCurrentFeature(feature(for: newWindow))
+        .onChange(of: window) { oldWindow, newWindow in
+            if oldWindow == .ClassEditor, newWindow != .ClassEditor {
+                commitChanges()
+            }
+            syncTrackedFeature()
         }
         .onChange(of: data.classes.map(\.name)) { _, _ in
             localGradeStore.seedClassTypes(from: data)
+        }
+        .onDisappear {
+            if window == .ClassEditor {
+                commitChanges()
+            }
+        }
+        .onChange(of: showAllItems) { _, _ in
+            syncTrackedFeature()
+        }
+        .sheet(isPresented: $showAllItems) {
+            AllItemsView(
+                scheduleDict: nil,
+                PrimaryColor: PrimaryColor,
+                SecondaryColor: SecondaryColor,
+                TertiaryColor: TertiaryColor
+            )
+            .environmentObject(eventsManager)
         }
     }
 
@@ -276,6 +304,7 @@ struct ClassesView: View {
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 14)
             .padding(.vertical, 14)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .tint(PrimaryColor)
@@ -305,6 +334,12 @@ struct ClassesView: View {
         case .None:
             nil
         }
+    }
+
+    private func syncTrackedFeature() {
+        UsageStatsStore.shared.setCurrentFeature(
+            showAllItems ? .eventsReminders : feature(for: window)
+        )
     }
 }
 
@@ -338,5 +373,6 @@ private struct ClassesViewPreviewWrapper: View {
 #Preview("Classes Page") {
     ClassesViewPreviewWrapper()
         .environmentObject(HomeworkStore())
+        .environmentObject(CustomEventsManager())
 }
 #endif

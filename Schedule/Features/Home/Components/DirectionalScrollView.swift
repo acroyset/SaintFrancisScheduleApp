@@ -6,6 +6,7 @@ struct DirectionalScrollView<Content: View>: UIViewRepresentable {
     var bottomInset: CGFloat = 0
     var onHorizontalDrag: (CGFloat) -> Void
     var onHorizontalEnd: (CGFloat, CGFloat) -> Void
+    var onRefresh: (() async -> Void)? = nil
     var resetToken: Int = 0
     @ViewBuilder var content: () -> Content
 
@@ -20,6 +21,16 @@ struct DirectionalScrollView<Content: View>: UIViewRepresentable {
         scrollView.contentInsetAdjustmentBehavior = .never
         // Dismiss keyboard interactively when the user drags down
         scrollView.keyboardDismissMode = .interactive
+        if onRefresh != nil {
+            let refreshControl = UIRefreshControl()
+            refreshControl.accessibilityIdentifier = "home.pull-to-refresh"
+            refreshControl.addTarget(
+                context.coordinator,
+                action: #selector(Coordinator.handleRefresh),
+                for: .valueChanged
+            )
+            scrollView.refreshControl = refreshControl
+        }
 
         let inset = UIEdgeInsets(top: topInset, left: 0, bottom: bottomInset, right: 0)
         scrollView.contentInset = inset
@@ -104,10 +115,25 @@ struct DirectionalScrollView<Content: View>: UIViewRepresentable {
         var minHeightConstraint: NSLayoutConstraint?
         private var isHorizontal: Bool? = nil
         private var isSuppressingHostedTouches = false
+        private var isRefreshing = false
         var lastResetToken: Int = -1
 
         init(_ parent: DirectionalScrollView) {
             self.parent = parent
+        }
+
+        @objc func handleRefresh() {
+            guard !isRefreshing, let onRefresh = parent.onRefresh else {
+                scrollView?.refreshControl?.endRefreshing()
+                return
+            }
+
+            isRefreshing = true
+            Task { @MainActor [weak self] in
+                await onRefresh()
+                self?.scrollView?.refreshControl?.endRefreshing()
+                self?.isRefreshing = false
+            }
         }
 
         @objc func handlePan(_ gr: UIPanGestureRecognizer) {

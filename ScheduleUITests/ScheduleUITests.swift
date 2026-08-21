@@ -13,17 +13,16 @@ final class ScheduleUITests: XCTestCase {
     }
 
     @MainActor
-    func testHomeworkSheetExposesControlsAndCoversRefreshStatus() throws {
+    func testHomeworkSheetExposesControlsWhileCachedRefreshStaysHidden() throws {
         let app = launchTestApp(
             additionalArguments: ["-ui-testing-active-schedule-retry"]
         )
 
         let refreshStatus = app.staticTexts["schedule.refresh-status"]
-        XCTAssertTrue(refreshStatus.waitForExistence(timeout: 3))
+        XCTAssertFalse(refreshStatus.exists)
 
         let addMenu = app.buttons["home.add-menu"]
         XCTAssertTrue(addMenu.waitForExistence(timeout: 5))
-        XCTAssertLessThanOrEqual(refreshStatus.frame.maxY, addMenu.frame.minY - 4)
         addMenu.tap()
 
         let addHomework = app.buttons["home.add-homework"]
@@ -41,21 +40,88 @@ final class ScheduleUITests: XCTestCase {
     }
 
     @MainActor
-    func testRefreshFailureDoesNotOverlapExpandedAddMenu() throws {
+    func testCachedRefreshFailureStaysHidden() throws {
         let app = launchTestApp(
             additionalArguments: ["-ui-testing-schedule-refresh-failure"]
         )
 
         let loadError = app.staticTexts["schedule.load-error"]
-        XCTAssertTrue(loadError.waitForExistence(timeout: 3))
+        XCTAssertFalse(loadError.exists)
 
         let addMenu = app.buttons["home.add-menu"]
         XCTAssertTrue(addMenu.waitForExistence(timeout: 3))
-        XCTAssertLessThanOrEqual(loadError.frame.maxY, addMenu.frame.minY - 4)
-
         addMenu.tap()
         XCTAssertTrue(app.buttons["home.add-homework"].waitForExistence(timeout: 2))
         XCTAssertFalse(loadError.exists)
+    }
+
+    @MainActor
+    func testUncachedScheduleRetryDoesNotBlockClassActions() throws {
+        let app = launchTestApp(
+            additionalArguments: ["-ui-testing-uncached-schedule-retry"]
+        )
+
+        XCTAssertTrue(app.staticTexts["Loading schedule…"].waitForExistence(timeout: 3))
+        app.buttons["toolbar.classes"].tap()
+        XCTAssertTrue(app.staticTexts["home.day-title"].waitForNonExistence(timeout: 3))
+
+        let editClasses = app.buttons["Edit Classes"]
+        XCTAssertTrue(editClasses.waitForExistence(timeout: 3))
+        XCTAssertTrue(editClasses.isHittable)
+        editClasses.tap()
+
+        XCTAssertTrue(app.staticTexts["Class Editor"].waitForExistence(timeout: 3))
+
+        let backToClasses = app.buttons["Back to Classes"]
+        XCTAssertTrue(backToClasses.waitForExistence(timeout: 3))
+        backToClasses.tap()
+
+        let homework = app.buttons["Homework"]
+        XCTAssertTrue(homework.waitForExistence(timeout: 3))
+        homework.tap()
+        XCTAssertTrue(app.staticTexts["Homework"].waitForExistence(timeout: 3))
+    }
+
+    @MainActor
+    func testClassEditorTextFieldRetainsFocusAndAcceptsTyping() throws {
+        let app = launchTestApp()
+
+        app.buttons["toolbar.classes"].tap()
+        let editClasses = app.buttons["Edit Classes"]
+        XCTAssertTrue(editClasses.waitForExistence(timeout: 3))
+        editClasses.tap()
+
+        XCTAssertTrue(app.staticTexts["Class Editor"].waitForExistence(timeout: 3))
+        let classNameField = app.textFields.firstMatch
+        XCTAssertTrue(classNameField.waitForExistence(timeout: 3))
+        XCTAssertTrue(classNameField.isHittable)
+
+        classNameField.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 2))
+        classNameField.typeText("X")
+
+        XCTAssertTrue((classNameField.value as? String ?? "").contains("X"))
+        XCTAssertTrue(app.keyboards.firstMatch.exists)
+
+        // Reopen the editor and exercise the reported populated-class path,
+        // proving the edit is retained rather than only changing transient UI.
+        let backToClasses = app.buttons["Back to Classes"]
+        XCTAssertTrue(backToClasses.isHittable)
+        backToClasses.tap()
+        XCTAssertTrue(editClasses.waitForExistence(timeout: 3))
+        editClasses.tap()
+
+        let populatedClassNameField = app.textFields.firstMatch
+        XCTAssertTrue(populatedClassNameField.waitForExistence(timeout: 3))
+        XCTAssertTrue(
+            (populatedClassNameField.value as? String ?? "").contains("X")
+        )
+        populatedClassNameField.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 2))
+        populatedClassNameField.typeText("Y")
+        XCTAssertTrue(
+            (populatedClassNameField.value as? String ?? "").contains("XY")
+        )
     }
 
     @MainActor
@@ -73,6 +139,22 @@ final class ScheduleUITests: XCTestCase {
         XCTAssertTrue(graphite.waitForExistence(timeout: 3))
         graphite.tap()
         XCTAssertEqual(graphite.value as? String, "Selected")
+    }
+
+    @MainActor
+    func testCloudCenterIsVisibleFromProfile() throws {
+        let app = launchTestApp()
+
+        app.buttons["toolbar.profile"].tap()
+        let cloud = app.buttons["profile.cloud"]
+        XCTAssertTrue(cloud.waitForExistence(timeout: 3))
+        XCTAssertTrue(cloud.isHittable)
+        cloud.tap()
+
+        XCTAssertTrue(app.navigationBars["Cloud"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Stored in Cloud"].exists)
+        XCTAssertTrue(app.staticTexts["How It Works"].exists)
+        XCTAssertTrue(app.buttons["Done"].exists)
     }
 
     @MainActor
@@ -96,8 +178,8 @@ final class ScheduleUITests: XCTestCase {
     func testEventsAndRemindersSheetExposesCloseAndFilterControls() throws {
         let app = launchTestApp()
 
-        app.buttons["toolbar.profile"].tap()
-        let allItems = app.buttons["View Events & Reminders"]
+        app.buttons["toolbar.classes"].tap()
+        let allItems = app.buttons["classes.events-reminders"]
         XCTAssertTrue(allItems.waitForExistence(timeout: 3))
         allItems.tap()
 
@@ -168,7 +250,7 @@ final class ScheduleUITests: XCTestCase {
     }
 
     @MainActor
-    func testGraphiteRefreshStatusRemainsVisible() throws {
+    func testCachedRefreshStatusStaysHidden() throws {
         let app = launchTestApp(
             additionalArguments: [
                 "-ui-testing-active-schedule-retry",
@@ -177,8 +259,13 @@ final class ScheduleUITests: XCTestCase {
         )
 
         let refreshStatus = app.staticTexts["schedule.refresh-status"]
-        XCTAssertTrue(refreshStatus.waitForExistence(timeout: 3))
-        XCTAssertEqual(refreshStatus.label, "Refreshing schedule…")
+        XCTAssertFalse(refreshStatus.exists)
+
+        app.buttons["toolbar.classes"].tap()
+        XCTAssertTrue(app.buttons["Edit Classes"].waitForExistence(timeout: 3))
+        app.buttons["toolbar.home"].tap()
+        XCTAssertTrue(app.buttons["home.add-menu"].waitForExistence(timeout: 3))
+        XCTAssertFalse(refreshStatus.exists)
     }
 
     @MainActor
@@ -198,6 +285,15 @@ final class ScheduleUITests: XCTestCase {
             // Functional UI tests use -ui-testing for deterministic fixtures;
             // this benchmark must include service and system registration.
             XCUIApplication().launch()
+        }
+    }
+
+    @MainActor
+    func testRepeatedOpenAndCloseDoesNotHang() throws {
+        for _ in 0..<10 {
+            let app = launchTestApp()
+            app.terminate()
+            XCTAssertTrue(app.wait(for: .notRunning, timeout: 5))
         }
     }
 

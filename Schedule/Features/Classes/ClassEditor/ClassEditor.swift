@@ -130,11 +130,10 @@ struct VphoneClassEditor: View {
                 }
                 .padding(12)
             }
-            // Swipe down dismisses keyboard, tap elsewhere dismisses it too
+            // Keep dismissal tied to scrolling. A tap gesture on the entire
+            // ScrollView also receives taps meant for its TextFields, so it
+            // would focus a field and immediately resign it again.
             .scrollDismissesKeyboard(.interactively)
-            .onTapGesture {
-                dismissCourseAutocomplete()
-            }
             .mask{
                 LinearGradient(
                     gradient: Gradient(stops: [
@@ -173,13 +172,6 @@ struct VphoneClassEditor: View {
         }
     }
 
-    private func dismissCourseAutocomplete() {
-        NotificationCenter.default.post(name: .dismissCourseAutocomplete, object: nil)
-        UIApplication.shared.sendAction(
-            #selector(UIResponder.resignFirstResponder),
-            to: nil, from: nil, for: nil
-        )
-    }
 }
 
 // MARK: - HphoneClassEditor
@@ -289,19 +281,8 @@ struct HphoneClassEditor: View {
                 }
                 .padding(12)
             }
-            // Swipe down dismisses keyboard
+            // Keep dismissal tied to scrolling so TextField taps retain focus.
             .scrollDismissesKeyboard(.interactively)
-            .onTapGesture {
-                dismissCourseAutocomplete()
-            }
         }
-    }
-
-    private func dismissCourseAutocomplete() {
-        NotificationCenter.default.post(name: .dismissCourseAutocomplete, object: nil)
-        UIApplication.shared.sendAction(
-            #selector(UIResponder.resignFirstResponder),
-            to: nil, from: nil, for: nil
-        )
     }
 }

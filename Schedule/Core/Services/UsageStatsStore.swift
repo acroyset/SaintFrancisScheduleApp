@@ -152,6 +152,21 @@ final class UsageStatsStore: ObservableObject {
         return session
     }
 
+    /// Starts a fresh measurement generation after the user clears analytics.
+    /// Without rotation, the next snapshot would contain durations accumulated
+    /// before the clear and could recreate the data under a later end time.
+    func rotateSessionAfterClear(at date: Date = Date()) {
+        let wasActive = activeSessionStart != nil
+        let page = currentPage
+        let feature = currentFeature
+        let newsTab = currentNewsTab
+        resetSession()
+        currentPage = page
+        currentFeature = feature
+        currentNewsTab = newsTab
+        if wasActive { beginSession(at: date) }
+    }
+
     func setCurrentPage(_ page: UsagePage?, at date: Date = Date()) {
         guard currentPage != page else { return }
         accumulatePageDuration(until: date)

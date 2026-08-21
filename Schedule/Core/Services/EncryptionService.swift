@@ -5,10 +5,10 @@
 //  Created by Andreas Royset on 3/17/26.
 //
 //  Client-side AES-256-GCM encryption for Firebase data.
-//  The encryption key is derived from the user's UID + a device-stored salt
-//  using PBKDF2-SHA256. The key never leaves the device and is stored only
-//  in the iOS Keychain — meaning even the developer cannot read user data
-//  in Firestore.
+//  The encryption key is deterministically derived from the Firebase UID and
+//  app namespace with PBKDF2-SHA256, then cached in Keychain. This protects
+//  casual at-rest inspection but is not end-to-end encryption against someone
+//  who knows the UID and the derivation code.
 //
 //  Backward compatibility: documents without an "encrypted" flag are read
 //  as plaintext. On next save they are automatically upgraded to encrypted.
@@ -41,6 +41,10 @@ enum EncryptionError: LocalizedError {
 final class EncryptionService {
 
     static let shared = EncryptionService()
+    // This is the namespace used by every deployed encrypted record. Do not
+    // derive from Bundle.main at runtime: changing the app's bundle identifier
+    // would otherwise make all existing Firestore blobs undecryptable.
+    private let keyDerivationNamespace = "Xcode.ScheduleApp"
     private init() {}
 
     // -------------------------------------------------------------------------
@@ -92,8 +96,8 @@ final class EncryptionService {
             return SymmetricKey(data: keyData)
         }
 
-        // 2. Derive a new key using PBKDF2-SHA256
-        //    Salt = stable hash of (userId + bundle ID) — not secret, just unique per user/app.
+        // 2. Derive a new key using PBKDF2-SHA256. The salt is stable and is
+        //    deliberately not treated as a secret.
         let salt = deriveSalt(userId: userId)
         let keyData = try deriveKey(password: userId, salt: salt)
 
@@ -169,8 +173,7 @@ final class EncryptionService {
     /// stable across reinstalls (key recovery is done by re-deriving from
     /// the same userId when the Keychain entry is missing).
     private func deriveSalt(userId: String) -> Data {
-        let bundleID = Bundle.main.bundleIdentifier ?? "com.schedule"
-        let saltInput = "\(userId).\(bundleID).schedule-encryption-v1"
+        let saltInput = "\(userId).\(keyDerivationNamespace).schedule-encryption-v1"
         // SHA-256 of the string gives us a stable 32-byte salt
         return Data(SHA256.hash(data: Data(saltInput.utf8)))
     }

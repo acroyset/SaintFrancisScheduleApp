@@ -69,6 +69,7 @@ struct HomeView: View {
     let toolbarWidth: CGFloat
     var isPortrait: Bool
     var onDatePick: (Date) -> Void
+    var onRefresh: () async -> Void
 
     // Header height tracking
     @State private var nowNextHeight: CGFloat = 0
@@ -146,6 +147,7 @@ struct HomeView: View {
                 bottomInset: scrollBottomInset,
                 onHorizontalDrag: handleDrag,
                 onHorizontalEnd:  handleDragEnd,
+                onRefresh: onRefresh,
                 resetToken: resetToken
             ) {
                 VStack(spacing: 0) {

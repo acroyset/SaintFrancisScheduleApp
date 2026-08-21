@@ -29,26 +29,41 @@ class AuthenticationManager: ObservableObject {
     private lazy var dataManager = DataManager()
     private var authStateHandle: AuthStateDidChangeListenerHandle?
     private var isHandlingSignUp = false
+    private let firebaseSignOut: () throws -> Void
+    private let googleSignOut: () -> Void
+    private let userDefaults: UserDefaults
     
     private var currentNonce: String?
+    private var pendingAppleAuthorizationCode: String?
 
-    init() {
+    init(
+        startAuthStateListener: Bool = true,
+        firebaseSignOut: @escaping () throws -> Void = { try Auth.auth().signOut() },
+        googleSignOut: @escaping () -> Void = { GIDSignIn.sharedInstance.signOut() },
+        userDefaults: UserDefaults = .standard
+    ) {
+        self.firebaseSignOut = firebaseSignOut
+        self.googleSignOut = googleSignOut
+        self.userDefaults = userDefaults
+
         if AppRuntime.isUITesting {
             isUsingDebugGuestSession = true
-            UserDefaults.standard.set(true, forKey: "HasCompletedOnboarding")
-            UserDefaults.standard.set(true, forKey: "HasLaunchedBefore")
-            UserDefaults.standard.set(version, forKey: "LastSeenVersion")
-            UserDefaults.standard.set(
+            userDefaults.set(true, forKey: "HasCompletedOnboarding")
+            userDefaults.set(true, forKey: "HasLaunchedBefore")
+            userDefaults.set(version, forKey: "LastSeenVersion")
+            userDefaults.set(
                 true,
                 forKey: BackToSchoolPromptStorage.reminderPrompt2026
             )
-            UserDefaults.standard.set(
+            userDefaults.set(
                 true,
                 forKey: BackToSchoolPromptStorage.firstDayClassUpdateHandled2026
             )
             return
         }
-        setupAuthStateListener()
+        if startAuthStateListener {
+            setupAuthStateListener()
+        }
     }
 
     var hasActiveSession: Bool {
@@ -155,7 +170,6 @@ class AuthenticationManager: ObservableObject {
             let authResult = try await Auth.auth().signIn(with: credential)
 
             if authResult.additionalUserInfo?.isNewUser == true {
-                copyText(from: "Resources/DefaultClasses.txt", to: "Resources/Classes.txt")
                 pendingPolicyUserId = authResult.user.uid
                 pendingPolicyIsNewUser = true
                 needsPolicyAcceptance = true
@@ -197,6 +211,8 @@ class AuthenticationManager: ObservableObject {
                 let authResult = try await Auth.auth().signIn(with: credential)
 
                 if authResult.additionalUserInfo?.isNewUser == true {
+                    pendingAppleAuthorizationCode = appleIDCredential.authorizationCode
+                        .flatMap { String(data: $0, encoding: .utf8) }
                     // Update display name if provided
                     if let fullName = appleIDCredential.fullName {
                         let displayName = [fullName.givenName, fullName.familyName]
@@ -212,6 +228,7 @@ class AuthenticationManager: ObservableObject {
                     pendingPolicyIsNewUser = true
                     needsPolicyAcceptance = true
                 } else {
+                    pendingAppleAuthorizationCode = nil
                     UserDefaults.standard.set(true, forKey: "HasCompletedOnboarding")
                     user = User(from: authResult.user)
                     await checkPolicyVersionForExistingUser(userId: authResult.user.uid)
@@ -234,6 +251,19 @@ class AuthenticationManager: ObservableObject {
         } catch {
             currentNonce = nil
             errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    func prepareAppleReauthentication() -> String? {
+        reauthError = ""
+        do {
+            let nonce = try randomNonceString()
+            currentNonce = nonce
+            return sha256(nonce)
+        } catch {
+            currentNonce = nil
+            reauthError = error.localizedDescription
             return nil
         }
     }
@@ -326,6 +356,7 @@ class AuthenticationManager: ObservableObject {
             }
             pendingPolicyUserId = nil
             pendingPolicyIsNewUser = false
+            pendingAppleAuthorizationCode = nil
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -336,35 +367,72 @@ class AuthenticationManager: ObservableObject {
         policyDenied = true
         needsPolicyAcceptance = false
         if pendingPolicyIsNewUser {
+            let targetUserID = pendingPolicyUserId
+            let appleAuthorizationCode = pendingAppleAuthorizationCode
             Task {
-                do { try await Auth.auth().currentUser?.delete() } catch {
-                    print("⚠️ Could not delete new user after policy denial: \(error)")
+                var revokedAppleToken = false
+                do {
+                    guard let firebaseUser = Auth.auth().currentUser else {
+                        throw AccountDeletionIdentityError()
+                    }
+                    try Self.validateAccountDeletionIdentity(
+                        targetUserID: targetUserID,
+                        reauthenticatedUserID: firebaseUser.uid,
+                        currentFirebaseUserID: Auth.auth().currentUser?.uid
+                    )
+                    if let appleAuthorizationCode {
+                        try await Auth.auth().revokeToken(
+                            withAuthorizationCode: appleAuthorizationCode
+                        )
+                        revokedAppleToken = true
+                    }
+                    try await self.dataManager.requestUserDataDeletion(
+                        for: firebaseUser.uid
+                    )
+                    self.pendingPolicyUserId = nil
+                    self.pendingPolicyIsNewUser = false
+                    self.pendingAppleAuthorizationCode = nil
+                    self.signOut()
+                } catch {
+                    // Do not sign out and orphan a newly-created Auth account
+                    // when the durable request was not accepted (for example,
+                    // if the fresh-auth window expired while the policy was
+                    // open). Keep the user in the policy flow with all cloud
+                    // data intact so they can retry or accept the policy.
+                    self.errorMessage = "Account deletion did not start. Your account and data are still intact. Please try again."
+                    self.policyDenied = false
+                    self.needsPolicyAcceptance = true
+                    self.pendingPolicyUserId = targetUserID
+                    self.pendingPolicyIsNewUser = true
+                    if revokedAppleToken {
+                        self.pendingAppleAuthorizationCode = nil
+                    } else {
+                        self.pendingAppleAuthorizationCode = appleAuthorizationCode
+                    }
+                    print("⚠️ Could not request new-user deletion after policy denial: \(error)")
                 }
-                signOut()
             }
         } else {
             signOut()
+            pendingPolicyUserId = nil
+            pendingPolicyIsNewUser = false
+            pendingAppleAuthorizationCode = nil
         }
-        pendingPolicyUserId = nil
-        pendingPolicyIsNewUser = false
     }
 
     // MARK: - Sign Out
 
     func signOut() {
         do {
-            try Auth.auth().signOut()
-            GIDSignIn.sharedInstance.signOut()
+            try firebaseSignOut()
+            googleSignOut()
             user = nil
             isUsingDebugGuestSession = false
             policyDenied = false
             // Reset all first-launch / onboarding flags so tutorial shows on next account
-            UserDefaults.standard.set(false, forKey: "HasCompletedOnboarding")
-            UserDefaults.standard.set(false, forKey: "HasLaunchedBefore")
-            UserDefaults.standard.removeObject(forKey: "LastSeenVersion")
-            if let url = try? classesDocumentsURL() {
-                try? FileManager.default.removeItem(at: url)
-            }
+            userDefaults.set(false, forKey: "HasCompletedOnboarding")
+            userDefaults.set(false, forKey: "HasLaunchedBefore")
+            userDefaults.removeObject(forKey: "LastSeenVersion")
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -396,25 +464,43 @@ class AuthenticationManager: ObservableObject {
 
     // MARK: - Delete Account
 
-    func deleteAccount() async {
-        guard user != nil else { return }
-        guard let userId = user?.id,
-              let firebaseUser = Auth.auth().currentUser else { return }
-
-        do {
-            try await dataManager.deleteUserData(for: userId)
-            try await firebaseUser.delete()
-            signOut()
-        } catch let error as NSError
-            where error.domain == AuthErrorDomain
-               && error.code   == AuthErrorCode.requiresRecentLogin.rawValue
-        {
-            reauthError = ""
-            needsReauthForDeletion = true
-        } catch {
-            print("❌ Failed to delete account: \(error)")
-            errorMessage = error.localizedDescription
+    struct AccountDeletionIdentityError: LocalizedError, Equatable {
+        var errorDescription: String? {
+            "Account deletion stopped because the signed-in account changed. Please sign in again before retrying."
         }
+    }
+
+    static func validateAccountDeletionIdentity(
+        targetUserID: String?,
+        reauthenticatedUserID: String,
+        currentFirebaseUserID: String?
+    ) throws {
+        guard let targetUserID,
+              targetUserID == reauthenticatedUserID,
+              targetUserID == currentFirebaseUserID else {
+            throw AccountDeletionIdentityError()
+        }
+    }
+
+    func deleteAccount() async {
+        guard let targetUserID = user?.id,
+              let firebaseUser = Auth.auth().currentUser else { return }
+        do {
+            try Self.validateAccountDeletionIdentity(
+                targetUserID: targetUserID,
+                reauthenticatedUserID: firebaseUser.uid,
+                currentFirebaseUserID: Auth.auth().currentUser?.uid
+            )
+        } catch {
+            errorMessage = error.localizedDescription
+            return
+        }
+
+        // Reauthentication must precede the durable deletion request. The
+        // backend will remove Firebase Auth first and Firestore second, so an
+        // interruption can never leave a live account whose data was erased.
+        reauthError = ""
+        needsReauthForDeletion = true
     }
 
     func reauthWithPasswordAndDelete(password: String) async {
@@ -427,10 +513,7 @@ class AuthenticationManager: ObservableObject {
         do {
             let credential = EmailAuthProvider.credential(withEmail: email, password: password)
             try await firebaseUser.reauthenticate(with: credential)
-            if let userId = user?.id {
-                try await dataManager.deleteUserData(for: userId)
-            }
-            try await firebaseUser.delete()
+            try await deleteReauthenticatedUser(firebaseUser)
             needsReauthForDeletion = false
             signOut()
         } catch {
@@ -456,16 +539,101 @@ class AuthenticationManager: ObservableObject {
                 accessToken: g.user.accessToken.tokenString
             )
             try await firebaseUser.reauthenticate(with: credential)
-            if let userId = user?.id {
-                try await dataManager.deleteUserData(for: userId)
-            }
-            try await firebaseUser.delete()
+            try await deleteReauthenticatedUser(firebaseUser)
             needsReauthForDeletion = false
             signOut()
         } catch {
             reauthError = error.localizedDescription
         }
         isLoading = false
+    }
+
+    func reauthWithAppleAndDelete(result: Result<ASAuthorization, Error>) async {
+        guard let firebaseUser = Auth.auth().currentUser else {
+            reauthError = "No signed-in account was found. Please sign in again."
+            return
+        }
+
+        isLoading = true
+        reauthError = ""
+        defer {
+            currentNonce = nil
+            isLoading = false
+        }
+
+        switch result {
+        case .success(let authorization):
+            guard let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential,
+                  let nonce = currentNonce,
+                  let appleIDToken = appleIDCredential.identityToken,
+                  let idTokenString = String(data: appleIDToken, encoding: .utf8),
+                  let authorizationCode = appleIDCredential.authorizationCode,
+                  let authorizationCodeString = String(
+                    data: authorizationCode,
+                    encoding: .utf8
+                  ) else {
+                reauthError = "Unable to verify the Apple identity token. Please try again."
+                return
+            }
+
+            let credential = OAuthProvider.appleCredential(
+                withIDToken: idTokenString,
+                rawNonce: nonce,
+                fullName: appleIDCredential.fullName
+            )
+
+            do {
+                try await firebaseUser.reauthenticate(with: credential)
+                // Apple requires the freshly issued authorization code to be
+                // revoked when an account is deleted. Do this before the
+                // durable deletion request so a revocation failure leaves the
+                // Firebase account and Firestore data untouched.
+                try await Auth.auth().revokeToken(
+                    withAuthorizationCode: authorizationCodeString
+                )
+                try await deleteReauthenticatedUser(firebaseUser)
+                needsReauthForDeletion = false
+                signOut()
+            } catch {
+                reauthError = handleAppleSignInError(error)
+            }
+
+        case .failure(let error):
+            reauthError = handleAppleSignInError(error)
+        }
+    }
+
+    private func deleteReauthenticatedUser(_ firebaseUser: FirebaseAuth.User) async throws {
+        let userId = user?.id
+        try Self.validateAccountDeletionIdentity(
+            targetUserID: userId,
+            reauthenticatedUserID: firebaseUser.uid,
+            currentFirebaseUserID: Auth.auth().currentUser?.uid
+        )
+        guard let userId else { throw AccountDeletionIdentityError() }
+
+        // Firestore rules independently enforce a recent-authentication
+        // window from the ID token's auth_time claim. Force a refresh so the
+        // just-completed password/Google/Apple verification is represented in
+        // the token used to create the deletion marker.
+        _ = try await firebaseUser.getIDTokenResult(forcingRefresh: true)
+        try await dataManager.requestUserDataDeletion(for: userId)
+    }
+}
+
+enum AccountReauthenticationMethod: Equatable {
+    case password
+    case google
+    case apple
+
+    init(providerIDs: [String]) {
+        if providerIDs.contains("apple.com") {
+            self = .apple
+        } else if providerIDs.contains("google.com") {
+            self = .google
+        } else {
+            self = .password
+        }
     }
 }
 
@@ -475,6 +643,12 @@ struct User {
     let id: String
     let email: String
     let displayName: String?
+
+    init(id: String, email: String, displayName: String? = nil) {
+        self.id = id
+        self.email = email
+        self.displayName = displayName
+    }
 
     init(from firebaseUser: FirebaseAuth.User) {
         self.id = firebaseUser.uid

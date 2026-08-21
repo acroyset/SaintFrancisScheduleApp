@@ -628,7 +628,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.21;
+				MARKETING_VERSION = 1.21.2;
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_BUNDLE_IDENTIFIER = Xcode.ScheduleApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -660,7 +660,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.21;
+				MARKETING_VERSION = 1.21.2;
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_BUNDLE_IDENTIFIER = Xcode.ScheduleApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -757,7 +757,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.21;
+				MARKETING_VERSION = 1.21.2;
 				PRODUCT_BUNDLE_IDENTIFIER = Xcode.ScheduleApp.ScheduleWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -785,7 +785,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.21;
+				MARKETING_VERSION = 1.21.2;
 				PRODUCT_BUNDLE_IDENTIFIER = Xcode.ScheduleApp.ScheduleWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
